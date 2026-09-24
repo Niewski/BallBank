@@ -1,0 +1,24 @@
+<Solution>
+  <Folder Name="/solution items/">
+    <File Path=".editorconfig" />
+    <File Path=".gitattributes" />
+    <File Path=".gitignore" />
+    <File Path="CLAUDE.md" />
+    <File Path="CONTEXT.md" />
+    <File Path="Directory.Build.props" />
+    <File Path="docker-compose.yml" />
+    <File Path="global.json" />
+    <File Path="README.md" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/BallBank.AppHost/BallBank.AppHost.csproj" />
+    <Project Path="src/BallBank.ServiceDefaults/BallBank.ServiceDefaults.csproj" />
+    <Project Path="src/BallBank.Domain/BallBank.Domain.csproj" />
+    <Project Path="src/BallBank.Api/BallBank.Api.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/BallBank.Domain.Tests/BallBank.Domain.Tests.csproj" />
+    <Project Path="tests/BallBank.Integration.Tests/BallBank.Integration.Tests.csproj" />
+    <Project Path="tests/BallBank.Specs/BallBank.Specs.csproj" />
+  </Folder>
+</Solution>

@@ -1,0 +1,21 @@
+<Project>
+
+  <!-- Shared settings for every project in the repo. Package versions live in each csproj on purpose:
+       there are few enough that the indirection of central package management is not worth it yet. -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <Authors>Jacob Wisniewski</Authors>
+    <Product>BallBank</Product>
+    <RepositoryUrl>https://github.com/Niewski/BallBank</RepositoryUrl>
+  </PropertyGroup>
+
+</Project>

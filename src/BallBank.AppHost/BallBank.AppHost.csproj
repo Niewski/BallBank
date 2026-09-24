@@ -1,0 +1,22 @@
+<Project Sdk="Aspire.AppHost.Sdk/13.5.3">
+
+  <!-- Local orchestration: one `aspire run` starts PostgreSQL, the API and the web app with a dashboard
+       for logs, traces and metrics. The SDK brings Aspire.Hosting.AppHost with it. -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsAspireHost>true</IsAspireHost>
+    <RootNamespace>BallBank.AppHost</RootNamespace>
+    <UserSecretsId>ballbank-apphost-9e6d2f41-8b7a-4f0c-a1d3-5c2e8f7b6a90</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.JavaScript" Version="13.5.3" />
+    <PackageReference Include="Aspire.Hosting.PostgreSQL" Version="13.5.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BallBank.Api\BallBank.Api.csproj" />
+  </ItemGroup>
+
+</Project>

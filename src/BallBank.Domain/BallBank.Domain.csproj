@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The domain has no package references on purpose. Aggregates decide (return events) and evolve
+       (apply events). Persistence, HTTP and messaging live in BallBank.Api. -->
+
+  <PropertyGroup>
+    <RootNamespace>BallBank.Domain</RootNamespace>
+  </PropertyGroup>
+
+</Project>

@@ -1,0 +1,43 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+.vs/
+TestResults/
+*.trx
+*.coverage
+*.coveragexml
+coverage/
+artifacts/
+publish/
+*.binlog
+
+# Rider / IDEs
+.idea/
+*.DotSettings.user
+.vscode/*
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
+
+# Secrets and local config (never commit)
+.env
+.env.*
+!.env.example
+appsettings.*.local.json
+*.pfx
+*.pem
+
+# Aspire / local orchestration state
+.aspire/
+
+# Agent scratch space (used by some skills for throwaway files)
+.scratch/
+.claude/settings.local.json
+
+# OS
+.DS_Store
+Thumbs.db

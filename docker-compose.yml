@@ -1,0 +1,21 @@
+# Postgres for running the API without the Aspire AppHost (the AppHost starts its own container).
+# Matches ConnectionStrings:ballbank in src/BallBank.Api/appsettings.Development.json.
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ballbank
+    ports:
+      - "5432:5432"
+    volumes:
+      - ballbank-pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ballbank"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  ballbank-pg:

@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <RootNamespace>BallBank.Api</RootNamespace>
+    <UserSecretsId>ballbank-api-3b0f7a2c-6d1e-4c58-9a44-0f2f6b1c7e21</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BallBank.Domain\BallBank.Domain.csproj" />
+    <ProjectReference Include="..\BallBank.ServiceDefaults\BallBank.ServiceDefaults.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Marten" Version="9.39.0" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.12" />
+    <PackageReference Include="WolverineFx" Version="6.39.1" />
+    <PackageReference Include="WolverineFx.Http" Version="6.39.1" />
+    <PackageReference Include="WolverineFx.Marten" Version="6.39.1" />
+  </ItemGroup>
+
+</Project>
