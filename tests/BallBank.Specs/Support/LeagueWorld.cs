@@ -32,7 +32,7 @@ public sealed class LeagueWorld
         {
             var opened = MemberAccount.Open(new OpenAccount(Guid.NewGuid(), LeagueId, "2026", Guid.NewGuid()), Now);
             _history.Add(opened);
-            _accounts[member] = MemberAccount.Create(opened);
+            _accounts[member] = MemberAccount.Replay(opened);
         }
     }
 

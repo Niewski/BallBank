@@ -6,6 +6,8 @@
   <PropertyGroup>
     <RootNamespace>BallBank.Specs</RootNamespace>
     <IsTestProject>true</IsTestProject>
+    <!-- Reqnroll resolves the en-US culture for feature files; invariant globalization forbids that. -->
+    <InvariantGlobalization>false</InvariantGlobalization>
   </PropertyGroup>
 
   <ItemGroup>

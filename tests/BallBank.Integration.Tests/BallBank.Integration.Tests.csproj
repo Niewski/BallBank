@@ -8,6 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\BallBank.Api\BallBank.Api.csproj" />
     <ProjectReference Include="..\..\src\BallBank.Domain\BallBank.Domain.csproj" />
   </ItemGroup>
 

@@ -1,5 +1,8 @@
 using BallBank.Api;
+using BallBank.Api.Features.Treasury;
 using JasperFx.Events;
+using JasperFx.Events.Projections;
+using JasperFx.MultiTenancy;
 using Marten;
 using Marten.Events;
 using Marten.Storage;
@@ -29,6 +32,9 @@ builder.Services.AddMarten(options =>
         // Every event and document row carries a tenant_id; sessions are opened per league.
         options.Events.TenancyStyle = TenancyStyle.Conjoined;
         options.Policies.AllDocumentsAreMultiTenanted();
+
+        // Aggregates rebuilt from their streams on read (see MemberAccountProjection for why explicit).
+        options.Projections.Add(new MemberAccountProjection(), ProjectionLifecycle.Live);
 
         // Who caused what: correlation/causation ids and headers (e.g. the acting user) on every event.
         options.Events.MetadataConfig.CausationIdEnabled = true;

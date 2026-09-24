@@ -44,7 +44,8 @@ docs/                        architecture, domain, roadmap, numbers, runbook, ad
 ## Rules that do not bend
 
 1. `BallBank.Domain` stays free of packages. Aggregates **decide** (validate a command, return an
-   event or throw `DomainException`) and **evolve** (`Apply`). No I/O, no clocks: `now` is a parameter.
+   event or throw `DomainException`) and **evolve** (`Evolve`, backed by private `When` methods;
+   never name them `Apply`/`Create`, which Marten 9 claims by convention). No I/O, no clocks: `now` is a parameter.
 2. Events are immutable facts in the past tense. Never edit a released event type; add a new one.
 3. Balances are derived from events, never stored.
 4. Every command carries the id of the fact it creates; replaying a command is a no-op (`null`).

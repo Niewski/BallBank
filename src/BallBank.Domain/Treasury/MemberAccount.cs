@@ -126,17 +126,11 @@ public sealed class MemberAccount
     }
 
     // ---------------------------------------------------------------------------------------------
-    // Evolution. How each event changes state. Marten discovers Create/Apply by convention.
+    // Evolution. How each event changes state. Not named Apply/Create: Marten treats those names as its
+    // own conventions, which need a source generator this package-free assembly cannot run.
     // ---------------------------------------------------------------------------------------------
 
-    public static MemberAccount Create(AccountOpened @event)
-    {
-        var account = new MemberAccount();
-        account.Apply(@event);
-        return account;
-    }
-
-    public void Apply(AccountOpened @event)
+    private void When(AccountOpened @event)
     {
         Id = @event.AccountId;
         LeagueId = @event.LeagueId;
@@ -144,9 +138,9 @@ public sealed class MemberAccount
         MemberId = @event.MemberId;
     }
 
-    public void Apply(DuesAssessed @event) => _assessments[@event.AssessmentId] = @event.Amount;
+    private void When(DuesAssessed @event) => _assessments[@event.AssessmentId] = @event.Amount;
 
-    public void Apply(PaymentAttested @event) =>
+    private void When(PaymentAttested @event) =>
         _attestations[@event.AttestationId] = new Attestation(
             @event.AttestationId,
             @event.Amount,
@@ -156,48 +150,49 @@ public sealed class MemberAccount
             @event.AttestedAt,
             AttestationStatus.Pending);
 
-    public void Apply(PaymentConfirmed @event)
+    private void When(PaymentConfirmed @event)
     {
         var attestation = _attestations[@event.AttestationId];
         _attestations[@event.AttestationId] = attestation with { Status = AttestationStatus.Confirmed };
         Confirmed += attestation.Amount;
     }
 
-    public void Apply(PaymentRejected @event)
+    private void When(PaymentRejected @event)
     {
         var attestation = _attestations[@event.AttestationId];
         _attestations[@event.AttestationId] = attestation with { Status = AttestationStatus.Rejected };
     }
 
-    /// <summary>Applies any event of this stream. Used by tests and specs; the event store calls Apply directly.</summary>
+    /// <summary>Applies any event of this stream after the first.</summary>
     public void Evolve(object @event)
     {
         switch (@event)
         {
             case AccountOpened e:
-                Apply(e);
+                When(e);
                 break;
             case DuesAssessed e:
-                Apply(e);
+                When(e);
                 break;
             case PaymentAttested e:
-                Apply(e);
+                When(e);
                 break;
             case PaymentConfirmed e:
-                Apply(e);
+                When(e);
                 break;
             case PaymentRejected e:
-                Apply(e);
+                When(e);
                 break;
             default:
                 throw new InvalidOperationException($"MemberAccount does not know the event {@event.GetType().Name}.");
         }
     }
 
-    /// <summary>Rebuilds an account from its history. Convenience for tests and specs.</summary>
+    /// <summary>Rebuilds an account from its history, starting with the event that opened it.</summary>
     public static MemberAccount Replay(AccountOpened opened, params object[] history)
     {
-        var account = Create(opened);
+        var account = new MemberAccount();
+        account.When(opened);
         foreach (var @event in history)
         {
             account.Evolve(@event);

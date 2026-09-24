@@ -1,4 +1,7 @@
+using BallBank.Api.Features.Treasury;
 using JasperFx.Events;
+using JasperFx.Events.Projections;
+using JasperFx.MultiTenancy;
 using Marten;
 using Marten.Events;
 using Marten.Storage;
@@ -12,8 +15,7 @@ namespace BallBank.Integration.Tests;
 /// </summary>
 public sealed class PostgresFixture : IAsyncLifetime
 {
-    private readonly PostgreSqlContainer _container = new PostgreSqlBuilder()
-        .WithImage("postgres:17-alpine")
+    private readonly PostgreSqlContainer _container = new PostgreSqlBuilder("postgres:17-alpine")
         .Build();
 
     public DocumentStore Store { get; private set; } = default!;
@@ -28,6 +30,7 @@ public sealed class PostgresFixture : IAsyncLifetime
             options.DatabaseSchemaName = "ballbank";
             options.Events.TenancyStyle = TenancyStyle.Conjoined;
             options.Policies.AllDocumentsAreMultiTenanted();
+            options.Projections.Add(new MemberAccountProjection(), ProjectionLifecycle.Live);
         });
     }
 
