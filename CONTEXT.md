@@ -8,7 +8,7 @@ not before.
 
 | Context | Owns | Lives in |
 |---|---|---|
-| **Membership** | Leagues, seasons, members, roles, the Sleeper import | `src/BallBank.Api/Features/Membership` (planned) |
+| **Membership** | Leagues, members, identities, claims, invites, roles, the Sleeper import | `src/BallBank.Domain/Membership`, `src/BallBank.Api/Features/Membership` (planned) |
 | **Treasury** | Assessments, attestations, confirmations, adjustments, payouts, season close | `src/BallBank.Domain/Treasury`, `src/BallBank.Api/Features/Treasury` |
 | **Payment Rails** | How a payment is said to have moved; adapters that verify or demo it | `src/BallBank.Api/Integrations` (planned) |
 | **Notifications** | Reminders and digests over Discord and SMS | `src/BallBank.Api/Features/Notifications` (planned) |
@@ -21,13 +21,40 @@ yearly `league_id`. Not: "group", "pool", "tenant" (in domain code).
 
 **Season** — One year of a league. Dues, payout structure and standings belong to a season. Not: "year".
 
-**Member** — A person in a league. Has a claimed identity (they signed in and picked their team) or
-an unclaimed one (imported from Sleeper, no login yet). Not: "user", "player", "owner", "manager".
+**Member** — The one person responsible for a team's dues in a league. Imported from a Sleeper
+roster, one member per roster, taken from the roster's owner; Sleeper co-owners are ignored. A
+roster with no owner still yields a member, because the team still owes dues. A member is *claimed*
+once an identity has claimed it, otherwise *unclaimed*. Not: "user", "player", "owner", "manager",
+"team" (that is what Sleeper calls it), "roster" (that is Sleeper's record of it), "seat".
 
-**Treasurer** — The member who keeps the books for a league: assesses dues, confirms and rejects
-payments, posts adjustments, declares standings, closes the season. A role BallBank assigns; the
-person who imports the league becomes Treasurer. Sleeper's `is_owner` (its commissioner flag) is
-only an offer to become a co-treasurer. Not: "commissioner", "admin".
+**Identity** — A signed-in person, known to BallBank only by the subject their sign-in provider
+issues. An identity becomes a member by claiming one; one identity can be a member of many
+leagues, but at most one member per league, and a member is held by at most one identity. Not:
+"user", "account", "login".
+
+**Claim** — The act, and the resulting fact, of an identity becoming a member through an invite.
+The person who imports a league claims their own member in the same step. Not: "link",
+"registration", "join".
+
+**Invite** — A single-use, expiring link the treasurer issues for one specific member so the right
+person can claim it. Opening it while signed in completes the claim; no approval step. Not:
+"invitation code", "join link".
+
+**Contact details** — How to reach a member: email, phone number, Discord username. They belong
+to the member within a league, so a treasurer can record a phone number for a member who has not
+claimed yet and text them their invite. A person in two leagues has contact details in each.
+Not: "profile", "settings".
+
+**Treasurer** — A member who keeps the books for a league: assesses dues, confirms and rejects
+payments, posts adjustments, declares standings, closes the season. A role BallBank assigns to a
+member. The member who imports the league becomes a Treasurer; any treasurer can appoint another.
+There is one role; a second appointee is simply another treasurer. Sleeper's `is_owner` (its commissioner flag) is only a suggestion of whom to appoint. Not:
+"commissioner", "admin", "co-treasurer".
+
+**Import** — Bringing a Sleeper league into BallBank: the league, its season, and one member per
+roster. Importing the same Sleeper league into the same BallBank league again is a *sync*: members
+that appeared since are added, everything already known is left alone. One Sleeper league can back
+only one BallBank league. Not: "sync" as a separate verb, "refresh", "pull".
 
 **Account** (`MemberAccount`) — One member's books for one season of one league. An event stream.
 Not: "wallet", "ledger" (that is the whole of them together), "balance" (that is a number).
@@ -81,3 +108,6 @@ separate thing. Not: "log", "audit table".
 - An attestation never changes a balance; only a confirmation does.
 - Every command carries the id of the fact it wants to create, so retries converge.
 - The tenant (league) comes from the request's route and token, never from its body.
+- Roles belong to members. A member is one person, so a role is one person's.
+- A member's books follow the team: if a different person takes over the team, the treasurer
+  moves the member to that person; the account and its history stay put.
