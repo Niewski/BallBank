@@ -1,6 +1,6 @@
 # ADR-0004: Conjoined tenancy, tenant = league
 
-- **Status:** Proposed
+- **Status:** Proposed, amended by ADR-0011 (two cross-tenant documents)
 - **Date:** 2026-09-24
 
 ## Context
