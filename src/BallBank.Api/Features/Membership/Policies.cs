@@ -29,18 +29,18 @@ public sealed class LeagueMemberHandler(IDocumentStore store) : AuthorizationHan
 {
     protected override async Task HandleRequirementAsync(AuthorizationHandlerContext context, LeagueMemberRequirement requirement)
     {
-        if (context.Resource is not HttpContext http
-            || !Guid.TryParse(http.GetRouteValue(LeagueTenant.RouteArgument) as string, out var leagueId)
-            || context.User.FindFirst("sub")?.Value is not { } subject)
+        if (context.User.Identity?.IsAuthenticated != true
+            || context.Resource is not HttpContext http
+            || LeagueTenant.Of(http) is not { } league)
         {
             return;
         }
 
         // UserMemberships lives in the default tenant, not the league's.
         await using var session = store.QuerySession();
-        var memberships = await session.LoadAsync<UserMemberships>(subject, http.RequestAborted);
+        var memberships = await session.LoadAsync<UserMemberships>(context.User.Subject(), http.RequestAborted);
 
-        if (memberships?.Leagues.Any(l => l.LeagueId == leagueId) == true)
+        if (memberships?.Leagues.Any(l => l.LeagueId.ToString() == league) == true)
         {
             context.Succeed(requirement);
         }

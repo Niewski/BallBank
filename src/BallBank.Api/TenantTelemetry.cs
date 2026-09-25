@@ -6,6 +6,8 @@ namespace BallBank.Api;
 /// Tags every request under <c>/leagues/{leagueId}</c> with its league, as <c>tenant.id</c> on the
 /// request's span and on every log written while it is handled, so a problem can be traced to one
 /// league. <c>tenant.id</c> is the name Wolverine gives the same tag on the endpoints it runs.
+/// What the host logs before routing has read the league from the path (the request starting, host
+/// filtering, route matching) and the request-finished line carry the request's trace id but not the league.
 /// </summary>
 public static class TenantTelemetry
 {

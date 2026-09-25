@@ -55,7 +55,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-// Every /leagues/{leagueId} page is behind LeagueMember: the caller's memberships list that league.
+// LeagueMember guards a league's pages: the caller's memberships list the league in the route.
 builder.Services.AddLeaguePolicies();
 
 // A refused command (DomainException) is a 409 carrying its message; anything else stays a 500.

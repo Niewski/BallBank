@@ -24,11 +24,8 @@ public static class MemberListEndpoint
     /// <summary>Every member of the league, for any of its members, in team name order.</summary>
     [Authorize(Policy = Policies.LeagueMember)]
     [WolverineGet("/leagues/{leagueId}/members")]
-    public static async Task<IResult> Get(Guid leagueId, IDocumentStore store, CancellationToken cancellation)
+    public static async Task<IResult> Get(Guid leagueId, IQuerySession session, CancellationToken cancellation)
     {
-        // Opened on the canonical form of the league id, as the import does, so the tenant never
-        // depends on how the client spelled the GUID.
-        await using var session = store.QuerySession(leagueId.ToString());
         var league = await session.Events.AggregateStreamAsync<League>(leagueId, token: cancellation);
         if (league is null)
         {

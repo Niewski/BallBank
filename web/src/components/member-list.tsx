@@ -117,7 +117,7 @@ export function MemberList({ leagueId }: { leagueId: string }) {
                 </th>
                 <td className="p-3 text-zinc-700 dark:text-zinc-300">
                   {member.sleeperDisplayName ?? (
-                    <span className="text-zinc-400">No owner</span>
+                    <span className="text-zinc-400">Nobody on Sleeper</span>
                   )}
                 </td>
                 <td className="p-3">
@@ -139,15 +139,14 @@ export function MemberList({ leagueId }: { leagueId: string }) {
                         {role}
                       </span>
                     ))}
-                    {member.suggestedTreasurer &&
-                      !member.roles.includes("Treasurer") && (
-                        <span
-                          className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400"
-                          title="A commissioner on Sleeper"
-                        >
-                          Suggested treasurer
-                        </span>
-                      )}
+                    {member.suggestedTreasurer && (
+                      <span
+                        className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400"
+                        title="Sleeper marks this team's owner as a commissioner"
+                      >
+                        Suggested treasurer
+                      </span>
+                    )}
                   </div>
                 </td>
               </tr>
