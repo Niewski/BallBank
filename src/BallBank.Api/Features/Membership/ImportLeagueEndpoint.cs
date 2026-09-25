@@ -140,7 +140,7 @@ public static class ImportLeagueEndpoint
     }
 
     private static ImportedLeague Summary(League league, Member held) =>
-        new(league.Id, league.Name, league.Season, league.Members.Count, held.MemberId, held.IsTreasurer ? [Roles.Treasurer] : []);
+        new(league.Id, league.Name, league.Season, league.Members.Count, held.MemberId, Roles.Of(held));
 
     private static IResult AlreadyImported() =>
         Results.Problem(

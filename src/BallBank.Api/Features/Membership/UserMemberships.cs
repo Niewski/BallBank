@@ -1,3 +1,5 @@
+using BallBank.Domain.Membership;
+
 namespace BallBank.Api.Features.Membership;
 
 /// <summary>
@@ -24,4 +26,7 @@ public sealed record LeagueMembership(
 public static class Roles
 {
     public const string Treasurer = "Treasurer";
+
+    /// <summary>The roles a member holds, as the API names them.</summary>
+    public static IReadOnlyList<string> Of(Member member) => member.IsTreasurer ? [Treasurer] : [];
 }
