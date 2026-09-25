@@ -62,3 +62,6 @@ jobs:
       - run: npm run build
         env:
           NEXT_PUBLIC_API_URL: https://api.ballbank.invalid
+          NEXT_PUBLIC_AUTH0_DOMAIN: ballbank.invalid
+          NEXT_PUBLIC_AUTH0_CLIENT_ID: ci
+          NEXT_PUBLIC_AUTH0_AUDIENCE: https://api.ballbank.invalid

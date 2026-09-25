@@ -12,10 +12,12 @@
 
   <ItemGroup>
     <PackageReference Include="Marten" Version="9.39.1" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.12" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.12" />
     <PackageReference Include="WolverineFx" Version="6.40.0" />
     <PackageReference Include="WolverineFx.Http" Version="6.40.0" />
     <PackageReference Include="WolverineFx.Marten" Version="6.40.0" />
+    <PackageReference Include="WolverineFx.RuntimeCompilation" Version="6.40.0" />
   </ItemGroup>
 
 </Project>

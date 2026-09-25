@@ -1,6 +1,7 @@
-import { ApiStatus } from "@/components/api-status";
+import { Home } from "@/components/home";
+import { SignInProvider } from "@/components/sign-in-provider";
 
-export default function Home() {
+export default function HomePage() {
   return (
     <div className="flex flex-1 flex-col items-center justify-center bg-zinc-50 px-6 py-24 font-sans dark:bg-black">
       <main className="flex w-full max-w-2xl flex-col gap-10">
@@ -19,7 +20,9 @@ export default function Home() {
           </p>
         </header>
 
-        <ApiStatus />
+        <SignInProvider>
+          <Home />
+        </SignInProvider>
 
         <footer className="text-sm text-zinc-500 dark:text-zinc-500">
           Built in the open during the 2026 season. Source on{" "}

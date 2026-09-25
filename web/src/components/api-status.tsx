@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { apiBaseUrl } from "@/lib/config";
 
 type VersionInfo = { name: string; version: string };
 
@@ -8,8 +9,6 @@ type Status =
   | { kind: "loading" }
   | { kind: "ok"; info: VersionInfo }
   | { kind: "error"; message: string };
-
-const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL ?? "";
 
 export function ApiStatus() {
   const [status, setStatus] = useState<Status>({ kind: "loading" });
