@@ -21,7 +21,9 @@ Deploy target: API on Container Apps, web on Static Web Apps, so nothing lives o
 - Auth0 sign-in on the web; JWT validation on the API.
 - Invite links and identity claims (`MemberClaimed`); the Treasurer role, which any treasurer can give another member.
 - "My leagues" and member list pages.
-- Reqnroll: *Importing a league*.
+- Contact details (email, US phone, Discord username) in a tenant-scoped `MemberContact` document,
+  not events (ADR-0012): a treasurer edits anyone's, a member their own, nobody else sees them.
+- Reqnroll: *Importing a league*, *Keeping contact details*.
 
 ## M2 — The ledger (league goes live)
 

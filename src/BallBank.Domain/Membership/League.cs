@@ -94,6 +94,35 @@ public sealed class League
             .ToList<object>();
     }
 
+    /// <summary>
+    /// The contact details to keep for a member. A treasurer changes anyone's, claimed or not; a member
+    /// changes their own. Decided here but written as a document, never an event (ADR-0012).
+    /// </summary>
+    public ContactDetails RecordContactDetails(RecordContactDetails command)
+    {
+        if (!_members.TryGetValue(command.MemberId, out var member))
+        {
+            throw new DomainException($"{Name} has no such member.");
+        }
+
+        if (MemberHeldBy(command.EditorSubject) is not { } editor
+            || (!editor.IsTreasurer && editor.MemberId != member.MemberId))
+        {
+            throw new DomainException(
+                $"Only a treasurer of {Name}, or whoever holds {member.TeamName}, can change its contact details.");
+        }
+
+        var details = ContactDetails.From(command.Email, command.Phone, command.DiscordUsername);
+
+        // Before a claim there may be nothing to go on; once someone holds the member, BallBank can reach them.
+        if (member.IsClaimed && details.Email is null)
+        {
+            throw new DomainException($"{member.TeamName} is claimed, so its contact details need an email.");
+        }
+
+        return details;
+    }
+
     // One member per roster, from its owner; co-owners never appear here because a roster names one owner.
     private static MemberAdded MemberFor(
         SleeperLeagueSnapshot.Roster roster,
