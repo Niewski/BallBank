@@ -26,6 +26,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Include="Sleeper\Fixtures\*.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Using Include="Shouldly" />
     <Using Include="Xunit" />
   </ItemGroup>

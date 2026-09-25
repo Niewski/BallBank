@@ -1,0 +1,32 @@
+[
+  {
+    "user_id": "100000000000000001",
+    "username": "jacob",
+    "display_name": "Jacob",
+    "avatar": null,
+    "league_id": "900000000000000001",
+    "is_owner": true,
+    "is_bot": false,
+    "metadata": { "team_name": "Hog Wild" }
+  },
+  {
+    "user_id": "100000000000000002",
+    "username": "sam",
+    "display_name": "Sam",
+    "avatar": null,
+    "league_id": "900000000000000001",
+    "is_owner": false,
+    "is_bot": false,
+    "metadata": { "team_name": "Sam's Slammers" }
+  },
+  {
+    "user_id": "100000000000000003",
+    "username": "priya",
+    "display_name": "Priya",
+    "avatar": null,
+    "league_id": "900000000000000001",
+    "is_owner": null,
+    "is_bot": false,
+    "metadata": {}
+  }
+]

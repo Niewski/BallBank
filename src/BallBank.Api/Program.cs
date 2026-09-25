@@ -1,6 +1,7 @@
 using BallBank.Api;
 using BallBank.Api.Features.Membership;
 using BallBank.Api.Features.Treasury;
+using BallBank.Api.Integrations.Sleeper;
 using JasperFx.Events;
 using JasperFx.Events.Projections;
 using JasperFx.MultiTenancy;
@@ -59,6 +60,10 @@ builder.Services.AddAuthorization();
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<RefusalHandler>();
 
+// Sleeper, where leagues are imported from. A Sleeper failure is a 502 that says to try again.
+builder.Services.AddSleeper();
+builder.Services.AddExceptionHandler<SleeperUnavailableHandler>();
+
 // Marten: event store + documents on PostgreSQL. Tenant = league (ADR-0004).
 builder.Services.AddMarten(options =>
     {
@@ -93,6 +98,9 @@ builder.Host.UseWolverine(options =>
 
     // One node for now (ADR-0007). Revisit when there is more than one replica.
     options.Durability.Mode = DurabilityMode.Solo;
+
+    // Typed HTTP clients are built by the HTTP client factory, which Wolverine's code generation cannot inline.
+    options.CodeGeneration.AlwaysUseServiceLocationFor<SleeperClient>();
 });
 builder.Services.AddWolverineHttp();
 

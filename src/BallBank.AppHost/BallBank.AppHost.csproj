@@ -6,6 +6,8 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <IsAspireHost>true</IsAspireHost>
+    <!-- DCP and the dashboard come from the installed Aspire CLI (ASPIRE010). -->
+    <AspireUseCliBundle>true</AspireUseCliBundle>
     <RootNamespace>BallBank.AppHost</RootNamespace>
     <UserSecretsId>ballbank-apphost-9e6d2f41-8b7a-4f0c-a1d3-5c2e8f7b6a90</UserSecretsId>
   </PropertyGroup>

@@ -1,7 +1,9 @@
 using System.Net.Http.Headers;
 using System.Security.Claims;
 using System.Security.Cryptography;
+using BallBank.Api.Integrations.Sleeper;
 using BallBank.Domain;
+using BallBank.Integration.Tests.Sleeper;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -9,6 +11,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Http.Resilience;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.IdentityModel.Tokens;
@@ -31,6 +34,9 @@ public sealed class BallBankApi(string connectionString) : WebApplicationFactory
     public const string RefusalMessage = "That member is already claimed.";
 
     private readonly SecurityKey _signingKey = NewSigningKey();
+
+    /// <summary>What the API's Sleeper client talks to instead of Sleeper.</summary>
+    public FakeSleeper Sleeper { get; } = new();
 
     public HttpClient CreateClientFor(string subject)
     {
@@ -77,6 +83,17 @@ public sealed class BallBankApi(string connectionString) : WebApplicationFactory
                     Issuer = Issuer,
                     SigningKeys = { _signingKey },
                 });
+
+            services.AddHttpClient<SleeperClient>().ConfigurePrimaryHttpMessageHandler(Sleeper.Handler);
+
+            // The standard resilience handler as configured, but giving up on a failing Sleeper in
+            // seconds rather than half a minute.
+            services.ConfigureAll<HttpStandardResilienceOptions>(options =>
+            {
+                options.AttemptTimeout.Timeout = TimeSpan.FromMilliseconds(500);
+                options.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(2);
+                options.Retry.Delay = TimeSpan.Zero;
+            });
 
             services.AddSingleton<IStartupFilter>(new RefusingRoute());
         });
