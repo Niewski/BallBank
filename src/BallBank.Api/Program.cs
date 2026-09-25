@@ -38,6 +38,20 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ?? throw new InvalidOperationException("Auth0:Audience is not configured.");
         options.TokenValidationParameters.ValidIssuer = options.Authority;
         options.MapInboundClaims = false;
+
+        // The subject is who the caller is; a token without one identifies nobody.
+        options.Events = new JwtBearerEvents
+        {
+            OnTokenValidated = context =>
+            {
+                if (context.Principal?.FindFirst("sub") is null)
+                {
+                    context.Fail("The token carries no subject.");
+                }
+
+                return Task.CompletedTask;
+            },
+        };
     });
 builder.Services.AddAuthorization();
 

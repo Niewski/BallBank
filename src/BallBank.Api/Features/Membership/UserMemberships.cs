@@ -13,7 +13,7 @@ public sealed class UserMemberships
     public List<LeagueMembership> Leagues { get; set; } = [];
 }
 
-/// <summary>An identity's member in one league, with what "my leagues" shows about it.</summary>
+/// <summary>The member an identity holds in one league, with what "my leagues" shows about it.</summary>
 public sealed record LeagueMembership(
     Guid LeagueId,
     string LeagueName,

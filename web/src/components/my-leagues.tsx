@@ -13,14 +13,14 @@ type MyLeague = {
   roles: string[];
 };
 
-type Leagues =
+type LeaguesState =
   | { kind: "loading" }
   | { kind: "ok"; leagues: MyLeague[] }
   | { kind: "error"; message: string };
 
 export function MyLeagues() {
   const { getAccessTokenSilently } = useAuth0();
-  const [state, setState] = useState<Leagues>({ kind: "loading" });
+  const [state, setState] = useState<LeaguesState>({ kind: "loading" });
 
   useEffect(() => {
     const controller = new AbortController();

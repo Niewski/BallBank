@@ -55,6 +55,14 @@ public class MyLeaguesTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task A_token_without_a_subject_is_unauthorized()
+    {
+        var response = await GetMyLeagues(Api.TokenFor(subject: null));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
     public async Task A_person_who_belongs_to_no_league_sees_an_empty_list()
     {
         var leagues = await Api.CreateClientFor(NewSubject()).GetFromJsonAsync<MyLeague[]>("/me/leagues");

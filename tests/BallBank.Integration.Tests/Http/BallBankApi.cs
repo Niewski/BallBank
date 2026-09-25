@@ -40,20 +40,23 @@ public sealed class BallBankApi(string connectionString) : WebApplicationFactory
     }
 
     public string TokenFor(
-        string subject,
+        string? subject,
         string issuer = Issuer,
         string audience = Audience,
         SecurityKey? signingKey = null,
-        DateTime? expires = null) =>
-        new JsonWebTokenHandler().CreateToken(new SecurityTokenDescriptor
+        DateTime? expires = null)
+    {
+        var expiry = expires ?? DateTime.UtcNow.AddHours(1);
+        return new JsonWebTokenHandler().CreateToken(new SecurityTokenDescriptor
         {
             Issuer = issuer,
             Audience = audience,
-            Subject = new ClaimsIdentity([new Claim("sub", subject)]),
-            NotBefore = (expires ?? DateTime.UtcNow.AddHours(1)).AddHours(-2),
-            Expires = expires ?? DateTime.UtcNow.AddHours(1),
+            Subject = new ClaimsIdentity(subject is null ? [] : [new Claim("sub", subject)]),
+            NotBefore = expiry.AddHours(-2),
+            Expires = expiry,
             SigningCredentials = new SigningCredentials(signingKey ?? _signingKey, SecurityAlgorithms.RsaSha256),
         });
+    }
 
     public static SecurityKey NewSigningKey() =>
         new RsaSecurityKey(RSA.Create(2048)) { KeyId = Guid.NewGuid().ToString("N") };
