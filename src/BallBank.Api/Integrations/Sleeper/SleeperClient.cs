@@ -67,7 +67,37 @@ public sealed class SleeperClient(HttpClient http)
             "league rosters", $"league/{Uri.EscapeDataString(leagueId)}/rosters", leagueId, cancellation)
         ?? [];
 
+    /// <summary>
+    /// A league with its users and rosters, as read and as Sleeper sent them, for an import to decide
+    /// from and keep. <c>null</c> when Sleeper has no such league.
+    /// </summary>
+    public async Task<SleeperLeagueResponses?> GetLeagueResponsesAsync(string leagueId, CancellationToken cancellation)
+    {
+        var escaped = Uri.EscapeDataString(leagueId);
+        var league = await FetchAsync<SleeperLeague>("league", $"league/{escaped}", leagueId, cancellation);
+        if (league?.Value is null)
+        {
+            return null;
+        }
+
+        var users = await FetchAsync<SleeperLeagueUser[]>("league users", $"league/{escaped}/users", leagueId, cancellation);
+        var rosters = await FetchAsync<SleeperRoster[]>("league rosters", $"league/{escaped}/rosters", leagueId, cancellation);
+
+        return new SleeperLeagueResponses(
+            league.Value,
+            users?.Value ?? [],
+            rosters?.Value ?? [],
+            league.Json,
+            users?.Json ?? "[]",
+            rosters?.Json ?? "[]");
+    }
+
     private async Task<T?> GetAsync<T>(string operation, string path, string? leagueId, CancellationToken cancellation)
+        where T : class =>
+        (await FetchAsync<T>(operation, path, leagueId, cancellation))?.Value;
+
+    /// <summary>The response read as <typeparamref name="T"/> with the JSON it was read from; <c>null</c> for a 404.</summary>
+    private async Task<Fetched<T>?> FetchAsync<T>(string operation, string path, string? leagueId, CancellationToken cancellation)
         where T : class
     {
         using var activity = Tracing.StartActivity($"Sleeper {operation}");
@@ -84,7 +114,8 @@ public sealed class SleeperClient(HttpClient http)
             }
 
             response.EnsureSuccessStatusCode();
-            return await response.Content.ReadFromJsonAsync<T>(SnakeCase, cancellation);
+            var json = await response.Content.ReadAsStringAsync(cancellation);
+            return new Fetched<T>(JsonSerializer.Deserialize<T>(json, SnakeCase), json);
         }
         catch (Exception failure) when (failure is HttpRequestException or ExecutionRejectedException or JsonException
             || (failure is OperationCanceledException && !cancellation.IsCancellationRequested))
@@ -93,4 +124,6 @@ public sealed class SleeperClient(HttpClient http)
             throw new SleeperUnavailableException($"Sleeper did not answer {path}.", failure);
         }
     }
+
+    private sealed record Fetched<T>(T? Value, string Json);
 }

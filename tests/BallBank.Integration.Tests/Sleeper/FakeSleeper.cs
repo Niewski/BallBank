@@ -29,9 +29,30 @@ public sealed class FakeSleeper
 
     public ConcurrentQueue<HttpRequestMessage> Requests { get; } = new();
 
+    /// <summary>
+    /// Serves Holland Hogs again under a new Sleeper league id and returns that id. One Sleeper league
+    /// backs only one BallBank league, so each test that imports needs a Sleeper league of its own.
+    /// </summary>
+    public string CopyOfHollandHogs()
+    {
+        var leagueId = Random.Shared.NextInt64(910000000000000000, 999999999999999999).ToString();
+        foreach (var (path, fixture) in new[] { ("", "league.json"), ("/users", "league-users.json"), ("/rosters", "league-rosters.json") })
+        {
+            ServeJson($"/league/{leagueId}{path}", Fixture(fixture).Replace(HollandHogsLeagueId, leagueId));
+        }
+
+        return leagueId;
+    }
+
+    /// <summary>A Sleeper user with this username and id, in no league unless a test puts them in one.</summary>
+    public void ServeUser(string username, string userId) =>
+        ServeJson($"/user/{username}", $$"""{ "user_id": "{{userId}}", "username": "{{username}}", "display_name": "{{username}}" }""");
+
     /// <summary>Answers <paramref name="path"/> (relative to <c>/v1</c>) with a fixture file.</summary>
-    public void Serve(string path, string fixture) =>
-        ServeJson(path, File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Sleeper", "Fixtures", fixture)));
+    public void Serve(string path, string fixture) => ServeJson(path, Fixture(fixture));
+
+    private static string Fixture(string fixture) =>
+        File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Sleeper", "Fixtures", fixture));
 
     public void ServeJson(string path, string json) =>
         _routes[path] = _ => Task.FromResult(Json(HttpStatusCode.OK, json));

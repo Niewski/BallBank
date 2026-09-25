@@ -2,14 +2,12 @@
 
 import { useAuth0 } from "@auth0/auth0-react";
 import { type FormEvent, useState } from "react";
+import {
+  ImportConfirm,
+  type SleeperLeagueChoice,
+} from "@/components/import-confirm";
 import { apiBaseUrl } from "@/lib/config";
-
-type SleeperLeagueChoice = {
-  sleeperLeagueId: string;
-  name: string;
-  season: string;
-  teams: number;
-};
+import { problemMessage, unreachableMessage } from "@/lib/problem";
 
 type PickerState =
   | { kind: "idle" }
@@ -17,22 +15,11 @@ type PickerState =
   | { kind: "ok"; username: string; leagues: SleeperLeagueChoice[] }
   | { kind: "error"; message: string };
 
-// The API explains 404 (no such Sleeper user) and 502 (Sleeper not answering)
-// in the problem's detail; anything else gets a generic message.
-async function problemMessage(response: Response): Promise<string> {
-  try {
-    const problem = (await response.json()) as { detail?: string };
-    if (problem.detail) return problem.detail;
-  } catch {
-    // Not a problem document; fall through.
-  }
-  return `Something went wrong (API responded ${response.status}). Try again.`;
-}
-
 export function SleeperLeaguePicker() {
   const { getAccessTokenSilently } = useAuth0();
   const [username, setUsername] = useState("");
   const [state, setState] = useState<PickerState>({ kind: "idle" });
+  const [picked, setPicked] = useState<SleeperLeagueChoice | null>(null);
 
   async function findLeagues(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -40,6 +27,7 @@ export function SleeperLeaguePicker() {
     if (!name) return;
 
     setState({ kind: "loading" });
+    setPicked(null);
 
     try {
       const token = await getAccessTokenSilently();
@@ -56,13 +44,7 @@ export function SleeperLeaguePicker() {
       const leagues = (await response.json()) as SleeperLeagueChoice[];
       setState({ kind: "ok", username: name, leagues });
     } catch (error: unknown) {
-      setState({
-        kind: "error",
-        message:
-          error instanceof Error
-            ? `Could not reach BallBank: ${error.message}`
-            : "Could not reach BallBank.",
-      });
+      setState({ kind: "error", message: unreachableMessage(error) });
     }
   }
 
@@ -111,23 +93,35 @@ export function SleeperLeaguePicker() {
           </p>
         )}
 
-        {state.kind === "ok" && state.leagues.length > 0 && (
+        {state.kind === "ok" && picked && (
+          <ImportConfirm
+            key={picked.sleeperLeagueId}
+            league={picked}
+            username={state.username}
+            onCancel={() => setPicked(null)}
+          />
+        )}
+
+        {state.kind === "ok" && !picked && state.leagues.length > 0 && (
           <div className="flex flex-col gap-3">
             <p className="text-sm text-zinc-600 dark:text-zinc-400">
-              Your leagues on Sleeper this season:
+              Your leagues on Sleeper this season. Pick the one to import:
             </p>
             <ul className="flex flex-col divide-y divide-zinc-200 rounded-lg border border-zinc-200 bg-white dark:divide-zinc-800 dark:border-zinc-800 dark:bg-zinc-950">
               {state.leagues.map((league) => (
-                <li
-                  key={league.sleeperLeagueId}
-                  className="flex items-baseline justify-between gap-4 p-4"
-                >
-                  <span className="font-medium text-zinc-950 dark:text-zinc-50">
-                    {league.name}
-                  </span>
-                  <span className="text-sm text-zinc-500">
-                    {league.season} · {league.teams} teams
-                  </span>
+                <li key={league.sleeperLeagueId}>
+                  <button
+                    type="button"
+                    onClick={() => setPicked(league)}
+                    className="flex w-full items-baseline justify-between gap-4 p-4 text-left hover:bg-zinc-50 dark:hover:bg-zinc-900"
+                  >
+                    <span className="font-medium text-zinc-950 dark:text-zinc-50">
+                      {league.name}
+                    </span>
+                    <span className="text-sm text-zinc-500">
+                      {league.season} · {league.teams} teams
+                    </span>
+                  </button>
                 </li>
               ))}
             </ul>
