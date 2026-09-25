@@ -12,7 +12,7 @@
     "roster_id": 2,
     "owner_id": "100000000000000002",
     "league_id": "900000000000000001",
-    "co_owners": null,
+    "co_owners": ["100000000000000004"],
     "players": [],
     "starters": [],
     "settings": { "wins": 1, "losses": 1, "ties": 0, "fpts": 220 }

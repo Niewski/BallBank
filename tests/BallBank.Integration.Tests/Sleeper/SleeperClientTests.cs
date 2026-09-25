@@ -57,6 +57,7 @@ public class SleeperClientTests
             ("100000000000000001", "Jacob", true, "Hog Wild"),
             ("100000000000000002", "Sam", false, "Sam's Slammers"),
             ("100000000000000003", "Priya", false, null),
+            ("100000000000000004", "Alex", false, "Sam's Slammers"),
         ]);
     }
 

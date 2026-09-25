@@ -28,5 +28,15 @@
     "is_owner": null,
     "is_bot": false,
     "metadata": {}
+  },
+  {
+    "user_id": "100000000000000004",
+    "username": "alex",
+    "display_name": "Alex",
+    "avatar": null,
+    "league_id": "900000000000000001",
+    "is_owner": false,
+    "is_bot": false,
+    "metadata": { "team_name": "Sam's Slammers" }
   }
 ]

@@ -18,7 +18,7 @@ Deploy target: API on Container Apps, web on Static Web Apps, so nothing lives o
   `/user/{id}/leagues/nfl/{season}`, `/state/nfl`) with timeouts, retries and cached snapshots.
 - `ImportLeague` → `LeagueImported`, `MemberAdded` per roster. Re-import is a no-op.
 - Auth0 sign-in on the web; JWT validation on the API.
-- Invite links and identity claims (`MemberClaimedIdentity`); Treasurer and co-treasurer roles.
+- Invite links and identity claims (`MemberClaimed`); Treasurer and co-treasurer roles.
 - "My leagues" and member list pages.
 - Reqnroll: *Importing a league*.
 
