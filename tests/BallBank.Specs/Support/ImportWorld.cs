@@ -43,11 +43,11 @@ public sealed class ImportWorld
     public static string Subject(string person) => $"test|{person.ToLowerInvariant()}";
 
     public void SleeperLeague(string name, string season, IEnumerable<Team> teams) =>
-        Sleeper = new SleeperLeagueSnapshot("900000000000000001", name, season, [], []).With(teams, this);
+        Sleeper = new SleeperLeagueSnapshot("900000000000000001", name, season, [], []).With(teams, SleeperUserId);
 
     /// <summary>Teams that joined the Sleeper league after it was described.</summary>
     public void SleeperLeagueGains(IEnumerable<Team> teams) =>
-        Sleeper = (Sleeper ?? throw new InvalidOperationException("No Sleeper league has been described.")).With(teams, this);
+        Sleeper = (Sleeper ?? throw new InvalidOperationException("No Sleeper league has been described.")).With(teams, SleeperUserId);
 
     /// <summary>Imports the Sleeper league as a new league, recording a refusal instead of throwing.</summary>
     public void Import(string person)
@@ -92,7 +92,6 @@ public sealed class ImportWorld
         {
             var events = league.ImportAgain(
                 new ImportLeagueAgain(
-                    league.Id,
                     snapshot,
                     snapshot.Rosters.ToDictionary(r => r.RosterId, _ => Guid.NewGuid()),
                     Subject(person)),
@@ -112,6 +111,14 @@ public sealed class ImportWorld
         }
     }
 
+    /// <summary>The person claims the member for this team, as an invite will let them.</summary>
+    public void Claim(string person, string teamName)
+    {
+        var league = RequireLeague();
+        var member = league.Members.Single(m => m.TeamName == teamName);
+        league.Evolve(new MemberClaimed(member.MemberId, Subject(person), person, InviteId: Guid.NewGuid(), Now));
+    }
+
     public League RequireLeague() =>
         League ?? throw new InvalidOperationException(
             $"No league was imported{(Refusal is null ? "" : $": {Refusal.Message}")}.");
@@ -123,7 +130,7 @@ public sealed record Team(int Roster, string? Owner, string? TeamName, bool Comm
 internal static class SleeperLeagueSnapshots
 {
     /// <summary>The Sleeper league with these teams, and their owners, added to it.</summary>
-    public static SleeperLeagueSnapshot With(this SleeperLeagueSnapshot sleeper, IEnumerable<Team> teams, ImportWorld people)
+    public static SleeperLeagueSnapshot With(this SleeperLeagueSnapshot sleeper, IEnumerable<Team> teams, Func<string, string> sleeperUserId)
     {
         var added = teams.ToList();
         return sleeper with
@@ -133,12 +140,12 @@ internal static class SleeperLeagueSnapshots
                 .. sleeper.Users,
                 .. added
                     .Where(t => t.Owner is not null)
-                    .Select(t => new SleeperLeagueSnapshot.User(people.SleeperUserId(t.Owner!), t.Owner, t.Commissioner)),
+                    .Select(t => new SleeperLeagueSnapshot.User(sleeperUserId(t.Owner!), t.Owner, t.Commissioner)),
             ],
             Rosters =
             [
                 .. sleeper.Rosters,
-                .. added.Select(t => new SleeperLeagueSnapshot.Roster(t.Roster, t.Owner is null ? null : people.SleeperUserId(t.Owner), t.TeamName)),
+                .. added.Select(t => new SleeperLeagueSnapshot.Roster(t.Roster, t.Owner is null ? null : sleeperUserId(t.Owner), t.TeamName)),
             ],
         };
     }

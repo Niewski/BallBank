@@ -490,15 +490,15 @@ namespace BallBank.Specs.Features
             await this.ScenarioCleanupAsync();
         }
         
-        [global::Xunit.SkippableFactAttribute(DisplayName="Only a treasurer can import again")]
+        [global::Xunit.SkippableFactAttribute(DisplayName="A member who is not a treasurer cannot import again")]
         [global::Xunit.TraitAttribute("FeatureTitle", "Importing a league")]
-        [global::Xunit.TraitAttribute("Description", "Only a treasurer can import again")]
-        public async global::System.Threading.Tasks.Task OnlyATreasurerCanImportAgain()
+        [global::Xunit.TraitAttribute("Description", "A member who is not a treasurer cannot import again")]
+        public async global::System.Threading.Tasks.Task AMemberWhoIsNotATreasurerCannotImportAgain()
         {
             string[] tagsOfScenario = ((string[])(null));
             global::System.Collections.Specialized.OrderedDictionary argumentsOfScenario = new global::System.Collections.Specialized.OrderedDictionary();
             string pickleIndex = "6";
-            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("Only a treasurer can import again", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
+            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("A member who is not a treasurer cannot import again", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
             string[] tagsOfRule = ((string[])(null));
             global::Reqnroll.RuleInfo ruleInfo = null;
 #line 64
@@ -518,9 +518,12 @@ namespace BallBank.Specs.Features
     await testRunner.GivenAsync("Jacob has imported the league", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
 #line hidden
 #line 66
-    await testRunner.WhenAsync("Sam imports the league again", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
+    await testRunner.AndAsync("Sam holds the member \"Sam\'s Slammers\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
 #line 67
+    await testRunner.WhenAsync("Sam imports the league again", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
+#line hidden
+#line 68
     await testRunner.ThenAsync("the import is refused", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
 #line hidden
             }

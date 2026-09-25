@@ -196,7 +196,7 @@ public class ImportingALeagueTests(PostgresFixture postgres)
         var before = await LeagueAsync(leagueId);
         Api.Sleeper.TeamJoins(sleeperLeagueId, rosterId: 5, "100000000000000005", "Dana", "Dana's Dynasty");
 
-        var response = await ImportAgain(subject, leagueId, sleeperLeagueId);
+        var response = await ImportAgain(subject, leagueId);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
         var again = await response.Content.ReadFromJsonAsync<ImportedLeague>();
@@ -224,7 +224,7 @@ public class ImportingALeagueTests(PostgresFixture postgres)
         (await Import(subject, leagueId, sleeperLeagueId)).StatusCode.ShouldBe(HttpStatusCode.Created);
         Api.Sleeper.TeamJoins(sleeperLeagueId, rosterId: 5, "100000000000000005", "Dana", "Dana's Dynasty");
 
-        (await ImportAgain(subject, leagueId, sleeperLeagueId)).StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await ImportAgain(subject, leagueId)).StatusCode.ShouldBe(HttpStatusCode.OK);
 
         await using var session = Store.QuerySession(leagueId.ToString());
         (await session.LoadAsync<SleeperLeagueIndex>(sleeperLeagueId))!.LeagueId.ShouldBe(leagueId);
@@ -243,8 +243,8 @@ public class ImportingALeagueTests(PostgresFixture postgres)
         Api.Sleeper.TeamJoins(sleeperLeagueId, rosterId: 5, "100000000000000005", "Dana", "Dana's Dynasty");
 
         var responses = await Task.WhenAll(
-            ImportAgain(subject, leagueId, sleeperLeagueId),
-            ImportAgain(subject, leagueId, sleeperLeagueId));
+            ImportAgain(subject, leagueId),
+            ImportAgain(subject, leagueId));
 
         responses.ShouldAllBe(r => r.StatusCode == HttpStatusCode.OK || r.StatusCode == HttpStatusCode.Conflict);
         (await LeagueAsync(leagueId)).Members.Count(m => m.SleeperRosterId == 5).ShouldBe(1);
@@ -260,7 +260,7 @@ public class ImportingALeagueTests(PostgresFixture postgres)
         await ClaimAsync(leagueId, rosterId: 2, sam, "Sam");
         Api.Sleeper.TeamJoins(sleeperLeagueId, rosterId: 5, "100000000000000005", "Dana", "Dana's Dynasty");
 
-        var response = await ImportAgain(sam, leagueId, sleeperLeagueId);
+        var response = await ImportAgain(sam, leagueId);
 
         (await ProblemFrom(response, HttpStatusCode.Forbidden)).Detail
             .ShouldBe("Only a treasurer of Holland Hogs can import it again.");
@@ -309,9 +309,9 @@ public class ImportingALeagueTests(PostgresFixture postgres)
             $"/leagues/{leagueId}/import",
             new ImportLeagueRequest(sleeperLeagueId, username, "Jacob"));
 
-    /// <summary>Importing again, as the league page does it: the Sleeper league, and nothing about the importer.</summary>
-    private Task<HttpResponseMessage> ImportAgain(string subject, Guid leagueId, string sleeperLeagueId) =>
-        Api.CreateClientFor(subject).PostAsJsonAsync($"/leagues/{leagueId}/import", new { sleeperLeagueId });
+    /// <summary>Importing again, as the league page does it: naming nothing, since the league knows its Sleeper league.</summary>
+    private Task<HttpResponseMessage> ImportAgain(string subject, Guid leagueId) =>
+        Api.CreateClientFor(subject).PostAsJsonAsync($"/leagues/{leagueId}/import", new { });
 
     private async Task<League> LeagueAsync(Guid leagueId)
     {

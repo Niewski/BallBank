@@ -61,7 +61,8 @@ Feature: Importing a league
     And Jacob holds the member "Hog Wild"
     And Jacob is a treasurer
 
-  Scenario: Only a treasurer can import again
+  Scenario: A member who is not a treasurer cannot import again
     Given Jacob has imported the league
+    And Sam holds the member "Sam's Slammers"
     When Sam imports the league again
     Then the import is refused

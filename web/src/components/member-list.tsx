@@ -20,7 +20,6 @@ type LeagueMembers = {
   leagueId: string;
   name: string;
   season: string;
-  sleeperLeagueId: string;
   yourMemberId: string | null;
   members: Member[];
 };
@@ -97,7 +96,6 @@ export function MemberList({ leagueId }: { leagueId: string }) {
         {you?.roles.includes("Treasurer") && (
           <ImportAgain
             leagueId={league.leagueId}
-            sleeperLeagueId={league.sleeperLeagueId}
             onImported={() => setReads((n) => n + 1)}
           />
         )}

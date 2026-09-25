@@ -7,13 +7,11 @@ using Wolverine.Http;
 namespace BallBank.Api.Features.Membership;
 
 /// <summary>What <c>GET /leagues/{leagueId}/members</c> answers: the league and every member of it.</summary>
-/// <param name="SleeperLeagueId">The Sleeper league the league is imported from, which importing again names.</param>
 /// <param name="YourMemberId">The member the caller holds.</param>
 public sealed record LeagueMembers(
     Guid LeagueId,
     string Name,
     string Season,
-    string SleeperLeagueId,
     Guid? YourMemberId,
     IReadOnlyList<LeagueMemberEntry> Members);
 
@@ -45,7 +43,6 @@ public static class MemberListEndpoint
             league.Id,
             league.Name,
             league.Season,
-            league.SleeperLeagueId,
             league.MemberHeldBy(user.Subject())?.MemberId,
             league.Members
                 .OrderBy(m => m.TeamName, StringComparer.OrdinalIgnoreCase)

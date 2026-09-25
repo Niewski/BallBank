@@ -175,11 +175,10 @@ public class LeagueTests
         return League.Replay((LeagueImported)events[0], events.Skip(1));
     }
 
-    private static ImportLeagueAgain ImportAgain(League league, SleeperLeagueSnapshot? snapshot = null, string importerSubject = JacobsSubject)
+    private static ImportLeagueAgain ImportAgain(SleeperLeagueSnapshot? snapshot = null, string importerSubject = JacobsSubject)
     {
         snapshot ??= HollandHogs;
         return new ImportLeagueAgain(
-            league.Id,
             snapshot,
             snapshot.Rosters.ToDictionary(r => r.RosterId, _ => Guid.NewGuid()),
             importerSubject);
@@ -189,7 +188,7 @@ public class LeagueTests
     public void Importing_again_after_a_team_joins_adds_exactly_that_member()
     {
         var league = Imported();
-        var command = ImportAgain(league, HollandHogsWithDana);
+        var command = ImportAgain(HollandHogsWithDana);
 
         var events = league.ImportAgain(command, Now);
 
@@ -202,7 +201,7 @@ public class LeagueTests
     {
         var league = Imported();
 
-        league.ImportAgain(ImportAgain(league), Now).ShouldBeEmpty();
+        league.ImportAgain(ImportAgain(), Now).ShouldBeEmpty();
     }
 
     [Fact]
@@ -222,7 +221,7 @@ public class LeagueTests
         };
         var league = Imported();
 
-        league.ImportAgain(ImportAgain(league, changed), Now).ShouldBeEmpty();
+        league.ImportAgain(ImportAgain(changed), Now).ShouldBeEmpty();
     }
 
     [Fact]
@@ -234,7 +233,7 @@ public class LeagueTests
 
         Should.Throw<DomainException>(() =>
         {
-            league.ImportAgain(ImportAgain(league, HollandHogsWithDana, importerSubject: "test|sam"), Now);
+            league.ImportAgain(ImportAgain(HollandHogsWithDana, importerSubject: "test|sam"), Now);
         });
     }
 
@@ -246,7 +245,7 @@ public class LeagueTests
 
         Should.Throw<DomainException>(() =>
         {
-            league.ImportAgain(ImportAgain(league, anotherLeague), Now);
+            league.ImportAgain(ImportAgain(anotherLeague), Now);
         });
     }
 }

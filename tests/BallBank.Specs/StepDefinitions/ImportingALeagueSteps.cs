@@ -20,6 +20,9 @@ public sealed class ImportingALeagueSteps(ImportWorld world)
         world.Refusal.ShouldBeNull();
     }
 
+    [Given(@"^(\w+) holds the member ""([^""]*)""$")]
+    public void GivenHolds(string person, string teamName) => world.Claim(person, teamName);
+
     [When(@"^(\w+) imports the (?:league|same Sleeper league as another league)$")]
     public void WhenImports(string person) => world.Import(person);
 

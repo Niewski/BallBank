@@ -15,11 +15,9 @@ type ImportAgainState =
 // teams become members; nobody already in the league changes.
 export function ImportAgain({
   leagueId,
-  sleeperLeagueId,
   onImported,
 }: {
   leagueId: string;
-  sleeperLeagueId: string;
   onImported: () => void;
 }) {
   const { getAccessTokenSilently } = useAuth0();
@@ -38,7 +36,8 @@ export function ImportAgain({
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ sleeperLeagueId }),
+          // The league knows its Sleeper league, so importing again names nothing.
+          body: JSON.stringify({}),
         },
       );
 

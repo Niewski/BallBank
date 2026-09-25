@@ -9,10 +9,11 @@ using Wolverine.Http;
 
 namespace BallBank.Api.Features.Membership;
 
-/// <summary>The body of <c>POST /leagues/{leagueId}/import</c>.</summary>
-/// <param name="SleeperUsername">The importer's Sleeper username; only the first import reads it.</param>
-/// <param name="DisplayName">What the importer wants to be called in this league; only the first import reads it.</param>
-public sealed record ImportLeagueRequest(string SleeperLeagueId, string? SleeperUsername = null, string? DisplayName = null);
+/// <summary>The body of <c>POST /leagues/{leagueId}/import</c>. The first import needs every field; importing again needs none.</summary>
+/// <param name="SleeperLeagueId">The Sleeper league to import. Importing again may leave it out, since the league knows it.</param>
+/// <param name="SleeperUsername">The importer's Sleeper username.</param>
+/// <param name="DisplayName">What the importer wants to be called in this league.</param>
+public sealed record ImportLeagueRequest(string? SleeperLeagueId = null, string? SleeperUsername = null, string? DisplayName = null);
 
 /// <summary>The league an import created or added to, as its importer holds it.</summary>
 /// <param name="MembersAdded">How many members this import added: every team the first time, only new ones after.</param>
@@ -43,11 +44,6 @@ public static class ImportLeagueEndpoint
         SleeperClient sleeper,
         CancellationToken cancellation)
     {
-        if (string.IsNullOrWhiteSpace(request.SleeperLeagueId))
-        {
-            return Incomplete("Importing a league needs the Sleeper league.");
-        }
-
         // The session is opened on the canonical form of the league id, so the tenant never depends on
         // how the client spelled the GUID. It is committed explicitly below, which is why this endpoint
         // takes the store rather than a session Wolverine would commit for it.
@@ -56,7 +52,7 @@ public static class ImportLeagueEndpoint
         var stream = await session.Events.FetchForWriting<League>(leagueId, cancellation);
         return stream.Aggregate is null
             ? await ImportFirst(leagueId, request, user.Subject(), session, sleeper, cancellation)
-            : await ImportAgain(stream, request.SleeperLeagueId.Trim(), user.Subject(), session, sleeper, cancellation);
+            : await ImportAgain(stream, request.SleeperLeagueId?.Trim(), user.Subject(), session, sleeper, cancellation);
     }
 
     /// <summary>
@@ -71,7 +67,9 @@ public static class ImportLeagueEndpoint
         SleeperClient sleeper,
         CancellationToken cancellation)
     {
-        if (string.IsNullOrWhiteSpace(request.SleeperUsername) || string.IsNullOrWhiteSpace(request.DisplayName))
+        if (string.IsNullOrWhiteSpace(request.SleeperLeagueId)
+            || string.IsNullOrWhiteSpace(request.SleeperUsername)
+            || string.IsNullOrWhiteSpace(request.DisplayName))
         {
             return Incomplete("Importing a league needs the Sleeper league, your Sleeper username and the name you go by.");
         }
@@ -148,13 +146,13 @@ public static class ImportLeagueEndpoint
 
     /// <summary>
     /// Importing again, by a treasurer, adds a member for each team that joined on Sleeper since and
-    /// keeps what Sleeper said. The league already backs this Sleeper league, so the index is left as
-    /// it is, and nobody's membership changes: the members added are unclaimed. A retry after a lost
-    /// response comes here too, and adds nobody.
+    /// keeps what Sleeper said. The league already backs its Sleeper league, so the index is left as
+    /// it is, and nobody's membership changes: the members added are unclaimed. A retry of the first
+    /// import after a lost response comes here too, and adds nobody.
     /// </summary>
     private static async Task<IResult> ImportAgain(
         JasperFx.Events.IEventStream<League> stream,
-        string sleeperLeagueId,
+        string? sleeperLeagueId,
         string subject,
         IDocumentSession session,
         SleeperClient sleeper,
@@ -178,7 +176,7 @@ public static class ImportLeagueEndpoint
                 detail: $"Only a treasurer of {league.Name} can import it again.");
         }
 
-        if (league.SleeperLeagueId != sleeperLeagueId)
+        if (!string.IsNullOrEmpty(sleeperLeagueId) && sleeperLeagueId != league.SleeperLeagueId)
         {
             return Results.Problem(
                 statusCode: StatusCodes.Status409Conflict,
@@ -186,7 +184,7 @@ public static class ImportLeagueEndpoint
                 detail: $"{league.Name} is kept from a different Sleeper league. Import that one as a league of its own.");
         }
 
-        var responses = await sleeper.GetLeagueResponsesAsync(sleeperLeagueId, cancellation);
+        var responses = await sleeper.GetLeagueResponsesAsync(league.SleeperLeagueId, cancellation);
         if (responses is null)
         {
             return NoSuchSleeperLeague();
@@ -197,7 +195,6 @@ public static class ImportLeagueEndpoint
 
         var events = league.ImportAgain(
             new ImportLeagueAgain(
-                league.Id,
                 snapshot,
                 snapshot.Rosters.ToDictionary(r => r.RosterId, _ => Guid.NewGuid()),
                 subject),
