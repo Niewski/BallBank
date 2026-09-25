@@ -20,6 +20,16 @@ public class SleeperClientTests
     }
 
     [Fact]
+    public async Task Without_a_league_season_the_current_season_is_the_NFL_season()
+    {
+        _sleeper.ServeJson("/state/nfl", """{ "season": "2031", "season_type": "regular" }""");
+
+        var season = await Client().CurrentSeasonAsync(CancellationToken.None);
+
+        season.ShouldBe("2031");
+    }
+
+    [Fact]
     public async Task A_league_reads_with_its_name_season_and_team_count()
     {
         var league = await Client().GetLeagueAsync(FakeSleeper.HollandHogsLeagueId, CancellationToken.None);

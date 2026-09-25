@@ -33,7 +33,6 @@ export function SleeperLeaguePicker() {
   const { getAccessTokenSilently } = useAuth0();
   const [username, setUsername] = useState("");
   const [state, setState] = useState<PickerState>({ kind: "idle" });
-  const [picked, setPicked] = useState<string | null>(null);
 
   async function findLeagues(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -41,7 +40,6 @@ export function SleeperLeaguePicker() {
     if (!name) return;
 
     setState({ kind: "loading" });
-    setPicked(null);
 
     try {
       const token = await getAccessTokenSilently();
@@ -114,32 +112,26 @@ export function SleeperLeaguePicker() {
         )}
 
         {state.kind === "ok" && state.leagues.length > 0 && (
-          <fieldset className="flex flex-col gap-3">
-            <legend className="mb-3 text-sm text-zinc-600 dark:text-zinc-400">
-              Pick the league whose books you keep.
-            </legend>
+          <div className="flex flex-col gap-3">
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">
+              Your leagues on Sleeper this season:
+            </p>
             <ul className="flex flex-col divide-y divide-zinc-200 rounded-lg border border-zinc-200 bg-white dark:divide-zinc-800 dark:border-zinc-800 dark:bg-zinc-950">
               {state.leagues.map((league) => (
-                <li key={league.sleeperLeagueId}>
-                  <label className="flex cursor-pointer items-baseline gap-3 p-4 hover:bg-zinc-50 dark:hover:bg-zinc-900">
-                    <input
-                      type="radio"
-                      name="league"
-                      value={league.sleeperLeagueId}
-                      checked={picked === league.sleeperLeagueId}
-                      onChange={() => setPicked(league.sleeperLeagueId)}
-                    />
-                    <span className="flex-1 font-medium text-zinc-950 dark:text-zinc-50">
-                      {league.name}
-                    </span>
-                    <span className="text-sm text-zinc-500">
-                      {league.season} · {league.teams} teams
-                    </span>
-                  </label>
+                <li
+                  key={league.sleeperLeagueId}
+                  className="flex items-baseline justify-between gap-4 p-4"
+                >
+                  <span className="font-medium text-zinc-950 dark:text-zinc-50">
+                    {league.name}
+                  </span>
+                  <span className="text-sm text-zinc-500">
+                    {league.season} · {league.teams} teams
+                  </span>
                 </li>
               ))}
             </ul>
-          </fieldset>
+          </div>
         )}
       </div>
     </section>

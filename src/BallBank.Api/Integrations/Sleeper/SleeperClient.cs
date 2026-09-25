@@ -16,7 +16,7 @@ public sealed class SleeperClient(HttpClient http)
     public static readonly Uri BaseAddress = new("https://api.sleeper.app/v1/");
 
     // Snake_case on the wire; unknown fields are ignored, so Sleeper can add fields freely.
-    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
+    private static readonly JsonSerializerOptions SnakeCase = new(JsonSerializerDefaults.Web)
     {
         PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
     };
@@ -84,7 +84,7 @@ public sealed class SleeperClient(HttpClient http)
             }
 
             response.EnsureSuccessStatusCode();
-            return await response.Content.ReadFromJsonAsync<T>(Json, cancellation);
+            return await response.Content.ReadFromJsonAsync<T>(SnakeCase, cancellation);
         }
         catch (Exception failure) when (failure is HttpRequestException or ExecutionRejectedException or JsonException
             || (failure is OperationCanceledException && !cancellation.IsCancellationRequested))

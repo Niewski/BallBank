@@ -26,7 +26,8 @@ public static class SleeperRegistration
 
     /// <summary>
     /// Sleeper asks callers to stay under roughly 1000 calls a minute per IP. This process makes at most
-    /// 10 a second (600 a minute), retries included, and queues the rest.
+    /// 10 a second (600 a minute), retries included, and queues the rest. The bucket is per process,
+    /// which is per API while it runs on one node (ADR-0007); a second replica doubles the rate.
     /// </summary>
     private sealed class SleeperRateLimit : DelegatingHandler
     {
