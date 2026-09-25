@@ -1,4 +1,5 @@
 using BallBank.Api.Features.Treasury;
+using BallBank.Integration.Tests.Http;
 using JasperFx.Events;
 using JasperFx.Events.Projections;
 using JasperFx.MultiTenancy;
@@ -18,7 +19,12 @@ public sealed class PostgresFixture : IAsyncLifetime
     private readonly PostgreSqlContainer _container = new PostgreSqlBuilder("postgres:17-alpine")
         .Build();
 
+    private BallBankApi? _api;
+
     public DocumentStore Store { get; private set; } = default!;
+
+    /// <summary>The API hosted in memory over this database; started on first use.</summary>
+    public BallBankApi Api => _api ??= new BallBankApi(_container.GetConnectionString());
 
     public async Task InitializeAsync()
     {
@@ -36,6 +42,11 @@ public sealed class PostgresFixture : IAsyncLifetime
 
     public async Task DisposeAsync()
     {
+        if (_api is not null)
+        {
+            await _api.DisposeAsync();
+        }
+
         Store.Dispose();
         await _container.DisposeAsync();
     }

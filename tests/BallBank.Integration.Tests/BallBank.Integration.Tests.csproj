@@ -14,6 +14,7 @@
 
   <ItemGroup>
     <PackageReference Include="Marten" Version="9.39.1" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.12" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageReference Include="Shouldly" Version="4.3.0" />
     <PackageReference Include="Testcontainers.PostgreSql" Version="4.15.0" />

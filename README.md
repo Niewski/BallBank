@@ -55,6 +55,30 @@ aspire run            # PostgreSQL + API + web + dashboard
 Without Aspire: `docker compose up -d`, then `dotnet run --project src/BallBank.Api` and
 `cd web && npm install && npm run dev` with `NEXT_PUBLIC_API_URL=http://localhost:5213` in `web/.env.local`.
 
+### Sign-in (Auth0)
+
+Sign-in needs an Auth0 tenant of your own (the free tier is enough). Once:
+
+1. Create an **API** with an identifier such as `https://api.ballbank.local`; that is the audience.
+2. Create a **Single Page Application**. Allowed callback, logout and web origin URLs:
+   `http://localhost:3000`. Under *Advanced → Grant types* keep *Authorization Code* and *Refresh Token*;
+   turn on *Refresh Token Rotation*.
+3. Enable the *Google* and *Username-Password-Authentication* connections for the application.
+4. Store the settings in the AppHost's user-secrets (Aspire passes them to the API and the web app):
+
+   ```bash
+   cd src/BallBank.AppHost
+   dotnet user-secrets set Parameters:auth0-domain your-tenant.us.auth0.com
+   dotnet user-secrets set Parameters:auth0-audience https://api.ballbank.local
+   dotnet user-secrets set Parameters:auth0-client-id <the SPA's client id>
+   ```
+
+   Without Aspire, set `Auth0:Domain` and `Auth0:Audience` in the API's user-secrets
+   (`dotnet user-secrets set Auth0:Domain ... --project src/BallBank.Api`) and the `NEXT_PUBLIC_AUTH0_*`
+   values in `web/.env.local` (see `web/.env.example`).
+
+The integration tests do not need any of this: they sign their own tokens with a key generated at test time.
+
 ## Tests
 
 ```bash
@@ -68,7 +92,8 @@ Three layers, on purpose:
 - **Domain tests** — given events, when command, then event (or a refusal). Pure, milliseconds.
 - **Specs** — [Reqnroll](https://reqnroll.net) scenarios in league language (`tests/BallBank.Specs/Features`), the
   suite that gates a deploy.
-- **Integration tests** — Marten against a real PostgreSQL: aggregation, tenancy isolation, projections.
+- **Integration tests** — Marten against a real PostgreSQL: aggregation, tenancy isolation, projections;
+  and the API over HTTP (`WebApplicationFactory`), with bearer tokens from a test signing key.
 
 ## Decisions
 
