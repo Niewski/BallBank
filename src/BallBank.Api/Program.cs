@@ -54,7 +54,9 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             },
         };
     });
-builder.Services.AddAuthorization();
+
+// LeagueMember guards a league's pages: the caller's memberships list the league in the route.
+builder.Services.AddLeaguePolicies();
 
 // A refused command (DomainException) is a 409 carrying its message; anything else stays a 500.
 builder.Services.AddProblemDetails();
@@ -108,6 +110,8 @@ builder.Services.AddWolverineHttp();
 
 var app = builder.Build();
 
+// Routing has already run (WebApplication adds it first), so the league in the route is known here.
+app.UseTenantTelemetry();
 app.UseExceptionHandler();
 app.UseCors();
 app.UseAuthentication();
@@ -127,7 +131,7 @@ app.MapGet("/v1/version", () => new VersionInfo(
 app.MapWolverineEndpoints(options =>
 {
     // The league id in the route is the tenant. Endpoints without it run in the default tenant.
-    options.TenantId.IsRouteArgumentNamed("leagueId");
+    options.TenantId.DetectWith(new LeagueTenant());
 });
 
 await app.RunAsync();

@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Http.Resilience;
+using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.IdentityModel.Tokens;
@@ -37,6 +38,9 @@ public sealed class BallBankApi(string connectionString) : WebApplicationFactory
 
     /// <summary>What the API's Sleeper client talks to instead of Sleeper.</summary>
     public FakeSleeper Sleeper { get; } = new();
+
+    /// <summary>Every log entry the API writes, whatever the configured log levels.</summary>
+    public CapturedLogs Logs { get; } = new();
 
     public HttpClient CreateClientFor(string subject)
     {
@@ -73,6 +77,10 @@ public sealed class BallBankApi(string connectionString) : WebApplicationFactory
         builder.UseSetting("ConnectionStrings:ballbank", connectionString);
         builder.UseSetting("Auth0:Domain", Domain);
         builder.UseSetting("Auth0:Audience", Audience);
+
+        builder.ConfigureLogging(logging => logging
+            .AddProvider(Logs)
+            .AddFilter<CapturedLogs>(category: null, LogLevel.Trace));
 
         builder.ConfigureTestServices(services =>
         {
