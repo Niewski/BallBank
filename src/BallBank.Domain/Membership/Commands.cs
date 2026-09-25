@@ -20,3 +20,15 @@ public sealed record ImportLeague(
     string ImporterSleeperUserId,
     string ImporterDisplayName,
     Guid? SleeperLeagueAlreadyBacks);
+
+/// <summary>
+/// Import the league <see cref="LeagueId"/> from its Sleeper league again, to pick up teams that
+/// joined since. Still an import: there is no separate "sync".
+/// </summary>
+/// <param name="MemberIds">The member id to give each roster not yet a member, keyed by Sleeper roster id.</param>
+/// <param name="ImporterSubject">The sign-in subject of the treasurer importing.</param>
+public sealed record ImportLeagueAgain(
+    Guid LeagueId,
+    SleeperLeagueSnapshot Snapshot,
+    IReadOnlyDictionary<int, Guid> MemberIds,
+    string ImporterSubject);

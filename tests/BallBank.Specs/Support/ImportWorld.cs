@@ -20,6 +20,12 @@ public sealed class ImportWorld
     public League? League { get; private set; }
     public DomainException? Refusal { get; private set; }
 
+    /// <summary>The member each roster was given when the league was first imported.</summary>
+    public IReadOnlyDictionary<int, Guid> FirstImportedMemberIds { get; private set; } = new Dictionary<int, Guid>();
+
+    /// <summary>The members the last import added.</summary>
+    public IReadOnlyList<MemberAdded> Added { get; private set; } = [];
+
     public string SleeperUserId(string person)
     {
         if (!_sleeperUserIds.TryGetValue(person, out var id))
@@ -36,21 +42,12 @@ public sealed class ImportWorld
 
     public static string Subject(string person) => $"test|{person.ToLowerInvariant()}";
 
-    public void SleeperLeague(string name, string season, IEnumerable<(int Roster, string? Owner, string? TeamName, bool Commissioner)> teams)
-    {
-        var rosters = teams.ToList();
-        Sleeper = new SleeperLeagueSnapshot(
-            "900000000000000001",
-            name,
-            season,
-            rosters
-                .Where(t => t.Owner is not null)
-                .Select(t => new SleeperLeagueSnapshot.User(SleeperUserId(t.Owner!), t.Owner, t.Commissioner))
-                .ToList(),
-            rosters
-                .Select(t => new SleeperLeagueSnapshot.Roster(t.Roster, t.Owner is null ? null : SleeperUserId(t.Owner), t.TeamName))
-                .ToList());
-    }
+    public void SleeperLeague(string name, string season, IEnumerable<Team> teams) =>
+        Sleeper = new SleeperLeagueSnapshot("900000000000000001", name, season, [], []).With(teams, this);
+
+    /// <summary>Teams that joined the Sleeper league after it was described.</summary>
+    public void SleeperLeagueGains(IEnumerable<Team> teams) =>
+        Sleeper = (Sleeper ?? throw new InvalidOperationException("No Sleeper league has been described.")).With(teams, this);
 
     /// <summary>Imports the Sleeper league as a new league, recording a refusal instead of throwing.</summary>
     public void Import(string person)
@@ -75,6 +72,38 @@ public sealed class ImportWorld
             League = League.Replay((LeagueImported)events[0], events.Skip(1));
             _leagues.Add(League);
             _backs[snapshot.SleeperLeagueId] = leagueId;
+            FirstImportedMemberIds = League.Members.ToDictionary(m => m.SleeperRosterId, m => m.MemberId);
+            Added = [.. events.OfType<MemberAdded>()];
+            Refusal = null;
+        }
+        catch (DomainException refusal)
+        {
+            Refusal = refusal;
+        }
+    }
+
+    /// <summary>Imports the Sleeper league into the league already imported from it, recording a refusal instead of throwing.</summary>
+    public void ImportAgain(string person)
+    {
+        var snapshot = Sleeper ?? throw new InvalidOperationException("No Sleeper league has been described.");
+        var league = RequireLeague();
+
+        try
+        {
+            var events = league.ImportAgain(
+                new ImportLeagueAgain(
+                    league.Id,
+                    snapshot,
+                    snapshot.Rosters.ToDictionary(r => r.RosterId, _ => Guid.NewGuid()),
+                    Subject(person)),
+                Now);
+
+            foreach (var @event in events)
+            {
+                league.Evolve(@event);
+            }
+
+            Added = [.. events.OfType<MemberAdded>()];
             Refusal = null;
         }
         catch (DomainException refusal)
@@ -86,4 +115,31 @@ public sealed class ImportWorld
     public League RequireLeague() =>
         League ?? throw new InvalidOperationException(
             $"No league was imported{(Refusal is null ? "" : $": {Refusal.Message}")}.");
+}
+
+/// <summary>One team as a scenario describes it: its Sleeper roster, owner by name, team name and commissioner flag.</summary>
+public sealed record Team(int Roster, string? Owner, string? TeamName, bool Commissioner);
+
+internal static class SleeperLeagueSnapshots
+{
+    /// <summary>The Sleeper league with these teams, and their owners, added to it.</summary>
+    public static SleeperLeagueSnapshot With(this SleeperLeagueSnapshot sleeper, IEnumerable<Team> teams, ImportWorld people)
+    {
+        var added = teams.ToList();
+        return sleeper with
+        {
+            Users =
+            [
+                .. sleeper.Users,
+                .. added
+                    .Where(t => t.Owner is not null)
+                    .Select(t => new SleeperLeagueSnapshot.User(people.SleeperUserId(t.Owner!), t.Owner, t.Commissioner)),
+            ],
+            Rosters =
+            [
+                .. sleeper.Rosters,
+                .. added.Select(t => new SleeperLeagueSnapshot.Roster(t.Roster, t.Owner is null ? null : people.SleeperUserId(t.Owner), t.TeamName)),
+            ],
+        };
+    }
 }

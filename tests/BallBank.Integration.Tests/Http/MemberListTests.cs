@@ -34,6 +34,20 @@ public class MemberListTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task A_member_sees_which_member_is_theirs_and_the_Sleeper_league_it_is_kept_from()
+    {
+        var jacob = NewSubject();
+        var sleeperLeagueId = Api.Sleeper.CopyOfHollandHogs();
+        var leagueId = await ImportHollandHogs(jacob, sleeperLeagueId);
+
+        var list = await Api.CreateClientFor(jacob).GetFromJsonAsync<LeagueMembers>($"/leagues/{leagueId}/members");
+
+        list.ShouldNotBeNull();
+        list.SleeperLeagueId.ShouldBe(sleeperLeagueId);
+        list.Members.Single(m => m.MemberId == list.YourMemberId).TeamName.ShouldBe("Hog Wild");
+    }
+
+    [Fact]
     public async Task A_member_of_one_league_is_forbidden_another_leagues_members()
     {
         var jacob = NewSubject();
@@ -123,12 +137,12 @@ public class MemberListTests(PostgresFixture postgres)
         || category.StartsWith("Microsoft.AspNetCore.Routing.Matching", StringComparison.Ordinal)
         || category == "Microsoft.AspNetCore.Routing.EndpointRoutingMiddleware";
 
-    private async Task<Guid> ImportHollandHogs(string subject)
+    private async Task<Guid> ImportHollandHogs(string subject, string? sleeperLeagueId = null)
     {
         var leagueId = Guid.NewGuid();
         var response = await Api.CreateClientFor(subject).PostAsJsonAsync(
             $"/leagues/{leagueId}/import",
-            new ImportLeagueRequest(Api.Sleeper.CopyOfHollandHogs(), "jacob", "Jacob"));
+            new ImportLeagueRequest(sleeperLeagueId ?? Api.Sleeper.CopyOfHollandHogs(), "jacob", "Jacob"));
         response.StatusCode.ShouldBe(HttpStatusCode.Created);
         return leagueId;
     }

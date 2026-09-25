@@ -95,12 +95,15 @@ public sealed class BallBankApi(string connectionString) : WebApplicationFactory
             services.AddHttpClient<SleeperClient>().ConfigurePrimaryHttpMessageHandler(Sleeper.Handler);
 
             // The standard resilience handler as configured, but giving up on a failing Sleeper in
-            // seconds rather than half a minute.
+            // seconds rather than half a minute. One API serves every test, so the circuit breaker
+            // never opens: the tests that make Sleeper fail on purpose would otherwise break the
+            // circuit for whichever tests call Sleeper next.
             services.ConfigureAll<HttpStandardResilienceOptions>(options =>
             {
                 options.AttemptTimeout.Timeout = TimeSpan.FromMilliseconds(500);
                 options.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(2);
                 options.Retry.Delay = TimeSpan.Zero;
+                options.CircuitBreaker.MinimumThroughput = int.MaxValue;
             });
 
             services.AddSingleton<IStartupFilter>(new RefusingRoute());
