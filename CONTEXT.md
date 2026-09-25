@@ -52,9 +52,10 @@ There is one role; a second appointee is simply another treasurer. Sleeper's `is
 "commissioner", "admin", "co-treasurer".
 
 **Import** — Bringing a Sleeper league into BallBank: the league, its season, and one member per
-roster. Importing the same Sleeper league into the same BallBank league again is a *sync*: members
-that appeared since are added, everything already known is left alone. One Sleeper league can back
-only one BallBank league. Not: "sync" as a separate verb, "refresh", "pull".
+roster. A treasurer can import the same Sleeper league into the same BallBank league again: rosters
+that appeared since become members, matched by Sleeper roster id, and everything already known is
+left alone. That is still an import. One Sleeper league can back only one BallBank league. Not:
+"sync", "refresh", "pull".
 
 **Account** (`MemberAccount`) — One member's books for one season of one league. An event stream.
 Not: "wallet", "ledger" (that is the whole of them together), "balance" (that is a number).

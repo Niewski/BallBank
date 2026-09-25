@@ -141,7 +141,7 @@ namespace BallBank.Specs.Features
         
         private static global::Reqnroll.Formatters.RuntimeSupport.FeatureLevelCucumberMessages InitializeCucumberMessages()
         {
-            return new global::Reqnroll.Formatters.RuntimeSupport.FeatureLevelCucumberMessages("Features/ImportingALeague.feature.ndjson", 6);
+            return new global::Reqnroll.Formatters.RuntimeSupport.FeatureLevelCucumberMessages("Features/ImportingALeague.feature.ndjson", 9);
         }
         
         async global::System.Threading.Tasks.Task global::Xunit.IAsyncLifetime.InitializeAsync()
@@ -330,6 +330,200 @@ namespace BallBank.Specs.Features
     await testRunner.WhenAsync("Sam imports the same Sleeper league as another league", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
 #line hidden
 #line 34
+    await testRunner.ThenAsync("the import is refused", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
+#line hidden
+            }
+            await this.ScenarioCleanupAsync();
+        }
+        
+        [global::Xunit.SkippableFactAttribute(DisplayName="Importing again with nothing new on Sleeper adds nothing")]
+        [global::Xunit.TraitAttribute("FeatureTitle", "Importing a league")]
+        [global::Xunit.TraitAttribute("Description", "Importing again with nothing new on Sleeper adds nothing")]
+        public async global::System.Threading.Tasks.Task ImportingAgainWithNothingNewOnSleeperAddsNothing()
+        {
+            string[] tagsOfScenario = ((string[])(null));
+            global::System.Collections.Specialized.OrderedDictionary argumentsOfScenario = new global::System.Collections.Specialized.OrderedDictionary();
+            string pickleIndex = "4";
+            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("Importing again with nothing new on Sleeper adds nothing", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
+            string[] tagsOfRule = ((string[])(null));
+            global::Reqnroll.RuleInfo ruleInfo = null;
+#line 36
+  this.ScenarioInitialize(scenarioInfo, ruleInfo);
+#line hidden
+            if ((global::Reqnroll.TagHelper.ContainsIgnoreTag(scenarioInfo.CombinedTags) || global::Reqnroll.TagHelper.ContainsIgnoreTag(featureTags)))
+            {
+                await testRunner.SkipScenarioAsync();
+            }
+            else
+            {
+                await this.ScenarioStartAsync();
+#line 5
+  await this.FeatureBackgroundAsync();
+#line hidden
+#line 37
+    await testRunner.GivenAsync("Jacob has imported the league", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
+#line hidden
+#line 38
+    await testRunner.WhenAsync("Jacob imports the league again", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
+#line hidden
+#line 39
+    await testRunner.ThenAsync("no members are added", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
+#line hidden
+                global::Reqnroll.Table table3 = new global::Reqnroll.Table(new string[] {
+                            "team name",
+                            "owner on Sleeper",
+                            "claimed",
+                            "suggested treasurer"});
+                table3.AddRow(new string[] {
+                            "Hog Wild",
+                            "Jacob",
+                            "yes",
+                            "yes"});
+                table3.AddRow(new string[] {
+                            "Sam\'s Slammers",
+                            "Sam",
+                            "no",
+                            "no"});
+                table3.AddRow(new string[] {
+                            "Priya",
+                            "Priya",
+                            "no",
+                            "no"});
+                table3.AddRow(new string[] {
+                            "Team 4",
+                            "",
+                            "no",
+                            "no"});
+#line 40
+    await testRunner.AndAsync("the league has these members:", ((string)(null)), table3, "And ");
+#line hidden
+            }
+            await this.ScenarioCleanupAsync();
+        }
+        
+        [global::Xunit.SkippableFactAttribute(DisplayName="Importing again after a team joins on Sleeper adds that team")]
+        [global::Xunit.TraitAttribute("FeatureTitle", "Importing a league")]
+        [global::Xunit.TraitAttribute("Description", "Importing again after a team joins on Sleeper adds that team")]
+        public async global::System.Threading.Tasks.Task ImportingAgainAfterATeamJoinsOnSleeperAddsThatTeam()
+        {
+            string[] tagsOfScenario = ((string[])(null));
+            global::System.Collections.Specialized.OrderedDictionary argumentsOfScenario = new global::System.Collections.Specialized.OrderedDictionary();
+            string pickleIndex = "5";
+            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("Importing again after a team joins on Sleeper adds that team", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
+            string[] tagsOfRule = ((string[])(null));
+            global::Reqnroll.RuleInfo ruleInfo = null;
+#line 47
+  this.ScenarioInitialize(scenarioInfo, ruleInfo);
+#line hidden
+            if ((global::Reqnroll.TagHelper.ContainsIgnoreTag(scenarioInfo.CombinedTags) || global::Reqnroll.TagHelper.ContainsIgnoreTag(featureTags)))
+            {
+                await testRunner.SkipScenarioAsync();
+            }
+            else
+            {
+                await this.ScenarioStartAsync();
+#line 5
+  await this.FeatureBackgroundAsync();
+#line hidden
+#line 48
+    await testRunner.GivenAsync("Jacob has imported the league", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
+#line hidden
+                global::Reqnroll.Table table4 = new global::Reqnroll.Table(new string[] {
+                            "roster",
+                            "owner",
+                            "team name",
+                            "commissioner"});
+                table4.AddRow(new string[] {
+                            "5",
+                            "Dana",
+                            "Dana\'s Dynasty",
+                            "no"});
+#line 49
+    await testRunner.AndAsync("this team has since joined the Sleeper league:", ((string)(null)), table4, "And ");
+#line hidden
+#line 52
+    await testRunner.WhenAsync("Jacob imports the league again", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
+#line hidden
+                global::Reqnroll.Table table5 = new global::Reqnroll.Table(new string[] {
+                            "team name",
+                            "owner on Sleeper",
+                            "claimed",
+                            "suggested treasurer"});
+                table5.AddRow(new string[] {
+                            "Hog Wild",
+                            "Jacob",
+                            "yes",
+                            "yes"});
+                table5.AddRow(new string[] {
+                            "Sam\'s Slammers",
+                            "Sam",
+                            "no",
+                            "no"});
+                table5.AddRow(new string[] {
+                            "Priya",
+                            "Priya",
+                            "no",
+                            "no"});
+                table5.AddRow(new string[] {
+                            "Team 4",
+                            "",
+                            "no",
+                            "no"});
+                table5.AddRow(new string[] {
+                            "Dana\'s Dynasty",
+                            "Dana",
+                            "no",
+                            "no"});
+#line 53
+    await testRunner.ThenAsync("the league has these members:", ((string)(null)), table5, "Then ");
+#line hidden
+#line 60
+    await testRunner.AndAsync("the members from the first import keep their ids", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+#line 61
+    await testRunner.AndAsync("Jacob holds the member \"Hog Wild\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+#line 62
+    await testRunner.AndAsync("Jacob is a treasurer", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+            }
+            await this.ScenarioCleanupAsync();
+        }
+        
+        [global::Xunit.SkippableFactAttribute(DisplayName="A member who is not a treasurer cannot import again")]
+        [global::Xunit.TraitAttribute("FeatureTitle", "Importing a league")]
+        [global::Xunit.TraitAttribute("Description", "A member who is not a treasurer cannot import again")]
+        public async global::System.Threading.Tasks.Task AMemberWhoIsNotATreasurerCannotImportAgain()
+        {
+            string[] tagsOfScenario = ((string[])(null));
+            global::System.Collections.Specialized.OrderedDictionary argumentsOfScenario = new global::System.Collections.Specialized.OrderedDictionary();
+            string pickleIndex = "6";
+            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("A member who is not a treasurer cannot import again", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
+            string[] tagsOfRule = ((string[])(null));
+            global::Reqnroll.RuleInfo ruleInfo = null;
+#line 64
+  this.ScenarioInitialize(scenarioInfo, ruleInfo);
+#line hidden
+            if ((global::Reqnroll.TagHelper.ContainsIgnoreTag(scenarioInfo.CombinedTags) || global::Reqnroll.TagHelper.ContainsIgnoreTag(featureTags)))
+            {
+                await testRunner.SkipScenarioAsync();
+            }
+            else
+            {
+                await this.ScenarioStartAsync();
+#line 5
+  await this.FeatureBackgroundAsync();
+#line hidden
+#line 65
+    await testRunner.GivenAsync("Jacob has imported the league", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
+#line hidden
+#line 66
+    await testRunner.AndAsync("Sam holds the member \"Sam\'s Slammers\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+#line 67
+    await testRunner.WhenAsync("Sam imports the league again", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
+#line hidden
+#line 68
     await testRunner.ThenAsync("the import is refused", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
 #line hidden
             }

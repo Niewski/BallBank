@@ -2,6 +2,7 @@
 
 import { useAuth0 } from "@auth0/auth0-react";
 import { useEffect, useState } from "react";
+import { ImportAgain } from "@/components/import-again";
 import { apiBaseUrl } from "@/lib/config";
 import { problemMessage, unreachableMessage } from "@/lib/problem";
 
@@ -19,6 +20,7 @@ type LeagueMembers = {
   leagueId: string;
   name: string;
   season: string;
+  yourMemberId: string | null;
   members: Member[];
 };
 
@@ -30,6 +32,8 @@ type MembersState =
 export function MemberList({ leagueId }: { leagueId: string }) {
   const { getAccessTokenSilently } = useAuth0();
   const [state, setState] = useState<MembersState>({ kind: "loading" });
+  // Bumped to read the members again, as after importing the league again.
+  const [reads, setReads] = useState(0);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -65,7 +69,7 @@ export function MemberList({ leagueId }: { leagueId: string }) {
       });
 
     return () => controller.abort();
-  }, [getAccessTokenSilently, leagueId]);
+  }, [getAccessTokenSilently, leagueId, reads]);
 
   if (state.kind === "loading") {
     return <p className="text-zinc-500">Loading the league…</p>;
@@ -76,16 +80,25 @@ export function MemberList({ leagueId }: { leagueId: string }) {
   }
 
   const { league } = state;
+  const you = league.members.find((m) => m.memberId === league.yourMemberId);
 
   return (
     <section className="flex flex-col gap-6">
-      <header className="flex flex-col gap-1">
-        <h1 className="text-3xl font-semibold tracking-tight text-zinc-950 dark:text-zinc-50">
-          {league.name}
-        </h1>
-        <p className="text-sm text-zinc-500">
-          {league.season} season · {league.members.length} members
-        </p>
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-3xl font-semibold tracking-tight text-zinc-950 dark:text-zinc-50">
+            {league.name}
+          </h1>
+          <p className="text-sm text-zinc-500">
+            {league.season} season · {league.members.length} members
+          </p>
+        </div>
+        {you?.roles.includes("Treasurer") && (
+          <ImportAgain
+            leagueId={league.leagueId}
+            onImported={() => setReads((n) => n + 1)}
+          />
+        )}
       </header>
 
       <div className="overflow-x-auto rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">

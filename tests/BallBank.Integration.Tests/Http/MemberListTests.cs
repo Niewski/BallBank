@@ -34,6 +34,18 @@ public class MemberListTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task A_member_sees_which_member_is_theirs()
+    {
+        var jacob = NewSubject();
+        var leagueId = await ImportHollandHogs(jacob);
+
+        var list = await Api.CreateClientFor(jacob).GetFromJsonAsync<LeagueMembers>($"/leagues/{leagueId}/members");
+
+        list.ShouldNotBeNull();
+        list.Members.Single(m => m.MemberId == list.YourMemberId).TeamName.ShouldBe("Hog Wild");
+    }
+
+    [Fact]
     public async Task A_member_of_one_league_is_forbidden_another_leagues_members()
     {
         var jacob = NewSubject();

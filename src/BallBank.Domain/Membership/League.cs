@@ -59,7 +59,8 @@ public sealed class League
                 now),
         ];
 
-        events.AddRange(snapshot.Rosters.Select(roster => MemberFor(roster, command, now)));
+        events.AddRange(snapshot.Rosters.Select(roster =>
+            MemberFor(roster, snapshot, command.MemberIds[roster.RosterId], command.ImporterSubject, now)));
 
         // The importer starts out holding their own team and keeping the books.
         var importersMember = command.MemberIds[importersRoster.RosterId];
@@ -69,19 +70,48 @@ public sealed class League
         return events;
     }
 
-    // One member per roster, from its owner; co-owners never appear here because a roster names one owner.
-    private static MemberAdded MemberFor(SleeperLeagueSnapshot.Roster roster, ImportLeague command, DateTimeOffset now)
+    /// <summary>
+    /// Importing the league again: each roster the league does not know yet becomes a member, matched
+    /// by Sleeper roster id. Members already known, and who holds them, are left alone.
+    /// </summary>
+    public IReadOnlyList<object> ImportAgain(ImportLeagueAgain command, DateTimeOffset now)
     {
-        var owner = command.Snapshot.UserWithId(roster.OwnerUserId);
+        var snapshot = command.Snapshot;
+
+        if (snapshot.SleeperLeagueId != SleeperLeagueId)
+        {
+            throw new DomainException($"{Name} is kept from a different Sleeper league than {snapshot.Name}.");
+        }
+
+        if (MemberHeldBy(command.ImporterSubject) is not { IsTreasurer: true })
+        {
+            throw new DomainException($"Only a treasurer of {Name} can import it again.");
+        }
+
+        return snapshot.Rosters
+            .Where(roster => _members.Values.All(m => m.SleeperRosterId != roster.RosterId))
+            .Select(roster => MemberFor(roster, snapshot, command.MemberIds[roster.RosterId], command.ImporterSubject, now))
+            .ToList<object>();
+    }
+
+    // One member per roster, from its owner; co-owners never appear here because a roster names one owner.
+    private static MemberAdded MemberFor(
+        SleeperLeagueSnapshot.Roster roster,
+        SleeperLeagueSnapshot snapshot,
+        Guid memberId,
+        string addedBy,
+        DateTimeOffset now)
+    {
+        var owner = snapshot.UserWithId(roster.OwnerUserId);
 
         return new MemberAdded(
-            command.MemberIds[roster.RosterId],
+            memberId,
             roster.RosterId,
             roster.OwnerUserId,
             TeamName(roster, owner),
             owner?.DisplayName,
             SuggestedTreasurer: owner?.IsCommissioner == true,
-            command.ImporterSubject,
+            addedBy,
             now);
     }
 

@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Net;
 using System.Text;
+using System.Text.Json.Nodes;
 
 namespace BallBank.Integration.Tests.Sleeper;
 
@@ -16,6 +17,7 @@ public sealed class FakeSleeper
     public const string JacobUserId = "100000000000000001";
 
     private readonly ConcurrentDictionary<string, Func<CancellationToken, Task<HttpResponseMessage>>> _routes = new();
+    private readonly ConcurrentDictionary<string, string> _served = new();
 
     public FakeSleeper()
     {
@@ -44,6 +46,32 @@ public sealed class FakeSleeper
         return leagueId;
     }
 
+    /// <summary>A new team joins the Sleeper league: its owner becomes a user of it and owns roster <paramref name="rosterId"/>.</summary>
+    public void TeamJoins(string sleeperLeagueId, int rosterId, string ownerUserId, string ownerName, string teamName)
+    {
+        var users = JsonNode.Parse(_served[$"/league/{sleeperLeagueId}/users"])!.AsArray();
+        users.Add(new JsonObject
+        {
+            ["user_id"] = ownerUserId,
+            ["username"] = ownerName.ToLowerInvariant(),
+            ["display_name"] = ownerName,
+            ["league_id"] = sleeperLeagueId,
+            ["is_owner"] = false,
+            ["metadata"] = new JsonObject { ["team_name"] = teamName },
+        });
+        ServeJson($"/league/{sleeperLeagueId}/users", users.ToJsonString());
+
+        var rosters = JsonNode.Parse(_served[$"/league/{sleeperLeagueId}/rosters"])!.AsArray();
+        rosters.Add(new JsonObject
+        {
+            ["roster_id"] = rosterId,
+            ["owner_id"] = ownerUserId,
+            ["league_id"] = sleeperLeagueId,
+            ["co_owners"] = null,
+        });
+        ServeJson($"/league/{sleeperLeagueId}/rosters", rosters.ToJsonString());
+    }
+
     /// <summary>A Sleeper user with this username and id, in no league unless a test puts them in one.</summary>
     public void ServeUser(string username, string userId) =>
         ServeJson($"/user/{username}", $$"""{ "user_id": "{{userId}}", "username": "{{username}}", "display_name": "{{username}}" }""");
@@ -54,8 +82,11 @@ public sealed class FakeSleeper
     private static string Fixture(string fixture) =>
         File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Sleeper", "Fixtures", fixture));
 
-    public void ServeJson(string path, string json) =>
+    public void ServeJson(string path, string json)
+    {
+        _served[path] = json;
         _routes[path] = _ => Task.FromResult(Json(HttpStatusCode.OK, json));
+    }
 
     public void Fails(string path, HttpStatusCode status) =>
         _routes[path] = _ => Task.FromResult(Json(status, """{"message":"Something went wrong"}"""));

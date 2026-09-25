@@ -3,8 +3,10 @@ using BallBank.Api.Integrations.Sleeper;
 namespace BallBank.Api.Features.Membership;
 
 /// <summary>
-/// The raw Sleeper responses one import decided from, kept in the league's tenant under the id that
-/// <c>LeagueImported</c> carries, so a mapping question can be answered from what Sleeper actually said.
+/// The raw Sleeper responses one import decided from, kept in the league's tenant so a mapping
+/// question can be answered from what Sleeper actually said. The first import's is kept under the id
+/// that <c>LeagueImported</c> carries. Importing again records no event of its own, so its snapshot
+/// is found by <see cref="TakenAt"/>, which is the <c>AddedAt</c> of any member it added.
 /// </summary>
 public sealed class SleeperSnapshot
 {

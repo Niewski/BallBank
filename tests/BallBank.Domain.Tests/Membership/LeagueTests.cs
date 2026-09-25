@@ -155,4 +155,97 @@ public class LeagueTests
         added.ShouldNotContain(m => m.SleeperUserId == "100000000000000004");
         added.Where(m => m.SuggestedTreasurer).ShouldHaveSingleItem().SleeperUserId.ShouldBe(Jacob);
     }
+
+    // ---------------------------------------------------------------------------------------------
+    // Importing again
+    // ---------------------------------------------------------------------------------------------
+
+    private const string Dana = "100000000000000005";
+
+    // Dana joined the Sleeper league after it was imported, on a fifth team.
+    private static readonly SleeperLeagueSnapshot HollandHogsWithDana = HollandHogs with
+    {
+        Users = [.. HollandHogs.Users, new SleeperLeagueSnapshot.User(Dana, "Dana", IsCommissioner: false)],
+        Rosters = [.. HollandHogs.Rosters, new SleeperLeagueSnapshot.Roster(5, Dana, "Dana's Dynasty")],
+    };
+
+    private static League Imported()
+    {
+        var events = League.Import(Import(), Now);
+        return League.Replay((LeagueImported)events[0], events.Skip(1));
+    }
+
+    private static ImportLeagueAgain ImportAgain(SleeperLeagueSnapshot? snapshot = null, string importerSubject = JacobsSubject)
+    {
+        snapshot ??= HollandHogs;
+        return new ImportLeagueAgain(
+            snapshot,
+            snapshot.Rosters.ToDictionary(r => r.RosterId, _ => Guid.NewGuid()),
+            importerSubject);
+    }
+
+    [Fact]
+    public void Importing_again_after_a_team_joins_adds_exactly_that_member()
+    {
+        var league = Imported();
+        var command = ImportAgain(HollandHogsWithDana);
+
+        var events = league.ImportAgain(command, Now);
+
+        events.ShouldHaveSingleItem().ShouldBe(
+            new MemberAdded(command.MemberIds[5], 5, Dana, "Dana's Dynasty", "Dana", SuggestedTreasurer: false, JacobsSubject, Now));
+    }
+
+    [Fact]
+    public void Importing_again_with_no_new_teams_adds_nothing()
+    {
+        var league = Imported();
+
+        league.ImportAgain(ImportAgain(), Now).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void Importing_again_leaves_known_members_alone_even_when_Sleeper_has_changed_them()
+    {
+        // Sam renamed their team and Priya handed hers to Dana. Owner changes are not imported (ADR-0010).
+        var changed = HollandHogs with
+        {
+            Users = [.. HollandHogs.Users, new SleeperLeagueSnapshot.User(Dana, "Dana", IsCommissioner: false)],
+            Rosters =
+            [
+                HollandHogs.Rosters[0],
+                HollandHogs.Rosters[1] with { TeamName = "Slam Dunkers" },
+                HollandHogs.Rosters[2] with { OwnerUserId = Dana },
+                HollandHogs.Rosters[3],
+            ],
+        };
+        var league = Imported();
+
+        league.ImportAgain(ImportAgain(changed), Now).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void A_member_who_is_not_a_treasurer_cannot_import_again()
+    {
+        var league = Imported();
+        var sams = league.Members.Single(m => m.SleeperRosterId == 2).MemberId;
+        league.Evolve(new MemberClaimed(sams, "test|sam", "Sam", InviteId: Guid.NewGuid(), Now));
+
+        Should.Throw<DomainException>(() =>
+        {
+            league.ImportAgain(ImportAgain(HollandHogsWithDana, importerSubject: "test|sam"), Now);
+        });
+    }
+
+    [Fact]
+    public void A_different_Sleeper_league_cannot_be_imported_into_a_league()
+    {
+        var league = Imported();
+        var anotherLeague = HollandHogsWithDana with { SleeperLeagueId = "900000000000000002" };
+
+        Should.Throw<DomainException>(() =>
+        {
+            league.ImportAgain(ImportAgain(anotherLeague), Now);
+        });
+    }
 }

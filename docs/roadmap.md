@@ -16,7 +16,8 @@ Deploy target: API on Container Apps, web on Static Web Apps, so nothing lives o
 
 - Typed Sleeper client (`/league/{id}`, `/league/{id}/users`, `/league/{id}/rosters`,
   `/user/{id}/leagues/nfl/{season}`, `/state/nfl`) with timeouts, retries and cached snapshots.
-- `ImportLeague` → `LeagueImported`, `MemberAdded` per roster. Re-import is a no-op.
+- `ImportLeague` → `LeagueImported`, `MemberAdded` per roster. `ImportLeagueAgain` adds a
+  `MemberAdded` for each roster not yet a member; importing again with nothing new is a no-op.
 - Auth0 sign-in on the web; JWT validation on the API.
 - Invite links and identity claims (`MemberClaimed`); the Treasurer role, which any treasurer can give another member.
 - "My leagues" and member list pages.

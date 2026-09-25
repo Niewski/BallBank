@@ -164,7 +164,7 @@ public class ImportingALeagueTests(PostgresFixture postgres)
     }
 
     [Fact]
-    public async Task Retrying_an_import_returns_the_league_without_importing_it_again()
+    public async Task Retrying_an_import_returns_the_league_without_adding_anyone()
     {
         var subject = NewSubject();
         var leagueId = Guid.NewGuid();
@@ -177,10 +177,109 @@ public class ImportingALeagueTests(PostgresFixture postgres)
         var again = await retry.Content.ReadFromJsonAsync<ImportedLeague>();
         again.ShouldNotBeNull();
         again.MemberId.ShouldBe(first!.MemberId);
+        again.Members.ShouldBe(4);
+        again.MembersAdded.ShouldBe(0);
         await using var session = Store.QuerySession(leagueId.ToString());
-        (await session.Events.FetchStreamAsync(leagueId)).OfType<IEvent>().Count(e => e.Data is LeagueImported).ShouldBe(1);
-        (await session.Query<SleeperSnapshot>().CountAsync()).ShouldBe(1);
+        var history = (await session.Events.FetchStreamAsync(leagueId)).Select(e => e.Data).ToList();
+        history.OfType<LeagueImported>().ShouldHaveSingleItem();
+        history.OfType<MemberAdded>().Count().ShouldBe(4);
         (await session.LoadAsync<UserMemberships>(subject))!.Leagues.ShouldHaveSingleItem();
+    }
+
+    [Fact]
+    public async Task Importing_again_after_a_team_joins_adds_its_member_and_leaves_everyone_else_alone()
+    {
+        var subject = NewSubject();
+        var leagueId = Guid.NewGuid();
+        var sleeperLeagueId = Api.Sleeper.CopyOfHollandHogs();
+        var first = await (await Import(subject, leagueId, sleeperLeagueId)).Content.ReadFromJsonAsync<ImportedLeague>();
+        var before = await LeagueAsync(leagueId);
+        Api.Sleeper.TeamJoins(sleeperLeagueId, rosterId: 5, "100000000000000005", "Dana", "Dana's Dynasty");
+
+        var response = await ImportAgain(subject, leagueId);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var again = await response.Content.ReadFromJsonAsync<ImportedLeague>();
+        again.ShouldNotBeNull();
+        again.Members.ShouldBe(5);
+        again.MembersAdded.ShouldBe(1);
+        again.MemberId.ShouldBe(first!.MemberId);
+        again.Roles.ShouldBe([Roles.Treasurer]);
+
+        var after = await LeagueAsync(leagueId);
+        after.Members.Where(m => m.SleeperRosterId != 5).ShouldBe(before.Members, ignoreOrder: true);
+        after.Members.Single(m => m.SleeperRosterId == 5).ShouldSatisfyAllConditions(
+            m => m.TeamName.ShouldBe("Dana's Dynasty"),
+            m => m.SleeperDisplayName.ShouldBe("Dana"),
+            m => m.IsClaimed.ShouldBeFalse(),
+            m => m.IsTreasurer.ShouldBeFalse());
+    }
+
+    [Fact]
+    public async Task Importing_again_is_not_refused_by_the_Sleeper_index_and_keeps_another_snapshot()
+    {
+        var subject = NewSubject();
+        var leagueId = Guid.NewGuid();
+        var sleeperLeagueId = Api.Sleeper.CopyOfHollandHogs();
+        (await Import(subject, leagueId, sleeperLeagueId)).StatusCode.ShouldBe(HttpStatusCode.Created);
+        Api.Sleeper.TeamJoins(sleeperLeagueId, rosterId: 5, "100000000000000005", "Dana", "Dana's Dynasty");
+
+        (await ImportAgain(subject, leagueId)).StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        await using var session = Store.QuerySession(leagueId.ToString());
+        (await session.LoadAsync<SleeperLeagueIndex>(sleeperLeagueId))!.LeagueId.ShouldBe(leagueId);
+        var snapshots = await session.Query<SleeperSnapshot>().OrderBy(s => s.TakenAt).ToListAsync();
+        snapshots.Count.ShouldBe(2);
+        snapshots[1].Rosters.ShouldContain("\"roster_id\":5");
+    }
+
+    [Fact]
+    public async Task Two_imports_again_at_once_add_the_new_team_once()
+    {
+        var subject = NewSubject();
+        var leagueId = Guid.NewGuid();
+        var sleeperLeagueId = Api.Sleeper.CopyOfHollandHogs();
+        (await Import(subject, leagueId, sleeperLeagueId)).StatusCode.ShouldBe(HttpStatusCode.Created);
+        Api.Sleeper.TeamJoins(sleeperLeagueId, rosterId: 5, "100000000000000005", "Dana", "Dana's Dynasty");
+
+        var responses = await Task.WhenAll(
+            ImportAgain(subject, leagueId),
+            ImportAgain(subject, leagueId));
+
+        responses.ShouldAllBe(r => r.StatusCode == HttpStatusCode.OK || r.StatusCode == HttpStatusCode.Conflict);
+        (await LeagueAsync(leagueId)).Members.Count(m => m.SleeperRosterId == 5).ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task A_member_who_is_not_a_treasurer_is_forbidden_to_import_again()
+    {
+        var leagueId = Guid.NewGuid();
+        var sleeperLeagueId = Api.Sleeper.CopyOfHollandHogs();
+        (await Import(NewSubject(), leagueId, sleeperLeagueId)).StatusCode.ShouldBe(HttpStatusCode.Created);
+        var sam = NewSubject();
+        await ClaimAsync(leagueId, rosterId: 2, sam, "Sam");
+        Api.Sleeper.TeamJoins(sleeperLeagueId, rosterId: 5, "100000000000000005", "Dana", "Dana's Dynasty");
+
+        var response = await ImportAgain(sam, leagueId);
+
+        (await ProblemFrom(response, HttpStatusCode.Forbidden)).Detail
+            .ShouldBe("Only a treasurer of Holland Hogs can import it again.");
+        (await LeagueAsync(leagueId)).Members.Count.ShouldBe(4);
+    }
+
+    [Fact]
+    public async Task A_different_Sleeper_league_cannot_be_imported_into_a_league()
+    {
+        var subject = NewSubject();
+        var leagueId = Guid.NewGuid();
+        (await Import(subject, leagueId, Api.Sleeper.CopyOfHollandHogs())).StatusCode.ShouldBe(HttpStatusCode.Created);
+        var anotherSleeperLeague = Api.Sleeper.CopyOfHollandHogs();
+
+        var response = await Import(subject, leagueId, anotherSleeperLeague);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+        await using var session = Store.QuerySession();
+        (await session.LoadAsync<SleeperLeagueIndex>(anotherSleeperLeague)).ShouldBeNull();
     }
 
     [Fact]
@@ -209,6 +308,31 @@ public class ImportingALeagueTests(PostgresFixture postgres)
         Api.CreateClientFor(subject).PostAsJsonAsync(
             $"/leagues/{leagueId}/import",
             new ImportLeagueRequest(sleeperLeagueId, username, "Jacob"));
+
+    /// <summary>Importing again, as the league page does it: naming nothing, since the league knows its Sleeper league.</summary>
+    private Task<HttpResponseMessage> ImportAgain(string subject, Guid leagueId) =>
+        Api.CreateClientFor(subject).PostAsJsonAsync($"/leagues/{leagueId}/import", new { });
+
+    private async Task<League> LeagueAsync(Guid leagueId)
+    {
+        await using var session = Store.QuerySession(leagueId.ToString());
+        return (await session.Events.AggregateStreamAsync<League>(leagueId)).ShouldNotBeNull();
+    }
+
+    // Nothing claims a member over HTTP yet, so the claim is written the way claiming will write it.
+    private async Task ClaimAsync(Guid leagueId, int rosterId, string subject, string displayName)
+    {
+        var league = await LeagueAsync(leagueId);
+        var member = league.Members.Single(m => m.SleeperRosterId == rosterId);
+        await using var session = Store.LightweightSession(leagueId.ToString());
+        session.Events.Append(leagueId, new MemberClaimed(member.MemberId, subject, displayName, Guid.NewGuid(), DateTimeOffset.UtcNow));
+        session.Store(new UserMemberships
+        {
+            Id = subject,
+            Leagues = [new LeagueMembership(leagueId, league.Name, league.Season, member.MemberId, [])],
+        });
+        await session.SaveChangesAsync();
+    }
 
     /// <summary>No league stream or snapshot, no membership for the importer and, when given, no index entry for the Sleeper league.</summary>
     private async Task NothingWritten(string subject, Guid leagueId, string? sleeperLeagueId)
