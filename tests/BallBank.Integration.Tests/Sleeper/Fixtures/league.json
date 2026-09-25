@@ -1,0 +1,15 @@
+{
+  "league_id": "900000000000000001",
+  "name": "Holland Hogs",
+  "season": "2026",
+  "season_type": "regular",
+  "sport": "nfl",
+  "status": "in_season",
+  "total_rosters": 4,
+  "previous_league_id": null,
+  "draft_id": "910000000000000001",
+  "avatar": null,
+  "settings": { "num_teams": 4, "playoff_teams": 2 },
+  "scoring_settings": { "rec": 0.5 },
+  "roster_positions": ["QB", "RB", "RB", "WR", "WR", "TE", "FLEX", "BN", "BN"]
+}

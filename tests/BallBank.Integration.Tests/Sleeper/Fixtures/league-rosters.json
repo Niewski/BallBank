@@ -1,0 +1,38 @@
+[
+  {
+    "roster_id": 1,
+    "owner_id": "100000000000000001",
+    "league_id": "900000000000000001",
+    "co_owners": null,
+    "players": [],
+    "starters": [],
+    "settings": { "wins": 2, "losses": 0, "ties": 0, "fpts": 241 }
+  },
+  {
+    "roster_id": 2,
+    "owner_id": "100000000000000002",
+    "league_id": "900000000000000001",
+    "co_owners": null,
+    "players": [],
+    "starters": [],
+    "settings": { "wins": 1, "losses": 1, "ties": 0, "fpts": 220 }
+  },
+  {
+    "roster_id": 3,
+    "owner_id": "100000000000000003",
+    "league_id": "900000000000000001",
+    "co_owners": null,
+    "players": [],
+    "starters": [],
+    "settings": { "wins": 1, "losses": 1, "ties": 0, "fpts": 198 }
+  },
+  {
+    "roster_id": 4,
+    "owner_id": null,
+    "league_id": "900000000000000001",
+    "co_owners": null,
+    "players": [],
+    "starters": [],
+    "settings": { "wins": 0, "losses": 2, "ties": 0, "fpts": 150 }
+  }
+]
