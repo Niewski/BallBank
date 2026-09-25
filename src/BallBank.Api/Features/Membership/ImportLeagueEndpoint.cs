@@ -55,9 +55,14 @@ public static class ImportLeagueEndpoint
         // takes the store rather than a session Wolverine would commit for it.
         await using var session = store.LightweightSession(leagueId.ToString());
 
-        if (await session.Events.FetchStreamStateAsync(leagueId, cancellation) is not null)
+        var existing = await session.Events.AggregateStreamAsync<League>(leagueId, token: cancellation);
+        if (existing is not null)
         {
-            return AlreadyImported();
+            // The same import again, as a retry after a lost response is, answers with the league it
+            // made and writes nothing. Importing again to pick up new teams is #21.
+            return existing.SleeperLeagueId == request.SleeperLeagueId.Trim() && existing.MemberHeldBy(user.Subject()) is { } held
+                ? Results.Ok(Summary(existing, held))
+                : AlreadyImported();
         }
 
         var sleeperUser = await sleeper.FindUserAsync(request.SleeperUsername.Trim(), cancellation);
@@ -110,7 +115,7 @@ public static class ImportLeagueEndpoint
         var league = League.Replay((LeagueImported)events[0], events.Skip(1));
         var importersMember = league.MemberHeldBy(subject)
             ?? throw new InvalidOperationException("An import left the importer holding no member.");
-        IReadOnlyList<string> roles = importersMember.IsTreasurer ? [Roles.Treasurer] : [];
+        var summary = Summary(league, importersMember);
 
         session.Events.StartStream<League>(leagueId, events);
         session.Store(SleeperSnapshot.Of(snapshotId, responses, now));
@@ -118,7 +123,7 @@ public static class ImportLeagueEndpoint
 
         var memberships = await session.LoadAsync<UserMemberships>(subject, cancellation)
             ?? new UserMemberships { Id = subject };
-        memberships.Leagues.Add(new LeagueMembership(leagueId, league.Name, league.Season, importersMember.MemberId, roles));
+        memberships.Leagues.Add(new LeagueMembership(leagueId, league.Name, league.Season, importersMember.MemberId, summary.Roles));
         session.Store(memberships);
 
         try
@@ -131,10 +136,11 @@ public static class ImportLeagueEndpoint
             return AlreadyImported();
         }
 
-        return Results.Created(
-            (string?)null,
-            new ImportedLeague(leagueId, league.Name, league.Season, league.Members.Count, importersMember.MemberId, roles));
+        return Results.Created((string?)null, summary);
     }
+
+    private static ImportedLeague Summary(League league, Member held) =>
+        new(league.Id, league.Name, league.Season, league.Members.Count, held.MemberId, held.IsTreasurer ? [Roles.Treasurer] : []);
 
     private static IResult AlreadyImported() =>
         Results.Problem(

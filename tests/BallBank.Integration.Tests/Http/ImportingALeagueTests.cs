@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using BallBank.Api.Features.Membership;
 using BallBank.Domain.Membership;
 using BallBank.Integration.Tests.Sleeper;
+using JasperFx.Events;
 using Marten;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
@@ -26,7 +27,7 @@ public class ImportingALeagueTests(PostgresFixture postgres)
 
         var response = await client.PostAsJsonAsync(
             $"/leagues/{leagueId}/import",
-            new ImportLeagueRequest(Api.Sleeper.CopyOfHollandHogs(), "jacob", "Jacob W"));
+            new ImportLeagueRequest(Api.Sleeper.CopyOfHollandHogs(), "jacob", "Jacob"));
 
         response.StatusCode.ShouldBe(HttpStatusCode.Created);
         var imported = await response.Content.ReadFromJsonAsync<ImportedLeague>();
@@ -163,11 +164,43 @@ public class ImportingALeagueTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task Retrying_an_import_returns_the_league_without_importing_it_again()
+    {
+        var subject = NewSubject();
+        var leagueId = Guid.NewGuid();
+        var sleeperLeagueId = Api.Sleeper.CopyOfHollandHogs();
+        var first = await (await Import(subject, leagueId, sleeperLeagueId)).Content.ReadFromJsonAsync<ImportedLeague>();
+
+        var retry = await Import(subject, leagueId, sleeperLeagueId);
+
+        retry.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var again = await retry.Content.ReadFromJsonAsync<ImportedLeague>();
+        again.ShouldNotBeNull();
+        again.MemberId.ShouldBe(first!.MemberId);
+        await using var session = Store.QuerySession(leagueId.ToString());
+        (await session.Events.FetchStreamAsync(leagueId)).OfType<IEvent>().Count(e => e.Data is LeagueImported).ShouldBe(1);
+        (await session.Query<SleeperSnapshot>().CountAsync()).ShouldBe(1);
+        (await session.LoadAsync<UserMemberships>(subject))!.Leagues.ShouldHaveSingleItem();
+    }
+
+    [Fact]
+    public async Task Someone_else_cannot_import_into_a_league_that_exists()
+    {
+        var leagueId = Guid.NewGuid();
+        var sleeperLeagueId = Api.Sleeper.CopyOfHollandHogs();
+        (await Import(NewSubject(), leagueId, sleeperLeagueId)).StatusCode.ShouldBe(HttpStatusCode.Created);
+
+        var response = await Import(NewSubject(), leagueId, sleeperLeagueId);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+    }
+
+    [Fact]
     public async Task Without_a_token_the_caller_is_unauthorized()
     {
         var response = await Api.CreateClient().PostAsJsonAsync(
             $"/leagues/{Guid.NewGuid()}/import",
-            new ImportLeagueRequest(FakeSleeper.HollandHogsLeagueId, "jacob", "Jacob W"));
+            new ImportLeagueRequest(FakeSleeper.HollandHogsLeagueId, "jacob", "Jacob"));
 
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
@@ -175,7 +208,7 @@ public class ImportingALeagueTests(PostgresFixture postgres)
     private Task<HttpResponseMessage> Import(string subject, Guid leagueId, string sleeperLeagueId, string username = "jacob") =>
         Api.CreateClientFor(subject).PostAsJsonAsync(
             $"/leagues/{leagueId}/import",
-            new ImportLeagueRequest(sleeperLeagueId, username, "Jacob W"));
+            new ImportLeagueRequest(sleeperLeagueId, username, "Jacob"));
 
     /// <summary>No league stream or snapshot, no membership for the importer and, when given, no index entry for the Sleeper league.</summary>
     private async Task NothingWritten(string subject, Guid leagueId, string? sleeperLeagueId)

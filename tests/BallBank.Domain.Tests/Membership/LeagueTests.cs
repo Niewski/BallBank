@@ -9,7 +9,7 @@ public class LeagueTests
     private const string Jacob = "100000000000000001";
     private const string Sam = "100000000000000002";
     private const string Priya = "100000000000000003";
-    private const string JacobsSubject = "auth0|jacob";
+    private const string JacobsSubject = "test|jacob";
 
     private static readonly SleeperLeagueSnapshot HollandHogs = new(
         "900000000000000001",
@@ -41,7 +41,7 @@ public class LeagueTests
             snapshot.Rosters.ToDictionary(r => r.RosterId, _ => Guid.NewGuid()),
             JacobsSubject,
             importerSleeperUserId,
-            "Jacob W",
+            "Jacob",
             sleeperLeagueAlreadyBacks);
     }
 
@@ -87,7 +87,7 @@ public class LeagueTests
 
         var jacobsMember = command.MemberIds[1];
         events.OfType<MemberClaimed>().ShouldHaveSingleItem()
-            .ShouldBe(new MemberClaimed(jacobsMember, JacobsSubject, "Jacob W", InviteId: null, Now));
+            .ShouldBe(new MemberClaimed(jacobsMember, JacobsSubject, "Jacob", InviteId: null, Now));
         events.OfType<TreasurerAppointed>().ShouldHaveSingleItem()
             .ShouldBe(new TreasurerAppointed(jacobsMember, JacobsSubject, Now));
     }
@@ -106,7 +106,7 @@ public class LeagueTests
         var jacob = league.MemberHeldBy(JacobsSubject);
         jacob.ShouldNotBeNull();
         jacob.MemberId.ShouldBe(command.MemberIds[1]);
-        jacob.HolderDisplayName.ShouldBe("Jacob W");
+        jacob.HolderDisplayName.ShouldBe("Jacob");
         jacob.IsTreasurer.ShouldBeTrue();
         league.Members.Where(m => m.MemberId != jacob.MemberId).ShouldAllBe(m => !m.IsClaimed && !m.IsTreasurer);
     }
@@ -141,7 +141,7 @@ public class LeagueTests
     }
 
     [Fact]
-    public void A_user_who_owns_no_roster_does_not_become_a_member()
+    public void A_Sleeper_co_owner_does_not_become_a_member()
     {
         // Alex co-owns Sam's team on Sleeper. Co-owners are not members (ADR-0010).
         var withCoOwner = HollandHogs with
@@ -153,5 +153,6 @@ public class LeagueTests
 
         added.Count.ShouldBe(4);
         added.ShouldNotContain(m => m.SleeperUserId == "100000000000000004");
+        added.Where(m => m.SuggestedTreasurer).ShouldHaveSingleItem().SleeperUserId.ShouldBe(Jacob);
     }
 }

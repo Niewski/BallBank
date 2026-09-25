@@ -2,7 +2,7 @@ namespace BallBank.Domain.Membership;
 
 /// <summary>
 /// A league: its members, who holds each one, and who keeps the books. Event-sourced like
-/// <see cref="Treasury.MemberAccount"/>: one stream per league, whose id is the league id and the tenant id.
+/// <see cref="Treasury.MemberAccount"/>: one stream per league, whose id is the league id.
 /// </summary>
 public sealed class League
 {
