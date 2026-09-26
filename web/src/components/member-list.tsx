@@ -7,6 +7,7 @@ import { ContactDetails, type Contact } from "@/components/contact-details";
 import { ImportAgain } from "@/components/import-again";
 import { Invite } from "@/components/invite";
 import { Revoke } from "@/components/revoke";
+import { Season } from "@/components/season";
 import { apiBaseUrl } from "@/lib/config";
 import { problemMessage, unreachableMessage } from "@/lib/problem";
 
@@ -112,6 +113,8 @@ export function MemberList({ leagueId }: { leagueId: string }) {
           />
         )}
       </header>
+
+      <Season leagueId={league.leagueId} youAreTreasurer={youAreTreasurer} />
 
       <div className="overflow-x-auto rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
         <table className="w-full text-left text-sm">
