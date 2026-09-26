@@ -48,3 +48,13 @@ public sealed record RecordContactDetails(
     string? Email,
     string? Phone,
     string? DiscordUsername);
+
+/// <summary>
+/// Issue an invite for one member, so whoever opens it can claim exactly that member. The league
+/// decides when it expires; issuing another for the same member voids this one.
+/// </summary>
+/// <param name="IssuerSubject">The sign-in subject of the treasurer issuing it.</param>
+public sealed record IssueInvite(
+    Guid InviteId,
+    Guid MemberId,
+    string IssuerSubject);

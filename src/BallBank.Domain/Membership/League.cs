@@ -7,6 +7,10 @@ namespace BallBank.Domain.Membership;
 public sealed class League
 {
     private readonly Dictionary<Guid, Member> _members = new();
+    private readonly Dictionary<Guid, Invite> _invites = new();
+
+    // The latest invite issued for each member: the only one of theirs that can be valid.
+    private readonly Dictionary<Guid, Guid> _latestInvites = new();
 
     /// <summary>Stream identity. Public setter so the event store can assign it during aggregation.</summary>
     public Guid Id { get; set; }
@@ -22,6 +26,18 @@ public sealed class League
 
     /// <summary>The member this identity holds, or <c>null</c> when it holds none here.</summary>
     public Member? MemberHeldBy(string subject) => _members.Values.FirstOrDefault(m => m.HeldBy == subject);
+
+    /// <summary>The invite issued with this id, valid or not, or <c>null</c> when none was.</summary>
+    public Invite? InviteWithId(Guid inviteId) => _invites.GetValueOrDefault(inviteId);
+
+    /// <summary>
+    /// Whether this invite can be used at <paramref name="now"/>: it was issued, no newer invite for
+    /// its member has voided it, and it has not expired.
+    /// </summary>
+    public bool IsInviteValid(Guid inviteId, DateTimeOffset now) =>
+        _invites.TryGetValue(inviteId, out var invite)
+        && _latestInvites[invite.MemberId] == inviteId
+        && now < invite.ExpiresAt;
 
     // ---------------------------------------------------------------------------------------------
     // Decisions. Pure: read state, return events or throw DomainException. Never mutate here.
@@ -123,6 +139,40 @@ public sealed class League
         return details;
     }
 
+    /// <summary>How long an invite can be used after it is issued.</summary>
+    public static readonly TimeSpan InviteLifetime = TimeSpan.FromDays(14);
+
+    /// <summary>An invite for an unclaimed member, by a treasurer. Returns <c>null</c> when this invite id was already issued.</summary>
+    public InviteIssued? IssueInvite(IssueInvite command, DateTimeOffset now)
+    {
+        if (!_members.TryGetValue(command.MemberId, out var member))
+        {
+            throw new DomainException($"{Name} has no such member.");
+        }
+
+        if (MemberHeldBy(command.IssuerSubject) is not { IsTreasurer: true })
+        {
+            throw new DomainException($"Only a treasurer of {Name} can invite someone to claim a member.");
+        }
+
+        // Checked before the claim below: an invite that was issued, and perhaps used since, stays issued.
+        if (_invites.TryGetValue(command.InviteId, out var issued))
+        {
+            return issued.MemberId == command.MemberId
+                ? null
+                : throw new DomainException("That invite was issued for another member.");
+        }
+
+        // A new invite must not take a member from whoever holds it; the treasurer revokes the claim first.
+        if (member.IsClaimed)
+        {
+            throw new DomainException(
+                $"{member.TeamName} is already claimed by {member.HolderDisplayName}. Revoke that claim before inviting someone else.");
+        }
+
+        return new InviteIssued(command.InviteId, command.MemberId, command.IssuerSubject, now + InviteLifetime, now);
+    }
+
     // One member per roster, from its owner; co-owners never appear here because a roster names one owner.
     private static MemberAdded MemberFor(
         SleeperLeagueSnapshot.Roster roster,
@@ -181,6 +231,12 @@ public sealed class League
     private void When(TreasurerAppointed @event) =>
         _members[@event.MemberId] = _members[@event.MemberId] with { IsTreasurer = true };
 
+    private void When(InviteIssued @event)
+    {
+        _invites[@event.InviteId] = new Invite(@event.InviteId, @event.MemberId, @event.ExpiresAt);
+        _latestInvites[@event.MemberId] = @event.InviteId;
+    }
+
     /// <summary>Applies any event of this stream after the first.</summary>
     public void Evolve(object @event)
     {
@@ -196,6 +252,9 @@ public sealed class League
                 When(e);
                 break;
             case TreasurerAppointed e:
+                When(e);
+                break;
+            case InviteIssued e:
                 When(e);
                 break;
             default:

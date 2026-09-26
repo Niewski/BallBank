@@ -4,6 +4,7 @@ import { useAuth0 } from "@auth0/auth0-react";
 import { useEffect, useState } from "react";
 import { ContactDetails, type Contact } from "@/components/contact-details";
 import { ImportAgain } from "@/components/import-again";
+import { Invite } from "@/components/invite";
 import { apiBaseUrl } from "@/lib/config";
 import { problemMessage, unreachableMessage } from "@/lib/problem";
 
@@ -84,6 +85,7 @@ export function MemberList({ leagueId }: { leagueId: string }) {
 
   const { league } = state;
   const you = league.members.find((m) => m.memberId === league.yourMemberId);
+  const youAreTreasurer = you?.roles.includes("Treasurer") ?? false;
   const showsContacts = league.members.some((m) => m.contact !== null);
 
   return (
@@ -97,7 +99,7 @@ export function MemberList({ leagueId }: { leagueId: string }) {
             {league.season} season · {league.members.length} members
           </p>
         </div>
-        {you?.roles.includes("Treasurer") && (
+        {youAreTreasurer && (
           <ImportAgain
             leagueId={league.leagueId}
             onImported={() => setReads((n) => n + 1)}
@@ -148,7 +150,18 @@ export function MemberList({ leagueId }: { leagueId: string }) {
                       {member.holderDisplayName}
                     </span>
                   ) : (
-                    <span className="text-zinc-400">Unclaimed</span>
+                    <div className="flex flex-col items-start gap-1">
+                      <span className="text-zinc-400">Unclaimed</span>
+                      {youAreTreasurer && (
+                        <Invite
+                          leagueId={league.leagueId}
+                          leagueName={league.name}
+                          memberId={member.memberId}
+                          teamName={member.teamName}
+                          phone={member.contact?.phone ?? null}
+                        />
+                      )}
+                    </div>
                   )}
                 </td>
                 <td className="p-3">
