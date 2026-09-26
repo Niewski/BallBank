@@ -70,3 +70,12 @@ public sealed record ClaimMember(
     Guid InviteId,
     string ClaimantSubject,
     string DisplayName);
+
+/// <summary>
+/// Make a claimed member another treasurer of the league. What it creates is keyed by the member, so
+/// replaying it, once the member is a treasurer, appoints nothing more.
+/// </summary>
+/// <param name="AppointerSubject">The sign-in subject of the treasurer appointing them.</param>
+public sealed record AppointTreasurer(
+    Guid MemberId,
+    string AppointerSubject);

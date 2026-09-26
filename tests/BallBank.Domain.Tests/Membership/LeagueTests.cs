@@ -520,4 +520,96 @@ public class LeagueTests
             league.ClaimMember(new ClaimMember(priyas, inviteId, PriyasSubject, "  "), Now);
         });
     }
+
+    // ---------------------------------------------------------------------------------------------
+    // Appointing a treasurer
+    // ---------------------------------------------------------------------------------------------
+
+    private const string SamsSubject = "test|sam";
+
+    /// <summary>The league as Jacob imported it, keeping its books, with Sam holding Sam's Slammers.</summary>
+    private static (League League, Guid Sams) WithSamClaimed()
+    {
+        var league = Imported();
+        var sams = MemberFor(league, 2);
+        league.Evolve(new MemberClaimed(sams, SamsSubject, "Sam", InviteId: Guid.NewGuid(), Now));
+        return (league, sams);
+    }
+
+    [Fact]
+    public void A_treasurer_appoints_a_claimed_member_as_another_treasurer()
+    {
+        var (league, sams) = WithSamClaimed();
+
+        var appointed = league.AppointTreasurer(new AppointTreasurer(sams, JacobsSubject), Now.AddDays(1));
+
+        appointed.ShouldBe(new TreasurerAppointed(sams, JacobsSubject, Now.AddDays(1)));
+    }
+
+    [Fact]
+    public void A_member_nobody_has_claimed_cannot_be_appointed()
+    {
+        // Priya is Sleeper's name for roster 3, but nobody has claimed it in BallBank yet.
+        var (league, _) = WithSamClaimed();
+
+        Should.Throw<DomainException>(() =>
+        {
+            league.AppointTreasurer(new AppointTreasurer(MemberFor(league, 3), JacobsSubject), Now);
+        }).Message.ShouldBe("Priya is not claimed yet, and only a claimed member can be a treasurer. Invite them first.");
+    }
+
+    [Fact]
+    public void Appointing_a_member_who_is_already_a_treasurer_is_a_no_op()
+    {
+        var (league, sams) = WithSamClaimed();
+        var command = new AppointTreasurer(sams, JacobsSubject);
+        league.Evolve(league.AppointTreasurer(command, Now)!);
+
+        league.AppointTreasurer(command, Now.AddMinutes(1)).ShouldBeNull();
+    }
+
+    [Fact]
+    public void A_member_who_is_not_a_treasurer_cannot_appoint_one()
+    {
+        var (league, sams) = WithSamClaimed();
+
+        Should.Throw<DomainException>(() =>
+        {
+            league.AppointTreasurer(new AppointTreasurer(sams, SamsSubject), Now);
+        }).Message.ShouldBe("Only a treasurer of Holland Hogs can appoint another treasurer.");
+    }
+
+    [Fact]
+    public void A_member_who_is_not_a_treasurer_cannot_appoint_even_someone_who_already_is_one()
+    {
+        // Jacob is a treasurer already, so the league has nothing to do, but Sam has no say in that.
+        var (league, _) = WithSamClaimed();
+
+        Should.Throw<DomainException>(() =>
+        {
+            league.AppointTreasurer(new AppointTreasurer(MemberFor(league, 1), SamsSubject), Now);
+        });
+    }
+
+    [Fact]
+    public void Someone_who_holds_no_member_cannot_appoint_a_treasurer()
+    {
+        var (league, sams) = WithSamClaimed();
+
+        Should.Throw<DomainException>(() =>
+        {
+            league.AppointTreasurer(new AppointTreasurer(sams, "test|stranger"), Now);
+        });
+    }
+
+    [Fact]
+    public void A_member_the_league_does_not_have_cannot_be_appointed()
+    {
+        var (league, _) = WithSamClaimed();
+
+        Should.Throw<DomainException>(() =>
+        {
+            league.AppointTreasurer(new AppointTreasurer(Guid.NewGuid(), JacobsSubject), Now);
+        });
+    }
 }
