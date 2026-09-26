@@ -79,6 +79,49 @@ public class MemberAccountTests
         });
     }
 
+    [Theory]
+    [InlineData("10.005")]
+    [InlineData("0.001")]
+    public void An_assessment_is_in_whole_cents(string amount)
+    {
+        var account = MemberAccount.Replay(Opened());
+
+        Should.Throw<DomainException>(() =>
+        {
+            account.Assess(AssessCommand(account, decimal.Parse(amount, System.Globalization.CultureInfo.InvariantCulture)), Now);
+        }).Message.ShouldBe("An assessment must be in whole cents.");
+    }
+
+    [Fact]
+    public void An_assessment_to_the_cent_is_recorded()
+    {
+        var account = MemberAccount.Replay(Opened());
+
+        account.Assess(AssessCommand(account, 12.50m), Now).ShouldNotBeNull().Amount.ShouldBe(12.50m);
+    }
+
+    [Fact]
+    public void An_assessment_needs_an_id()
+    {
+        var account = MemberAccount.Replay(Opened());
+
+        Should.Throw<DomainException>(() =>
+        {
+            account.Assess(AssessCommand(account, 10m, Guid.Empty), Now);
+        }).Message.ShouldBe("An assessment needs an id.");
+    }
+
+    [Fact]
+    public void An_assessment_needs_a_due_date()
+    {
+        var account = MemberAccount.Replay(Opened());
+
+        Should.Throw<DomainException>(() =>
+        {
+            account.Assess(AssessCommand(account, 10m) with { DueDate = null }, Now);
+        }).Message.ShouldBe("An assessment needs a due date.");
+    }
+
     [Fact]
     public void A_venmo_payment_needs_a_reference()
     {

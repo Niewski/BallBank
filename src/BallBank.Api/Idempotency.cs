@@ -91,9 +91,10 @@ public sealed class IdempotentRequest(string recordId, string fingerprint, JsonS
     private static IResult Answer(IdempotencyRecord record) =>
         Results.Text(record.Body, MediaTypeNames.Application.Json, Encoding.UTF8, record.Status);
 
-    // A stream or document that another transaction wrote first. Marten reports a stream id taken
-    // mid-transaction as a unique violation wrapped in a command failure, not as a collision.
+    // A stream or document that another transaction wrote first, or a stream it appended to since this
+    // one read it. Marten reports a stream id taken mid-transaction as a unique violation wrapped in a
+    // command failure, not as a collision.
     private static bool IsCollision(Exception exception) =>
-        exception is ExistingStreamIdCollisionException or DocumentAlreadyExistsException
+        exception is ExistingStreamIdCollisionException or DocumentAlreadyExistsException or ConcurrencyException
         || exception.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation };
 }

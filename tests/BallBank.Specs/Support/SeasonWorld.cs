@@ -66,4 +66,33 @@ public sealed class SeasonWorld
             _accounts[name] = account;
         }
     }
+
+    /// <summary>
+    /// Assesses the named members of the open season, exactly as the endpoint would: one assessment id
+    /// for them all, and an account opened first for a member who joined after the season opened.
+    /// </summary>
+    public void Assess(IEnumerable<string> members, decimal amount, string memo, DateOnly dueDate)
+    {
+        var season = _seasons.Values.Single();
+        var assessmentId = Guid.NewGuid();
+
+        foreach (var name in members)
+        {
+            if (!_accounts.TryGetValue(name, out var account))
+            {
+                var memberId = _memberIds[name];
+                var accountOpened = MemberAccount.Open(
+                    new OpenAccount(SeasonIds.AccountId(season.SeasonId, memberId), LeagueId, season.Label, memberId), Now);
+                account = MemberAccount.Replay(accountOpened);
+                _history.Add(accountOpened);
+                _accounts[name] = account;
+            }
+
+            if (account.Assess(new AssessDues(account.Id, assessmentId, amount, dueDate, memo, TreasurerId), Now) is { } assessed)
+            {
+                account.Evolve(assessed);
+                _history.Add(assessed);
+            }
+        }
+    }
 }

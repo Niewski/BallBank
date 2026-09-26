@@ -51,17 +51,28 @@ public sealed class MemberAccount
     /// <summary>Returns <c>null</c> when this assessment id was already recorded (idempotent replay).</summary>
     public DuesAssessed? Assess(AssessDues command, DateTimeOffset now)
     {
+        if (command.AssessmentId == Guid.Empty)
+        {
+            throw new DomainException("An assessment needs an id.");
+        }
+
         if (_assessments.ContainsKey(command.AssessmentId))
         {
             return null;
         }
 
         RequirePositive(command.Amount, "An assessment");
+        RequireWholeCents(command.Amount, "An assessment");
+
+        if (command.DueDate is not { } dueDate)
+        {
+            throw new DomainException("An assessment needs a due date.");
+        }
 
         return new DuesAssessed(
             command.AssessmentId,
             command.Amount,
-            command.DueDate,
+            dueDate,
             command.Memo?.Trim() ?? string.Empty,
             command.AssessedBy,
             now);
@@ -211,6 +222,15 @@ public sealed class MemberAccount
         if (amount <= 0)
         {
             throw new DomainException($"{what} must be a positive amount.");
+        }
+    }
+
+    // The books never show a fraction of a cent.
+    private static void RequireWholeCents(decimal amount, string what)
+    {
+        if (decimal.Round(amount, 2) != amount)
+        {
+            throw new DomainException($"{what} must be in whole cents.");
         }
     }
 }

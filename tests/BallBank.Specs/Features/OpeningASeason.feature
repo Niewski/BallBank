@@ -17,3 +17,10 @@ Feature: Opening a season
     When the treasurer opens the "2026" season with dues of $50 due on 2026-10-01 again
     Then Jacob owes $50
     And the season was opened once
+
+  Scenario: A member added later is assessed on request
+    Given the treasurer has opened the "2026" season with dues of $50 due on 2026-10-01
+    And Dana joins the league
+    When the treasurer assesses Dana $50 for "Season dues" due on 2026-10-01
+    Then Dana owes $50
+    And Jacob owes $50

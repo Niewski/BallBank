@@ -17,7 +17,7 @@ public sealed record AssessDues(
     Guid AccountId,
     Guid AssessmentId,
     decimal Amount,
-    DateOnly DueDate,
+    DateOnly? DueDate,
     string Memo,
     Guid AssessedBy);
 
