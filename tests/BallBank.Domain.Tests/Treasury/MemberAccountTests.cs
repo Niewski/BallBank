@@ -1,3 +1,4 @@
+using System.Globalization;
 using BallBank.Domain.Treasury;
 
 namespace BallBank.Domain.Tests.Treasury;
@@ -77,6 +78,64 @@ public class MemberAccountTests
         {
             account.Assess(AssessCommand(account, amount), Now);
         });
+    }
+
+    [Theory]
+    [InlineData("50.001")]
+    [InlineData("0.005")]
+    public void An_assessment_is_in_whole_cents(string amount)
+    {
+        var account = MemberAccount.Replay(Opened());
+
+        Should.Throw<DomainException>(() =>
+        {
+            account.Assess(AssessCommand(account, decimal.Parse(amount, CultureInfo.InvariantCulture)), Now);
+        }).Message.ShouldBe("An assessment must be in whole cents.");
+    }
+
+    [Theory]
+    [InlineData("50.001")]
+    [InlineData("0.005")]
+    public void A_payment_is_in_whole_cents(string amount)
+    {
+        var account = MemberAccount.Replay(Opened(), Assessed(50m));
+
+        Should.Throw<DomainException>(() =>
+        {
+            account.Attest(new AttestPayment(account.Id, Guid.NewGuid(), decimal.Parse(amount, CultureInfo.InvariantCulture), PaymentRail.Cash, null, Member), Now);
+        }).Message.ShouldBe("A payment must be in whole cents.");
+    }
+
+    [Fact]
+    public void Trailing_zeros_are_still_whole_cents()
+    {
+        var account = MemberAccount.Replay(Opened(), Assessed(50m));
+
+        var attested = account.Attest(new AttestPayment(account.Id, Guid.NewGuid(), 12.500m, PaymentRail.Cash, null, Member), Now);
+
+        attested.ShouldNotBeNull().Amount.ShouldBe(12.5m);
+    }
+
+    [Fact]
+    public void A_partial_payment_once_confirmed_leaves_the_rest_owed()
+    {
+        var attestationId = Guid.NewGuid();
+        var account = MemberAccount.Replay(Opened(), Assessed(50m), Attested(20m, attestationId));
+
+        account.Evolve(account.Confirm(new ConfirmPayment(account.Id, attestationId, Treasurer), Now)!);
+
+        account.Balance.ShouldBe(30m);
+    }
+
+    [Fact]
+    public void An_overpayment_once_confirmed_leaves_the_pot_owing_the_member()
+    {
+        var attestationId = Guid.NewGuid();
+        var account = MemberAccount.Replay(Opened(), Assessed(50m), Attested(60m, attestationId));
+
+        account.Evolve(account.Confirm(new ConfirmPayment(account.Id, attestationId, Treasurer), Now)!);
+
+        account.Balance.ShouldBe(-10m);
     }
 
     [Fact]

@@ -45,10 +45,11 @@ public sealed class LeagueWorld
         }
     }
 
-    public void Attest(string member, decimal amount, PaymentRail rail, string reference)
+    /// <summary>The member attests their own payment, unless a treasurer attests it for them.</summary>
+    public void Attest(string member, decimal amount, PaymentRail rail, string? reference, Guid? attestedBy = null)
     {
         var account = Account(member);
-        var command = new AttestPayment(account.Id, Guid.NewGuid(), amount, rail, reference, account.MemberId);
+        var command = new AttestPayment(account.Id, Guid.NewGuid(), amount, rail, reference, attestedBy ?? account.MemberId);
         _latestAttestation[member] = command;
         Record(account, account.Attest(command, Now));
     }

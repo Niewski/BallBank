@@ -21,7 +21,45 @@ public sealed record AccountStatement(
     decimal Balance,
     StatementTotals Totals,
     IReadOnlyList<StatementEntry> Lines,
-    int Version);
+    int Version)
+{
+    /// <summary>
+    /// <paramref name="statement"/> as served to the member <paramref name="callerMemberId"/>, with the balance and
+    /// totals computed now and every acting member's name alongside their id.
+    /// </summary>
+    public static AccountStatement Of(MemberStatement statement, League league, Guid callerMemberId)
+    {
+        var members = league.Members.ToDictionary(m => m.MemberId);
+        var member = members[statement.MemberId];
+        var totals = statement.Totals();
+
+        return new AccountStatement(
+            statement.Id,
+            statement.Season,
+            member.MemberId,
+            member.TeamName,
+            MemberNames.DisplayName(member),
+            callerMemberId == statement.MemberId,
+            totals.Balance,
+            totals,
+            statement.Lines
+                .Select(line => new StatementEntry(
+                    line.Kind,
+                    line.Id,
+                    line.Amount,
+                    line.By,
+                    members.TryGetValue(line.By, out var by) ? MemberNames.DisplayName(by) ?? by.TeamName : null,
+                    line.At,
+                    line.Memo,
+                    line.DueDate,
+                    line.Rail?.ToString(),
+                    line.Reference,
+                    line.Status?.ToString(),
+                    line.Reason))
+                .ToArray(),
+            statement.Version);
+    }
+}
 
 /// <summary>One line of a statement as served, with the acting member's name alongside their id.</summary>
 /// <param name="Kind">An <see cref="StatementLineKind"/>.</param>
@@ -77,34 +115,6 @@ public static class StatementEndpoint
                 detail: "Only a treasurer, or the account's own member, can read its statement.");
         }
 
-        var members = league.Members.ToDictionary(m => m.MemberId);
-        var member = members[statement.MemberId];
-        var totals = statement.Totals();
-
-        return Results.Ok(new AccountStatement(
-            statement.Id,
-            statement.Season,
-            member.MemberId,
-            member.TeamName,
-            MemberNames.DisplayName(member),
-            caller.MemberId == statement.MemberId,
-            totals.Balance,
-            totals,
-            statement.Lines
-                .Select(line => new StatementEntry(
-                    line.Kind,
-                    line.Id,
-                    line.Amount,
-                    line.By,
-                    members.TryGetValue(line.By, out var by) ? MemberNames.DisplayName(by) ?? by.TeamName : null,
-                    line.At,
-                    line.Memo,
-                    line.DueDate,
-                    line.Rail?.ToString(),
-                    line.Reference,
-                    line.Status?.ToString(),
-                    line.Reason))
-                .ToArray(),
-            statement.Version));
+        return Results.Ok(AccountStatement.Of(statement, league, caller.MemberId));
     }
 }

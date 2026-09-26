@@ -1,8 +1,7 @@
 # ADR-0005: Idempotency and optimistic concurrency
 
-- **Status:** Accepted for layer two's header, record and status codes; the rest (expected `Version`
-  in particular) Proposed
-- **Date:** 2026-09-24; layer two accepted 2026-09-26
+- **Status:** Accepted
+- **Date:** 2026-09-24; layer two accepted 2026-09-26; layer three accepted 2026-09-26
 
 ## Context
 
@@ -17,7 +16,7 @@ Three layers that converge:
    no event.
 2. **At the HTTP edge:** every mutating request carries an `Idempotency-Key`; the stored response is
    returned on a retry. Webhooks use the provider's event id.
-3. **Between writers (proposed):** commands carry the expected stream `Version`; a stale version is a
+3. **Between writers:** commands carry the expected stream `Version`; a stale version is a
    `409` with the current version, and the client re-reads.
 
 ### Layer two in detail
@@ -40,6 +39,28 @@ Three layers that converge:
 - The web client generates a fresh key per submission and reuses it when retrying that submission
   (`web/src/lib/idempotency.ts`).
 
+### Layer three in detail
+
+- A command about an existing stream carries `version` **in its JSON body**: the stream version the
+  client last read (the `version` every statement and ledger row serves). This follows Wolverine's
+  aggregate-handler convention of a `Version` on the command, and keeps the precondition beside the
+  command it guards. The first such command is attesting a payment (`POST
+  /leagues/{leagueId}/accounts/{accountId}/attestations`).
+- No `version`: `412 Precondition Failed`, as problem details titled `Version required`, the same
+  status as a missing `Idempotency-Key`.
+- A stale `version`: `409 Conflict`, as problem details with `type` `version-conflict` and
+  `currentVersion`, the stream's version now. Nothing is recorded, so neither is an answer under the
+  `Idempotency-Key`; the web reloads the statement and asks the person to try again.
+- The endpoint loads the stream with `FetchForWriting`, compares versions before appending, and
+  Marten checks again on commit. A writer who commits in between turns the commit into a
+  `ConcurrencyException`, which `IdempotentRequest.CommitAsync` treats as a collision: the stored
+  answer if it was this very request, the `version-conflict` otherwise.
+- Layer one comes first: a command whose fact is already recorded (the same attestation id again)
+  is a no-op answered with the current state, whatever version it carries. A double submission
+  records one fact even when its second copy is stale.
+- Commands that create a stream (opening a season) carry no version: a deterministic stream id
+  already makes a second writer collide.
+
 ## Alternatives considered
 
 - **A plain ASP.NET Core middleware buffering the response.** It could capture any response, but it
@@ -47,10 +68,15 @@ Three layers that converge:
   exist for a command that never committed, or the reverse.
 - **Keying on the key alone, or the key and the league.** Two callers who happen to pick the same
   key would get each other's answers.
+- **The expected version in an `If-Match` header (with an ETag on reads).** Standard HTTP, but it
+  puts half of the command outside its body, needs ETags on every read that feeds a command, and
+  is not what Wolverine's aggregate handlers expect. A missing precondition would still be `412`
+  either way.
 
 ## Consequences
 
-Clients must generate ids and keys; the API rejects mutating requests without them (`412`).
+Clients must generate ids and keys, and send the version they read with every command about an
+existing stream; the API rejects mutating requests without them (`412`).
 Tests must prove: a double-submitted attestation yields one event; two concurrent confirmations
 yield one `PaymentConfirmed`. Every later mutating endpoint adopts layer two by taking an
 `IdempotentRequest` and committing through it.
