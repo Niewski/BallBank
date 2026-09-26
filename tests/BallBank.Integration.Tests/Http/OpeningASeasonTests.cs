@@ -194,6 +194,9 @@ public class OpeningASeasonTests(PostgresFixture postgres)
 
         responses.ShouldAllBe(response => response.StatusCode == HttpStatusCode.Created);
         (await responses[1].Content.ReadAsStringAsync()).ShouldBe(await responses[0].Content.ReadAsStringAsync());
+
+        await using var session = Store.QuerySession(hogs.LeagueId.ToString());
+        (await session.Query<MemberStatement>().ToListAsync()).ShouldAllBe(s => s.Lines.Count == 1);
     }
 
     [Fact]

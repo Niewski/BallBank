@@ -1,7 +1,7 @@
 "use client";
 
 import { useAuth0 } from "@auth0/auth0-react";
-import { useState, type FormEvent } from "react";
+import { useState, type ChangeEvent, type FormEvent } from "react";
 import { apiBaseUrl } from "@/lib/config";
 import { idempotencyHeader, useIdempotencyKey } from "@/lib/idempotency";
 import { problemMessage, unreachableMessage } from "@/lib/problem";
@@ -30,10 +30,11 @@ export function OpenSeason({
   const [state, setState] = useState<OpenSeasonState>({ kind: "idle" });
   const idempotencyKey = useIdempotencyKey();
 
+  // A changed field makes the next submission a new one.
   function edit(set: (value: string) => void) {
-    return (value: string) => {
+    return (event: ChangeEvent<HTMLInputElement>) => {
       idempotencyKey.reset();
-      set(value);
+      set(event.target.value);
     };
   }
 
@@ -94,7 +95,7 @@ export function OpenSeason({
             required
             autoComplete="off"
             value={label}
-            onChange={(event) => edit(setLabel)(event.target.value)}
+            onChange={edit(setLabel)}
             className={field}
           />
         </label>
@@ -107,7 +108,7 @@ export function OpenSeason({
             step="0.01"
             required
             value={duesAmount}
-            onChange={(event) => edit(setDuesAmount)(event.target.value)}
+            onChange={edit(setDuesAmount)}
             className={field}
           />
         </label>
@@ -118,7 +119,7 @@ export function OpenSeason({
             type="date"
             required
             value={dueDate}
-            onChange={(event) => edit(setDueDate)(event.target.value)}
+            onChange={edit(setDueDate)}
             className={field}
           />
         </label>

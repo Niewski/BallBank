@@ -1,7 +1,7 @@
 # ADR-0005: Idempotency and optimistic concurrency
 
-- **Status:** Accepted for layers one and two (the header, the record, the status codes); layer three
-  (expected `Version`) Proposed
+- **Status:** Accepted for layer two's header, record and status codes; the rest (expected `Version`
+  in particular) Proposed
 - **Date:** 2026-09-24; layer two accepted 2026-09-26
 
 ## Context
@@ -27,7 +27,8 @@ Three layers that converge:
 - No `Idempotency-Key` header: `412 Precondition Failed`, as problem details.
 - The key is scoped to the league (the tenant) and the caller's subject. The answer is kept as a
   tenant-scoped `IdempotencyRecord` document: a SHA-256 fingerprint of the method, path and body,
-  and the response status and body.
+  and the response status and body. Every idempotent endpoint so far has the league in its route;
+  one without would keep its records in the default tenant.
 - The record is written in the same Marten session, and so the same transaction, as the events the
   request records. A stored response exists only if the command committed; a refused or failed
   command stores nothing, and a corrected retry under the same key goes through.
