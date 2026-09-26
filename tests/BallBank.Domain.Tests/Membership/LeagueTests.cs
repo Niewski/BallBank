@@ -402,4 +402,122 @@ public class LeagueTests
             league.IssueInvite(command with { MemberId = MemberFor(league, 4) }, Now);
         });
     }
+
+    // ---------------------------------------------------------------------------------------------
+    // Claims
+    // ---------------------------------------------------------------------------------------------
+
+    private const string PriyasSubject = "test|priya";
+
+    /// <summary>The league with an invite issued at <see cref="Now"/> for the member on this roster.</summary>
+    private static (League League, Guid MemberId, Guid InviteId) Invited(int rosterId = 3)
+    {
+        var league = Imported();
+        var memberId = MemberFor(league, rosterId);
+        var command = IssueInviteFor(memberId);
+        league.Evolve(league.IssueInvite(command, Now)!);
+        return (league, memberId, command.InviteId);
+    }
+
+    [Fact]
+    public void An_invited_person_claims_the_member_with_a_valid_invite()
+    {
+        var (league, priyas, inviteId) = Invited();
+
+        var claimed = league.ClaimMember(new ClaimMember(priyas, inviteId, PriyasSubject, " Priya "), Now.AddDays(1));
+
+        claimed.ShouldBe(new MemberClaimed(priyas, PriyasSubject, "Priya", inviteId, Now.AddDays(1)));
+    }
+
+    [Fact]
+    public void An_invite_that_has_expired_cannot_be_used_to_claim()
+    {
+        var (league, priyas, inviteId) = Invited();
+
+        Should.Throw<DomainException>(() =>
+        {
+            league.ClaimMember(new ClaimMember(priyas, inviteId, PriyasSubject, "Priya"), Now + League.InviteLifetime);
+        }).Message.ShouldBe("This invite has expired. Ask the treasurer for a new one.");
+    }
+
+    [Fact]
+    public void An_invite_a_newer_one_replaced_cannot_be_used_to_claim()
+    {
+        var (league, priyas, first) = Invited();
+        league.Evolve(league.IssueInvite(IssueInviteFor(priyas), Now.AddDays(1))!);
+
+        Should.Throw<DomainException>(() =>
+        {
+            league.ClaimMember(new ClaimMember(priyas, first, PriyasSubject, "Priya"), Now.AddDays(2));
+        }).Message.ShouldBe("This invite was replaced by a newer one. Use the latest link the treasurer sent.");
+    }
+
+    [Fact]
+    public void A_member_someone_holds_cannot_be_claimed_by_anyone_else()
+    {
+        // Priya forwarded her link, and Dana opened it after she had claimed.
+        var (league, priyas, inviteId) = Invited();
+        league.Evolve(league.ClaimMember(new ClaimMember(priyas, inviteId, PriyasSubject, "Priya"), Now)!);
+
+        Should.Throw<DomainException>(() =>
+        {
+            league.ClaimMember(new ClaimMember(priyas, inviteId, "test|dana", "Dana"), Now.AddHours(1));
+        }).Message.ShouldBe("Priya is already claimed by someone else. If that is wrong, ask the treasurer.");
+    }
+
+    [Fact]
+    public void Someone_who_already_holds_a_member_cannot_claim_another()
+    {
+        // Jacob holds Hog Wild since the import, and opens the invite he made for Priya.
+        var (league, priyas, inviteId) = Invited();
+
+        Should.Throw<DomainException>(() =>
+        {
+            league.ClaimMember(new ClaimMember(priyas, inviteId, JacobsSubject, "Jacob"), Now);
+        }).Message.ShouldBe("You already hold Hog Wild in Holland Hogs, and one person holds one member per league.");
+    }
+
+    [Fact]
+    public void Claiming_again_by_whoever_holds_the_member_is_a_no_op()
+    {
+        var (league, priyas, inviteId) = Invited();
+        var command = new ClaimMember(priyas, inviteId, PriyasSubject, "Priya");
+        league.Evolve(league.ClaimMember(command, Now)!);
+
+        league.ClaimMember(command, Now.AddMinutes(1)).ShouldBeNull();
+        league.ClaimMember(command, Now + League.InviteLifetime).ShouldBeNull();
+    }
+
+    [Fact]
+    public void An_invite_never_issued_cannot_be_used_to_claim()
+    {
+        var (league, priyas, _) = Invited();
+
+        Should.Throw<DomainException>(() =>
+        {
+            league.ClaimMember(new ClaimMember(priyas, Guid.NewGuid(), PriyasSubject, "Priya"), Now);
+        });
+    }
+
+    [Fact]
+    public void An_invite_claims_only_the_member_it_was_issued_for()
+    {
+        var (league, _, inviteId) = Invited();
+
+        Should.Throw<DomainException>(() =>
+        {
+            league.ClaimMember(new ClaimMember(MemberFor(league, 4), inviteId, PriyasSubject, "Priya"), Now);
+        });
+    }
+
+    [Fact]
+    public void A_claim_needs_a_display_name()
+    {
+        var (league, priyas, inviteId) = Invited();
+
+        Should.Throw<DomainException>(() =>
+        {
+            league.ClaimMember(new ClaimMember(priyas, inviteId, PriyasSubject, "  "), Now);
+        });
+    }
 }

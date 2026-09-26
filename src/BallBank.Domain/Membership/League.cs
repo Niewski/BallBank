@@ -34,10 +34,14 @@ public sealed class League
     /// Whether this invite can be used at <paramref name="now"/>: it was issued, no newer invite for
     /// its member has voided it, and it has not expired.
     /// </summary>
-    public bool IsInviteValid(Guid inviteId, DateTimeOffset now) =>
-        _invites.TryGetValue(inviteId, out var invite)
-        && _latestInvites[invite.MemberId] == inviteId
-        && now < invite.ExpiresAt;
+    public bool IsInviteValid(Guid inviteId, DateTimeOffset now) => StatusOfInvite(inviteId, now) == InviteStatus.Valid;
+
+    /// <summary>Whether this invite can be used at <paramref name="now"/>, and if not, why not.</summary>
+    public InviteStatus StatusOfInvite(Guid inviteId, DateTimeOffset now) =>
+        !_invites.TryGetValue(inviteId, out var invite) ? InviteStatus.NotIssued
+        : _latestInvites[invite.MemberId] != inviteId ? InviteStatus.Replaced
+        : now >= invite.ExpiresAt ? InviteStatus.Expired
+        : InviteStatus.Valid;
 
     // ---------------------------------------------------------------------------------------------
     // Decisions. Pure: read state, return events or throw DomainException. Never mutate here.
@@ -171,6 +175,60 @@ public sealed class League
         }
 
         return new InviteIssued(command.InviteId, command.MemberId, command.IssuerSubject, now + InviteLifetime, now);
+    }
+
+    /// <summary>
+    /// The identity becomes the member through a valid invite for it. Returns <c>null</c> when that
+    /// identity already holds the member, so a double click or a retry claims once.
+    /// </summary>
+    public MemberClaimed? ClaimMember(ClaimMember command, DateTimeOffset now)
+    {
+        if (!_members.TryGetValue(command.MemberId, out var member))
+        {
+            throw new DomainException($"{Name} has no such member.");
+        }
+
+        // Checked before the invite: a retry after the invite expired still finds the claim it made.
+        if (member.HeldBy == command.ClaimantSubject)
+        {
+            return null;
+        }
+
+        if (InviteWithId(command.InviteId)?.MemberId != command.MemberId)
+        {
+            throw new DomainException($"That is not an invite to claim {member.TeamName}.");
+        }
+
+        // An invite that can no longer be used is refused before anything about who holds what, so a
+        // refusal is about the invite exactly when the invite is not valid.
+        switch (StatusOfInvite(command.InviteId, now))
+        {
+            case InviteStatus.Replaced:
+                throw new DomainException("This invite was replaced by a newer one. Use the latest link the treasurer sent.");
+            case InviteStatus.Expired:
+                throw new DomainException("This invite has expired. Ask the treasurer for a new one.");
+        }
+
+        // A member is held by at most one identity (ADR-0010).
+        if (member.IsClaimed)
+        {
+            throw new DomainException(
+                $"{member.TeamName} is already claimed by someone else. If that is wrong, ask the treasurer.");
+        }
+
+        // An identity holds at most one member per league (ADR-0010).
+        if (MemberHeldBy(command.ClaimantSubject) is { } held)
+        {
+            throw new DomainException(
+                $"You already hold {held.TeamName} in {Name}, and one person holds one member per league.");
+        }
+
+        if (string.IsNullOrWhiteSpace(command.DisplayName))
+        {
+            throw new DomainException("Claiming a member needs the name you want to be called in the league.");
+        }
+
+        return new MemberClaimed(command.MemberId, command.ClaimantSubject, command.DisplayName.Trim(), command.InviteId, now);
     }
 
     // One member per roster, from its owner; co-owners never appear here because a roster names one owner.

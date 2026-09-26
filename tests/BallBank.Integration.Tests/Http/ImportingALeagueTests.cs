@@ -319,7 +319,7 @@ public class ImportingALeagueTests(PostgresFixture postgres)
         return (await session.Events.AggregateStreamAsync<League>(leagueId)).ShouldNotBeNull();
     }
 
-    // Nothing claims a member over HTTP yet, so the claim is written the way claiming will write it.
+    // Written the way a claim writes it, without the invite and the contact details a claim over HTTP needs.
     private async Task ClaimAsync(Guid leagueId, int rosterId, string subject, string displayName)
     {
         var league = await LeagueAsync(leagueId);

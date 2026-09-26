@@ -13,7 +13,7 @@ export type Contact = {
 };
 
 // +15550100000 as (555) 010-0000; anything else as it came.
-function formatPhone(phone: string): string {
+export function formatPhone(phone: string): string {
   const us = /^\+1(\d{3})(\d{3})(\d{4})$/.exec(phone);
   return us ? `(${us[1]}) ${us[2]}-${us[3]}` : phone;
 }
