@@ -10,7 +10,7 @@ namespace BallBank.Specs.Support;
 /// </summary>
 public sealed class ImportWorld
 {
-    private static readonly DateTimeOffset Now = new(2026, 9, 24, 12, 0, 0, TimeSpan.Zero);
+    public static readonly DateTimeOffset Now = new(2026, 9, 24, 12, 0, 0, TimeSpan.Zero);
 
     private readonly Dictionary<string, string> _sleeperUserIds = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, Guid> _backs = new();

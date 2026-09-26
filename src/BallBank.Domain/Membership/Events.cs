@@ -38,3 +38,14 @@ public sealed record TreasurerAppointed(
     Guid MemberId,
     string AppointedBy,
     DateTimeOffset AppointedAt);
+
+/// <summary>
+/// A treasurer issued an invite to claim a member, good until <see cref="ExpiresAt"/>. Only the latest
+/// invite for a member is valid; it voids every earlier one.
+/// </summary>
+public sealed record InviteIssued(
+    Guid InviteId,
+    Guid MemberId,
+    string IssuedBy,
+    DateTimeOffset ExpiresAt,
+    DateTimeOffset IssuedAt);

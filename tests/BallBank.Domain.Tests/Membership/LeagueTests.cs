@@ -248,4 +248,158 @@ public class LeagueTests
             league.ImportAgain(ImportAgain(anotherLeague), Now);
         });
     }
+
+    // ---------------------------------------------------------------------------------------------
+    // Invites
+    // ---------------------------------------------------------------------------------------------
+
+    private static Guid MemberFor(League league, int rosterId) =>
+        league.Members.Single(m => m.SleeperRosterId == rosterId).MemberId;
+
+    private static IssueInvite IssueInviteFor(Guid memberId, string issuerSubject = JacobsSubject) =>
+        new(Guid.NewGuid(), memberId, issuerSubject);
+
+    [Fact]
+    public void An_invite_is_issued_for_a_member_and_expires_14_days_later()
+    {
+        var league = Imported();
+        var priyas = MemberFor(league, 3);
+        var command = IssueInviteFor(priyas);
+
+        var issued = league.IssueInvite(command, Now);
+
+        issued.ShouldBe(new InviteIssued(
+            command.InviteId,
+            priyas,
+            JacobsSubject,
+            new DateTimeOffset(2026, 10, 8, 12, 0, 0, TimeSpan.Zero),
+            Now));
+    }
+
+    [Fact]
+    public void A_newer_invite_for_a_member_voids_the_earlier_one()
+    {
+        var league = Imported();
+        var priyas = MemberFor(league, 3);
+        var first = IssueInviteFor(priyas);
+        league.Evolve(league.IssueInvite(first, Now)!);
+
+        var second = IssueInviteFor(priyas);
+        league.Evolve(league.IssueInvite(second, Now.AddDays(1))!);
+
+        league.IsInviteValid(first.InviteId, Now.AddDays(1)).ShouldBeFalse();
+        league.IsInviteValid(second.InviteId, Now.AddDays(1)).ShouldBeTrue();
+    }
+
+    [Fact]
+    public void An_invite_for_one_member_leaves_another_members_invite_valid()
+    {
+        var league = Imported();
+        var priyas = IssueInviteFor(MemberFor(league, 3));
+        var team4s = IssueInviteFor(MemberFor(league, 4));
+
+        league.Evolve(league.IssueInvite(priyas, Now)!);
+        league.Evolve(league.IssueInvite(team4s, Now)!);
+
+        league.IsInviteValid(priyas.InviteId, Now).ShouldBeTrue();
+        league.IsInviteValid(team4s.InviteId, Now).ShouldBeTrue();
+    }
+
+    [Fact]
+    public void An_invite_is_valid_until_14_days_after_it_was_issued()
+    {
+        var league = Imported();
+        var command = IssueInviteFor(MemberFor(league, 3));
+        league.Evolve(league.IssueInvite(command, Now)!);
+
+        league.IsInviteValid(command.InviteId, new DateTimeOffset(2026, 10, 8, 11, 59, 59, TimeSpan.Zero)).ShouldBeTrue();
+        league.IsInviteValid(command.InviteId, new DateTimeOffset(2026, 10, 8, 12, 0, 0, TimeSpan.Zero)).ShouldBeFalse();
+    }
+
+    [Fact]
+    public void An_invite_never_issued_is_not_valid()
+    {
+        Imported().IsInviteValid(Guid.NewGuid(), Now).ShouldBeFalse();
+    }
+
+    [Fact]
+    public void Issuing_an_invite_for_a_claimed_member_is_refused()
+    {
+        // The treasurer revokes Sam's claim first if they mean to hand the team to someone else.
+        var league = Imported();
+        var sams = MemberFor(league, 2);
+        league.Evolve(new MemberClaimed(sams, "test|sam", "Sam", InviteId: Guid.NewGuid(), Now));
+
+        Should.Throw<DomainException>(() =>
+        {
+            league.IssueInvite(IssueInviteFor(sams), Now);
+        });
+    }
+
+    [Fact]
+    public void A_member_who_is_not_a_treasurer_cannot_issue_an_invite()
+    {
+        var league = Imported();
+        league.Evolve(new MemberClaimed(MemberFor(league, 2), "test|sam", "Sam", InviteId: Guid.NewGuid(), Now));
+
+        Should.Throw<DomainException>(() =>
+        {
+            league.IssueInvite(IssueInviteFor(MemberFor(league, 3), issuerSubject: "test|sam"), Now);
+        });
+    }
+
+    [Fact]
+    public void Someone_who_holds_no_member_cannot_issue_an_invite()
+    {
+        var league = Imported();
+
+        Should.Throw<DomainException>(() =>
+        {
+            league.IssueInvite(IssueInviteFor(MemberFor(league, 3), issuerSubject: "test|stranger"), Now);
+        });
+    }
+
+    [Fact]
+    public void An_invite_for_a_member_the_league_does_not_have_is_refused()
+    {
+        Should.Throw<DomainException>(() =>
+        {
+            Imported().IssueInvite(IssueInviteFor(Guid.NewGuid()), Now);
+        });
+    }
+
+    [Fact]
+    public void Issuing_the_same_invite_again_is_a_no_op()
+    {
+        var league = Imported();
+        var command = IssueInviteFor(MemberFor(league, 3));
+        league.Evolve(league.IssueInvite(command, Now)!);
+
+        league.IssueInvite(command, Now.AddMinutes(1)).ShouldBeNull();
+    }
+
+    [Fact]
+    public void Issuing_a_voided_invite_again_does_not_bring_it_back()
+    {
+        var league = Imported();
+        var priyas = MemberFor(league, 3);
+        var first = IssueInviteFor(priyas);
+        league.Evolve(league.IssueInvite(first, Now)!);
+        league.Evolve(league.IssueInvite(IssueInviteFor(priyas), Now)!);
+
+        league.IssueInvite(first, Now).ShouldBeNull();
+    }
+
+    [Fact]
+    public void An_invite_id_already_issued_for_another_member_is_refused()
+    {
+        var league = Imported();
+        var command = IssueInviteFor(MemberFor(league, 3));
+        league.Evolve(league.IssueInvite(command, Now)!);
+
+        Should.Throw<DomainException>(() =>
+        {
+            league.IssueInvite(command with { MemberId = MemberFor(league, 4) }, Now);
+        });
+    }
 }
