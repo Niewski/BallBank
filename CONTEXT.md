@@ -79,6 +79,10 @@ moment the balance moves. Not: "approval", "verification".
 **Rejection** — The treasurer could not find or did not accept an attested payment. Always carries a
 reason the member sees. Not: "denial".
 
+**Confirmation queue** — Every pending attestation of a season, oldest first, for a treasurer to
+confirm or reject. Only treasurers see it. A view of the statements, not a thing of its own. Not:
+"inbox", "approvals", "to-do".
+
 **Adjustment** — A treasurer-posted correction with a reason: a waiver, a refund of an overpayment,
 a write-off. Not: "credit"/"debit" as nouns.
 

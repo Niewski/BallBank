@@ -61,4 +61,8 @@ public static class MemberNames
 {
     /// <summary>What a member goes by: its claimant's name, else its Sleeper name.</summary>
     public static string? DisplayName(Member member) => member.HolderDisplayName ?? member.SleeperDisplayName;
+
+    /// <summary>What the member who did something goes by, else their team; <c>null</c> for a member the league no longer lists.</summary>
+    public static string? ActingName(IReadOnlyDictionary<Guid, Member> members, Guid memberId) =>
+        members.TryGetValue(memberId, out var member) ? DisplayName(member) ?? member.TeamName : null;
 }

@@ -11,6 +11,7 @@ namespace BallBank.Api.Features.Treasury;
 /// <param name="Balance">Positive: the member owes the pot. Negative: the pot owes the member.</param>
 /// <param name="Version">The account's stream version, for a command about it.</param>
 /// <param name="Yours">The caller holds the account's member, rather than reading it as a treasurer.</param>
+/// <param name="YouAreTreasurer">The caller is a treasurer of the league, so can confirm or reject its attestations.</param>
 public sealed record AccountStatement(
     Guid AccountId,
     string Season,
@@ -18,6 +19,7 @@ public sealed record AccountStatement(
     string TeamName,
     string? DisplayName,
     bool Yours,
+    bool YouAreTreasurer,
     decimal Balance,
     StatementTotals Totals,
     IReadOnlyList<StatementEntry> Lines,
@@ -40,6 +42,7 @@ public sealed record AccountStatement(
             member.TeamName,
             MemberNames.DisplayName(member),
             callerMemberId == statement.MemberId,
+            members.TryGetValue(callerMemberId, out var caller) && caller.IsTreasurer,
             totals.Balance,
             totals,
             statement.Lines
@@ -48,7 +51,7 @@ public sealed record AccountStatement(
                     line.Id,
                     line.Amount,
                     line.By,
-                    members.TryGetValue(line.By, out var by) ? MemberNames.DisplayName(by) ?? by.TeamName : null,
+                    MemberNames.ActingName(members, line.By),
                     line.At,
                     line.Memo,
                     line.DueDate,
