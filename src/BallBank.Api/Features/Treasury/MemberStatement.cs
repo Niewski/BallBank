@@ -94,22 +94,22 @@ public sealed class MemberStatementProjection : SingleStreamProjection<MemberSta
                     Rail: attested.Rail, Reference: attested.Reference, Status: AttestationStatus.Pending));
                 return snapshot;
             case PaymentConfirmed confirmed when snapshot is not null:
-                Decide(snapshot, confirmed.AttestationId, line => line with { Status = AttestationStatus.Confirmed });
+                Settle(snapshot, confirmed.AttestationId, line => line with { Status = AttestationStatus.Confirmed });
                 return snapshot;
             case PaymentRejected rejected when snapshot is not null:
-                Decide(snapshot, rejected.AttestationId, line => line with { Status = AttestationStatus.Rejected, Reason = rejected.Reason });
+                Settle(snapshot, rejected.AttestationId, line => line with { Status = AttestationStatus.Rejected, Reason = rejected.Reason });
                 return snapshot;
             default:
                 return snapshot;
         }
     }
 
-    private static void Decide(MemberStatement statement, Guid attestationId, Func<StatementLine, StatementLine> decision)
+    private static void Settle(MemberStatement statement, Guid attestationId, Func<StatementLine, StatementLine> settle)
     {
         var index = statement.Lines.FindIndex(l => l.Kind == StatementLineKind.Attestation && l.Id == attestationId);
         if (index >= 0)
         {
-            statement.Lines[index] = decision(statement.Lines[index]);
+            statement.Lines[index] = settle(statement.Lines[index]);
         }
     }
 }

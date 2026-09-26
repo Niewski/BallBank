@@ -219,7 +219,7 @@ function StatementView({
               ) : (
                 <>
                   <span className="flex items-center gap-2 font-medium text-zinc-950 dark:text-zinc-50">
-                    Paid by {line.rail}
+                    Attested via {line.rail}
                     {line.reference && ` · ${line.reference}`}
                     {line.status && (
                       <span
@@ -241,7 +241,7 @@ function StatementView({
                 {line.byName && ` · by ${line.byName}`}
               </span>
             </div>
-            {/* Only a confirmed payment counts against the balance. */}
+            {/* Only a confirmed attestation counts against the balance. */}
             <span
               className={
                 line.kind === "Attestation" && line.status !== "Confirmed"
