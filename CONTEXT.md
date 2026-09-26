@@ -105,6 +105,12 @@ treasurer, then declared as a fact. Not: "results", "bracket".
 **Statement** — The read model of one account: balance, line items, pending attestations. A
 projection, rebuildable from events. Not: "invoice", "bill".
 
+**Ledger** — Every account of one season of a league, together: each member, their balance and how
+many of their attestations are pending. Every member of the league sees it; only a treasurer, or
+the account's own member, sees the statement behind a line. Not: "books" (the league keeps its books
+*in* BallBank; the ledger is one season's view of them), "leaderboard", "outstanding" (that is a
+number).
+
 **History** — The event stream itself, with who and when on every entry. The audit trail is not a
 separate thing. Not: "log", "audit table".
 

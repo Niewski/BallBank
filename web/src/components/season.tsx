@@ -2,6 +2,7 @@
 
 import { useAuth0 } from "@auth0/auth0-react";
 import { useEffect, useState } from "react";
+import { Ledger } from "@/components/ledger";
 import { OpenSeason } from "@/components/open-season";
 import { apiBaseUrl } from "@/lib/config";
 import { problemMessage, unreachableMessage } from "@/lib/problem";
@@ -20,12 +21,14 @@ type SeasonState =
   | { kind: "error"; message: string };
 
 // The league page's season section: a treasurer opens a season when none is
-// open yet; once one is, its dues and due date show for everyone.
+// open yet; once one is, its dues, due date and ledger show for everyone.
 export function Season({
   leagueId,
+  yourMemberId,
   youAreTreasurer,
 }: {
   leagueId: string;
+  yourMemberId: string | null;
   youAreTreasurer: boolean;
 }) {
   const { getAccessTokenSilently } = useAuth0();
@@ -85,19 +88,27 @@ export function Season({
   }
 
   return (
-    <div className="rounded-lg border border-zinc-200 bg-white p-4 text-sm dark:border-zinc-800 dark:bg-zinc-950">
-      <p className="font-medium text-zinc-950 dark:text-zinc-50">
-        {open.label} season
-      </p>
-      <p className="text-zinc-600 dark:text-zinc-400">
-        Dues ${open.duesAmount.toFixed(2)}, due{" "}
-        {new Date(open.dueDate).toLocaleDateString(undefined, {
-          month: "short",
-          day: "numeric",
-          year: "numeric",
-          timeZone: "UTC",
-        })}
-      </p>
+    <div className="flex flex-col gap-4">
+      <div className="rounded-lg border border-zinc-200 bg-white p-4 text-sm dark:border-zinc-800 dark:bg-zinc-950">
+        <p className="font-medium text-zinc-950 dark:text-zinc-50">
+          {open.label} season
+        </p>
+        <p className="text-zinc-600 dark:text-zinc-400">
+          Dues ${open.duesAmount.toFixed(2)}, due{" "}
+          {new Date(open.dueDate).toLocaleDateString(undefined, {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+            timeZone: "UTC",
+          })}
+        </p>
+      </div>
+      <Ledger
+        leagueId={leagueId}
+        season={open.label}
+        yourMemberId={yourMemberId}
+        youAreTreasurer={youAreTreasurer}
+      />
     </div>
   );
 }
