@@ -26,6 +26,9 @@ public sealed class ImportWorld
     /// <summary>The members the last import added.</summary>
     public IReadOnlyList<MemberAdded> Added { get; private set; } = [];
 
+    /// <summary>Every invite a treasurer sent that the league accepted, oldest first, a repeat included.</summary>
+    public List<IssueInvite> Invites { get; } = [];
+
     public string SleeperUserId(string person)
     {
         if (!_sleeperUserIds.TryGetValue(person, out var id))

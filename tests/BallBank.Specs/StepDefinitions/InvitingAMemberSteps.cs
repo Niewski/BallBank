@@ -9,10 +9,9 @@ namespace BallBank.Specs.StepDefinitions;
 [Binding]
 public sealed class InvitingAMemberSteps(ImportWorld world)
 {
-    private readonly List<IssueInvite> _issued = [];
     private DomainException? _refusal;
 
-    [Given(@"^(\w+) has invited ""([^""]*)""$")]
+    [Given(@"^(\w+) has invited ""([^""]*)""(?: again)?$")]
     public void GivenInvited(string person, string teamName)
     {
         WhenInvites(person, teamName);
@@ -28,7 +27,7 @@ public sealed class InvitingAMemberSteps(ImportWorld world)
 
     [When(@"^(\w+) sends that same invite again$")]
     public void WhenSendsAgain(string person) =>
-        Issue(_issued[^1] with { IssuerSubject = ImportWorld.Subject(person) });
+        Issue(world.Invites[^1] with { IssuerSubject = ImportWorld.Subject(person) });
 
     [Then(@"^the invite for ""([^""]*)"" can be used for 14 days$")]
     public void ThenUsableFor14Days(string teamName)
@@ -65,7 +64,7 @@ public sealed class InvitingAMemberSteps(ImportWorld world)
                 league.Evolve(issued);
             }
 
-            _issued.Add(command);
+            world.Invites.Add(command);
             _refusal = null;
         }
         catch (DomainException refusal)
@@ -79,7 +78,7 @@ public sealed class InvitingAMemberSteps(ImportWorld world)
     {
         var league = world.RequireLeague();
         var member = league.Members.Single(m => m.TeamName == teamName);
-        return _issued
+        return world.Invites
             .Select(c => c.InviteId)
             .Distinct()
             .Select(league.InviteWithId)

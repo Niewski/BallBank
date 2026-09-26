@@ -58,3 +58,15 @@ public sealed record IssueInvite(
     Guid InviteId,
     Guid MemberId,
     string IssuerSubject);
+
+/// <summary>
+/// Claim a member through an invite, so the identity <see cref="ClaimantSubject"/> becomes that member.
+/// Replaying it, by the identity that already holds the member, claims nothing more.
+/// </summary>
+/// <param name="ClaimantSubject">The sign-in subject of the person claiming.</param>
+/// <param name="DisplayName">What the claimant wants to be called in this league.</param>
+public sealed record ClaimMember(
+    Guid MemberId,
+    Guid InviteId,
+    string ClaimantSubject,
+    string DisplayName);

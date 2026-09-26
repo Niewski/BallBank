@@ -256,7 +256,7 @@ public class ContactDetailsTests(PostgresFixture postgres)
         }
     }
 
-    // Nothing claims a member over HTTP yet, so the claim is written the way claiming will write it.
+    // Written the way a claim writes it, without the invite and the contact details a claim over HTTP needs.
     private async Task<League> ClaimAsync(Guid leagueId, int rosterId, string subject, string displayName)
     {
         await using var session = Store.LightweightSession(leagueId.ToString());
