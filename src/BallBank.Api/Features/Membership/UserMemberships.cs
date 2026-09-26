@@ -13,6 +13,18 @@ public sealed class UserMemberships
     public string Id { get; set; } = "";
 
     public List<LeagueMembership> Leagues { get; set; } = [];
+
+    /// <summary>Replaces the roles held in one league, as when the identity is appointed a treasurer there.</summary>
+    public void GiveRoles(Guid leagueId, IReadOnlyList<string> roles)
+    {
+        var index = Leagues.FindIndex(l => l.LeagueId == leagueId);
+        if (index < 0)
+        {
+            throw new InvalidOperationException($"{Id} holds a member of league {leagueId}, but their memberships do not list it.");
+        }
+
+        Leagues[index] = Leagues[index] with { Roles = roles };
+    }
 }
 
 /// <summary>The member an identity holds in one league, with what "my leagues" shows about it.</summary>

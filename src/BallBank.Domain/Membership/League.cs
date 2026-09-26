@@ -231,6 +231,36 @@ public sealed class League
         return new MemberClaimed(command.MemberId, command.ClaimantSubject, command.DisplayName.Trim(), command.InviteId, now);
     }
 
+    /// <summary>A claimed member becomes another treasurer, by a treasurer's hand.</summary>
+    public TreasurerAppointed? AppointTreasurer(AppointTreasurer command, DateTimeOffset now)
+    {
+        if (!_members.TryGetValue(command.MemberId, out var member))
+        {
+            throw new DomainException($"{Name} has no such member.");
+        }
+
+        // The API asks the caller's memberships first; the league, the source of truth, asks again (ADR-0011).
+        if (MemberHeldBy(command.AppointerSubject) is not { IsTreasurer: true })
+        {
+            throw new DomainException($"Only a treasurer of {Name} can appoint another treasurer.");
+        }
+
+        // There is one Treasurer role (ADR-0010): a treasurer appointed again is still just a treasurer.
+        if (member.IsTreasurer)
+        {
+            return null;
+        }
+
+        // A role belongs to one person, so there must be a person to give it to.
+        if (!member.IsClaimed)
+        {
+            throw new DomainException(
+                $"{member.TeamName} is not claimed yet, and only a claimed member can be a treasurer. Invite them first.");
+        }
+
+        return new TreasurerAppointed(command.MemberId, command.AppointerSubject, now);
+    }
+
     // One member per roster, from its owner; co-owners never appear here because a roster names one owner.
     private static MemberAdded MemberFor(
         SleeperLeagueSnapshot.Roster roster,

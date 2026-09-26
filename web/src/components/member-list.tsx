@@ -2,11 +2,14 @@
 
 import { useAuth0 } from "@auth0/auth0-react";
 import { useEffect, useState } from "react";
+import { Appoint } from "@/components/appoint";
 import { ContactDetails, type Contact } from "@/components/contact-details";
 import { ImportAgain } from "@/components/import-again";
 import { Invite } from "@/components/invite";
 import { apiBaseUrl } from "@/lib/config";
 import { problemMessage, unreachableMessage } from "@/lib/problem";
+
+const treasurer = "Treasurer";
 
 type Member = {
   memberId: string;
@@ -85,7 +88,7 @@ export function MemberList({ leagueId }: { leagueId: string }) {
 
   const { league } = state;
   const you = league.members.find((m) => m.memberId === league.yourMemberId);
-  const youAreTreasurer = you?.roles.includes("Treasurer") ?? false;
+  const youAreTreasurer = you?.roles.includes(treasurer) ?? false;
   const showsContacts = league.members.some((m) => m.contact !== null);
 
   return (
@@ -183,6 +186,25 @@ export function MemberList({ leagueId }: { leagueId: string }) {
                       </span>
                     )}
                   </div>
+                  {youAreTreasurer &&
+                    !member.roles.includes(treasurer) &&
+                    (member.claimed ? (
+                      <div className="mt-1">
+                        <Appoint
+                          leagueId={league.leagueId}
+                          memberId={member.memberId}
+                          teamName={member.teamName}
+                          onAppointed={() => setReads((n) => n + 1)}
+                        />
+                      </div>
+                    ) : (
+                      member.suggestedTreasurer && (
+                        // Only a claimed member can hold a role: invite them first.
+                        <p className="mt-1 text-xs text-zinc-500">
+                          Appoint once claimed
+                        </p>
+                      )
+                    ))}
                 </td>
                 {showsContacts && (
                   <td className="p-3 align-top">
