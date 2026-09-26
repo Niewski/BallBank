@@ -25,6 +25,18 @@ public sealed class UserMemberships
 
         Leagues[index] = Leagues[index] with { Roles = roles };
     }
+
+    /// <summary>Removes a league, as when a treasurer revokes the identity's claim to their member there.</summary>
+    public void RemoveLeague(Guid leagueId)
+    {
+        var index = Leagues.FindIndex(l => l.LeagueId == leagueId);
+        if (index < 0)
+        {
+            throw new InvalidOperationException($"{Id} holds a member of league {leagueId}, but their memberships do not list it.");
+        }
+
+        Leagues.RemoveAt(index);
+    }
 }
 
 /// <summary>The member an identity holds in one league, with what "my leagues" shows about it.</summary>

@@ -109,28 +109,28 @@ namespace BallBank.Specs.Features
         {
 #line 5
   #line hidden
-            global::Reqnroll.Table table2 = new global::Reqnroll.Table(new string[] {
+            global::Reqnroll.Table table1 = new global::Reqnroll.Table(new string[] {
                         "roster",
                         "owner",
                         "team name",
                         "commissioner"});
-            table2.AddRow(new string[] {
+            table1.AddRow(new string[] {
                         "1",
                         "Jacob",
                         "Hog Wild",
                         "yes"});
-            table2.AddRow(new string[] {
+            table1.AddRow(new string[] {
                         "2",
                         "Sam",
                         "Sam\'s Slammers",
                         "no"});
-            table2.AddRow(new string[] {
+            table1.AddRow(new string[] {
                         "3",
                         "Priya",
                         "",
                         "no"});
 #line 6
-    await testRunner.GivenAsync("the Sleeper league \"Holland Hogs\" for the 2026 season with these teams:", ((string)(null)), table2, "Given ");
+    await testRunner.GivenAsync("the Sleeper league \"Holland Hogs\" for the 2026 season with these teams:", ((string)(null)), table1, "Given ");
 #line hidden
 #line 11
     await testRunner.AndAsync("Jacob has imported the league", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
@@ -142,7 +142,7 @@ namespace BallBank.Specs.Features
         
         private static global::Reqnroll.Formatters.RuntimeSupport.FeatureLevelCucumberMessages InitializeCucumberMessages()
         {
-            return new global::Reqnroll.Formatters.RuntimeSupport.FeatureLevelCucumberMessages("Features/ClaimingAMember.feature.ndjson", 6);
+            return new global::Reqnroll.Formatters.RuntimeSupport.FeatureLevelCucumberMessages("Features/ClaimingAMember.feature.ndjson", 8);
         }
         
         async global::System.Threading.Tasks.Task global::Xunit.IAsyncLifetime.InitializeAsync()
@@ -316,6 +316,83 @@ namespace BallBank.Specs.Features
 #line hidden
 #line 33
     await testRunner.AndAsync("\"Priya\" was claimed once", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+            }
+            await this.ScenarioCleanupAsync();
+        }
+        
+        [global::Xunit.SkippableFactAttribute(DisplayName="A treasurer revokes a claim")]
+        [global::Xunit.TraitAttribute("FeatureTitle", "Claiming a member")]
+        [global::Xunit.TraitAttribute("Description", "A treasurer revokes a claim")]
+        public async global::System.Threading.Tasks.Task ATreasurerRevokesAClaim()
+        {
+            string[] tagsOfScenario = ((string[])(null));
+            global::System.Collections.Specialized.OrderedDictionary argumentsOfScenario = new global::System.Collections.Specialized.OrderedDictionary();
+            string pickleIndex = "4";
+            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("A treasurer revokes a claim", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
+            string[] tagsOfRule = ((string[])(null));
+            global::Reqnroll.RuleInfo ruleInfo = null;
+#line 35
+  this.ScenarioInitialize(scenarioInfo, ruleInfo);
+#line hidden
+            if ((global::Reqnroll.TagHelper.ContainsIgnoreTag(scenarioInfo.CombinedTags) || global::Reqnroll.TagHelper.ContainsIgnoreTag(featureTags)))
+            {
+                await testRunner.SkipScenarioAsync();
+            }
+            else
+            {
+                await this.ScenarioStartAsync();
+#line 5
+  await this.FeatureBackgroundAsync();
+#line hidden
+#line 36
+    await testRunner.GivenAsync("Priya has claimed \"Priya\" with the invite", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
+#line hidden
+#line 37
+    await testRunner.WhenAsync("Jacob revokes Priya\'s claim to \"Priya\" because \"Wrong person claimed it\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
+#line hidden
+#line 38
+    await testRunner.ThenAsync("\"Priya\" is unclaimed", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
+#line hidden
+#line 39
+    await testRunner.AndAsync("Jacob can invite someone else to \"Priya\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+            }
+            await this.ScenarioCleanupAsync();
+        }
+        
+        [global::Xunit.SkippableFactAttribute(DisplayName="A treasurer cannot revoke the last treasurer\'s claim")]
+        [global::Xunit.TraitAttribute("FeatureTitle", "Claiming a member")]
+        [global::Xunit.TraitAttribute("Description", "A treasurer cannot revoke the last treasurer\'s claim")]
+        public async global::System.Threading.Tasks.Task ATreasurerCannotRevokeTheLastTreasurersClaim()
+        {
+            string[] tagsOfScenario = ((string[])(null));
+            global::System.Collections.Specialized.OrderedDictionary argumentsOfScenario = new global::System.Collections.Specialized.OrderedDictionary();
+            string pickleIndex = "5";
+            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("A treasurer cannot revoke the last treasurer\'s claim", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
+            string[] tagsOfRule = ((string[])(null));
+            global::Reqnroll.RuleInfo ruleInfo = null;
+#line 41
+  this.ScenarioInitialize(scenarioInfo, ruleInfo);
+#line hidden
+            if ((global::Reqnroll.TagHelper.ContainsIgnoreTag(scenarioInfo.CombinedTags) || global::Reqnroll.TagHelper.ContainsIgnoreTag(featureTags)))
+            {
+                await testRunner.SkipScenarioAsync();
+            }
+            else
+            {
+                await this.ScenarioStartAsync();
+#line 5
+  await this.FeatureBackgroundAsync();
+#line hidden
+#line 42
+    await testRunner.WhenAsync("Jacob revokes Jacob\'s claim to \"Hog Wild\" because \"Stepping down\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
+#line hidden
+#line 43
+    await testRunner.ThenAsync("the revocation is refused", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
+#line hidden
+#line 44
+    await testRunner.AndAsync("Jacob holds the member \"Hog Wild\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
             }
             await this.ScenarioCleanupAsync();

@@ -6,6 +6,7 @@ import { Appoint } from "@/components/appoint";
 import { ContactDetails, type Contact } from "@/components/contact-details";
 import { ImportAgain } from "@/components/import-again";
 import { Invite } from "@/components/invite";
+import { Revoke } from "@/components/revoke";
 import { apiBaseUrl } from "@/lib/config";
 import { problemMessage, unreachableMessage } from "@/lib/problem";
 
@@ -17,6 +18,8 @@ type Member = {
   sleeperDisplayName: string | null;
   claimed: boolean;
   holderDisplayName: string | null;
+  // The claimant's sign-in subject, for a treasurer to revoke; null for anyone else.
+  heldBySubject: string | null;
   suggestedTreasurer: boolean;
   roles: string[];
   // Only for a treasurer, and for the member themselves; null for anyone else.
@@ -149,9 +152,20 @@ export function MemberList({ leagueId }: { leagueId: string }) {
                 </td>
                 <td className="p-3">
                   {member.claimed ? (
-                    <span className="text-zinc-700 dark:text-zinc-300">
-                      {member.holderDisplayName}
-                    </span>
+                    <div className="flex flex-col items-start gap-1">
+                      <span className="text-zinc-700 dark:text-zinc-300">
+                        {member.holderDisplayName}
+                      </span>
+                      {youAreTreasurer && member.heldBySubject && (
+                        <Revoke
+                          leagueId={league.leagueId}
+                          memberId={member.memberId}
+                          subject={member.heldBySubject}
+                          teamName={member.teamName}
+                          onRevoked={() => setReads((n) => n + 1)}
+                        />
+                      )}
+                    </div>
                   ) : (
                     <div className="flex flex-col items-start gap-1">
                       <span className="text-zinc-400">Unclaimed</span>

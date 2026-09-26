@@ -612,4 +612,133 @@ public class LeagueTests
             league.AppointTreasurer(new AppointTreasurer(Guid.NewGuid(), JacobsSubject), Now);
         });
     }
+
+    // ---------------------------------------------------------------------------------------------
+    // Revoking a claim
+    // ---------------------------------------------------------------------------------------------
+
+    [Fact]
+    public void A_treasurer_revokes_a_claim_with_a_reason()
+    {
+        var (league, sams) = WithSamClaimed();
+
+        var revoked = league.RevokeClaim(new RevokeClaim(sams, SamsSubject, JacobsSubject, "Sam left the league"), Now.AddDays(1));
+
+        revoked.ShouldBe(new MemberClaimRevoked(sams, SamsSubject, JacobsSubject, "Sam left the league", Now.AddDays(1)));
+    }
+
+    [Fact]
+    public void Revoking_the_only_treasurers_claim_is_refused()
+    {
+        var league = Imported();
+        var jacobs = MemberFor(league, 1);
+
+        Should.Throw<DomainException>(() =>
+        {
+            league.RevokeClaim(new RevokeClaim(jacobs, JacobsSubject, JacobsSubject, "Stepping down"), Now);
+        }).Message.ShouldBe("Hog Wild is the only treasurer of Holland Hogs. Appoint another treasurer before revoking this claim.");
+    }
+
+    [Fact]
+    public void Revoking_a_treasurers_claim_is_allowed_when_another_treasurer_remains()
+    {
+        var (league, sams) = WithSamClaimed();
+        league.Evolve(league.AppointTreasurer(new AppointTreasurer(sams, JacobsSubject), Now)!);
+
+        var revoked = league.RevokeClaim(new RevokeClaim(sams, SamsSubject, JacobsSubject, "Sam left the league"), Now.AddDays(1));
+
+        revoked.ShouldNotBeNull();
+        league.Evolve(revoked);
+        league.Members.Single(m => m.MemberId == sams).IsTreasurer.ShouldBeFalse();
+    }
+
+    [Fact]
+    public void Revoking_an_unclaimed_members_claim_is_a_no_op()
+    {
+        var league = Imported();
+        var priyas = MemberFor(league, 3);
+
+        league.RevokeClaim(new RevokeClaim(priyas, PriyasSubject, JacobsSubject, "Never claimed"), Now).ShouldBeNull();
+    }
+
+    [Fact]
+    public void Revoking_an_already_revoked_claim_again_is_a_no_op()
+    {
+        var (league, sams) = WithSamClaimed();
+        league.Evolve(league.RevokeClaim(new RevokeClaim(sams, SamsSubject, JacobsSubject, "Sam left the league"), Now)!);
+
+        league.RevokeClaim(new RevokeClaim(sams, SamsSubject, JacobsSubject, "Sam left the league"), Now.AddMinutes(1)).ShouldBeNull();
+    }
+
+    [Fact]
+    public void Revoking_a_claim_naming_someone_who_no_longer_holds_it_is_a_no_op()
+    {
+        // Dana's request named Sam, but Sam's claim was revoked and the member reassigned since.
+        var (league, sams) = WithSamClaimed();
+        league.Evolve(league.RevokeClaim(new RevokeClaim(sams, SamsSubject, JacobsSubject, "Sam left the league"), Now)!);
+        league.Evolve(new MemberClaimed(sams, "test|dana", "Dana", InviteId: Guid.NewGuid(), Now));
+
+        league.RevokeClaim(new RevokeClaim(sams, SamsSubject, JacobsSubject, "Stale request"), Now.AddMinutes(1)).ShouldBeNull();
+        league.MemberHeldBy("test|dana").ShouldNotBeNull();
+    }
+
+    [Fact]
+    public void A_member_who_is_not_a_treasurer_cannot_revoke_a_claim()
+    {
+        var (league, sams) = WithSamClaimed();
+
+        Should.Throw<DomainException>(() =>
+        {
+            league.RevokeClaim(new RevokeClaim(sams, SamsSubject, SamsSubject, "Sam left the league"), Now);
+        }).Message.ShouldBe("Only a treasurer of Holland Hogs can revoke a claim.");
+    }
+
+    [Fact]
+    public void Someone_who_holds_no_member_cannot_revoke_a_claim()
+    {
+        var (league, sams) = WithSamClaimed();
+
+        Should.Throw<DomainException>(() =>
+        {
+            league.RevokeClaim(new RevokeClaim(sams, SamsSubject, "test|stranger", "Sam left the league"), Now);
+        });
+    }
+
+    [Fact]
+    public void A_member_the_league_does_not_have_cannot_have_a_claim_revoked()
+    {
+        var (league, _) = WithSamClaimed();
+
+        Should.Throw<DomainException>(() =>
+        {
+            league.RevokeClaim(new RevokeClaim(Guid.NewGuid(), SamsSubject, JacobsSubject, "Sam left the league"), Now);
+        });
+    }
+
+    [Fact]
+    public void Revoking_a_claim_needs_a_reason()
+    {
+        var (league, sams) = WithSamClaimed();
+
+        Should.Throw<DomainException>(() =>
+        {
+            league.RevokeClaim(new RevokeClaim(sams, SamsSubject, JacobsSubject, "  "), Now);
+        }).Message.ShouldBe("Revoking a claim needs a reason.");
+    }
+
+    [Fact]
+    public void A_revoked_member_is_unclaimed_and_keeps_its_history()
+    {
+        var (league, sams) = WithSamClaimed();
+
+        league.Evolve(league.RevokeClaim(new RevokeClaim(sams, SamsSubject, JacobsSubject, "Wrong person claimed it"), Now)!);
+
+        var member = league.Members.Single(m => m.MemberId == sams);
+        member.IsClaimed.ShouldBeFalse();
+        member.HolderDisplayName.ShouldBeNull();
+        member.MemberId.ShouldBe(sams);
+
+        // Unclaimed again: a treasurer can invite someone else to claim it.
+        league.IssueInvite(new IssueInvite(Guid.NewGuid(), sams, JacobsSubject), Now).ShouldNotBeNull();
+    }
 }

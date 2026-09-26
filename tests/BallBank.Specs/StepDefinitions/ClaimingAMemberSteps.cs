@@ -12,6 +12,13 @@ public sealed class ClaimingAMemberSteps(ImportWorld world)
     private readonly List<MemberClaimed> _claims = [];
     private DomainException? _refusal;
 
+    [Given(@"^(\w+) has claimed ""([^""]*)"" with the (invite|first invite)$")]
+    public void GivenClaimed(string person, string teamName, string which)
+    {
+        Claim(person, teamName, which, ImportWorld.Now);
+        _refusal.ShouldBeNull();
+    }
+
     [When(@"^(\w+) claims ""([^""]*)"" with the (invite|first invite)(?: again)?$")]
     public void WhenClaims(string person, string teamName, string which) => Claim(person, teamName, which, ImportWorld.Now);
 
