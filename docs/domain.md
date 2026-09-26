@@ -22,14 +22,24 @@ Where the money invariants live.
 
 **Balance** = assessed − confirmed ± adjustments − payouts. Derived on read; never stored.
 
-### `Season` — one per league × season *(planned)*
+### `Season` — one per league × label
 
-| Command | Event |
-|---|---|
-| `OpenSeason` | `SeasonOpened { duesAmount, dueDate }` |
-| `SetPayoutStructure` | `PayoutStructureSet { places: [{ rank, share }] }` — shares sum to 100% |
-| `DeclareStandings` | `StandingsDeclared { rank → memberId }` |
-| `CloseSeason` | `SeasonClosed` |
+| Command | Event | Invariant / behaviour |
+|---|---|---|
+| `OpenSeason` | `SeasonOpened { label, duesAmount, dueDate, openedBy }` | Label required. Amount > 0. Due date required. Already open (by id) → no event (idempotent). |
+| `SetPayoutStructure` *(planned)* | `PayoutStructureSet { places: [{ rank, share }] }` — shares sum to 100% |
+| `DeclareStandings` *(planned)* | `StandingsDeclared { rank → memberId }` |
+| `CloseSeason` *(planned)* | `SeasonClosed` |
+
+Opening a season also opens an `AccountOpened` + `DuesAssessed` for every current member of the league,
+each on that member's own `MemberAccount` stream, all in the transaction that writes `SeasonOpened`.
+
+**Deterministic ids** (`SeasonIds`, base-class-library only — a hand-rolled name-based UUID, since the
+BCL has no version-5 `Guid` factory): the season id is computed from the league id and label; the
+account id from the season id and member id; the season-dues assessment id from the season id alone,
+shared by every member's line. The same inputs always compute the same ids, so opening a season twice
+— a retry, or a second treasurer's click — lands on the same streams and adds no events, without a
+lookup first.
 
 ### The rule that spans streams
 
@@ -43,10 +53,16 @@ the `LeaguePot` projection, computes payouts from the structure and standings, a
 
 | Projection | Kind | Serves |
 |---|---|---|
-| `MemberStatement` | single-stream, inline | The member page: balance, line items, pending attestations. |
-| `LeaguePot` | multi-stream, async | Treasurer dashboard: pot, confirmed vs outstanding, delinquency. |
-| `ConfirmationQueue` | multi-stream, inline | The treasurer's "needs a decision" list. |
+| `MemberStatement` | single-stream, inline | The member page: assessments for now (memo, due date, who, when); attestations and payouts join it later. |
+| `SeasonListing` | single-stream, inline | `GET …/seasons`: a season's label, dues and due date, without replaying its stream. |
+| `LeaguePot` *(planned)* | multi-stream, async | Treasurer dashboard: pot, confirmed vs outstanding, delinquency. |
+| `ConfirmationQueue` *(planned)* | multi-stream, inline | The treasurer's "needs a decision" list. |
 | History | none — the stream itself | `GET …/history`: events with timestamps, causation/correlation ids and the acting user. |
+
+`Season` and `MemberAccount` themselves stay private-set domain aggregates, rebuilt live from raw
+events (never stored) so a command can decide against current state; `MemberStatement` and
+`SeasonListing` are separate, plain read models with public setters, because Marten's document
+serializer needs to round-trip them from storage.
 
 One projection is async on purpose: it exercises the projection daemon and gives a measurable
 **projection lag** under scale-to-zero ([ADR-0006](adr/0006-inline-vs-async-projections.md)).
@@ -61,6 +77,10 @@ One projection is async on purpose: it exercises the projection daemon and gives
   Two treasurers confirming the same attestation at once produce exactly one `PaymentConfirmed`.
 - Events and outgoing messages are committed in one transaction (Wolverine's outbox on the Marten
   session). No dual writes.
+- A `…By` field on an event holds the acting *member id* (from `UserMemberships`/the league itself).
+  `OpenSeasonEndpoint` additionally sets the caller's raw sign-in subject as a Marten event header
+  (`EventHeaders.Subject`), so the history keeps it without widening the event body; later handlers
+  should reuse the same header key.
 
 ## Event evolution
 

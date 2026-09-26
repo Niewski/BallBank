@@ -11,6 +11,16 @@ public sealed record AccountOpened(
     Guid MemberId,
     DateTimeOffset OpenedAt);
 
+/// <summary>A treasurer opened a season: every current member owes its dues by its due date.</summary>
+public sealed record SeasonOpened(
+    Guid SeasonId,
+    Guid LeagueId,
+    string Label,
+    decimal DuesAmount,
+    DateOnly DueDate,
+    Guid OpenedBy,
+    DateTimeOffset OpenedAt);
+
 /// <summary>The treasurer assessed an amount the member owes.</summary>
 public sealed record DuesAssessed(
     Guid AssessmentId,

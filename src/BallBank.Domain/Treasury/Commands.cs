@@ -5,6 +5,14 @@ namespace BallBank.Domain.Treasury;
 
 public sealed record OpenAccount(Guid AccountId, Guid LeagueId, string Season, Guid MemberId);
 
+public sealed record OpenSeason(
+    Guid SeasonId,
+    Guid LeagueId,
+    string Label,
+    decimal DuesAmount,
+    DateOnly? DueDate,
+    Guid OpenedBy);
+
 public sealed record AssessDues(
     Guid AccountId,
     Guid AssessmentId,

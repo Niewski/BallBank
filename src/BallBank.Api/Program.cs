@@ -85,6 +85,13 @@ builder.Services.AddMarten(options =>
         options.Projections.Add(new MemberAccountProjection(), ProjectionLifecycle.Live);
         options.Projections.Add(new LeagueProjection(), ProjectionLifecycle.Live);
 
+        options.Projections.Add(new SeasonProjection(), ProjectionLifecycle.Live);
+
+        // Stored so a league's seasons, and a member's statement, can be listed without knowing their
+        // stream ids up front; built synchronously, in the same transaction as the events themselves.
+        options.Projections.Add(new SeasonListingProjection(), ProjectionLifecycle.Inline);
+        options.Projections.Add(new MemberStatementProjection(), ProjectionLifecycle.Inline);
+
         // Who caused what: correlation/causation ids and headers (e.g. the acting user) on every event.
         options.Events.MetadataConfig.CausationIdEnabled = true;
         options.Events.MetadataConfig.CorrelationIdEnabled = true;
