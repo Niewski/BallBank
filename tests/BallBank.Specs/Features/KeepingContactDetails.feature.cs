@@ -109,28 +109,28 @@ namespace BallBank.Specs.Features
         {
 #line 5
   #line hidden
-            global::Reqnroll.Table table6 = new global::Reqnroll.Table(new string[] {
+            global::Reqnroll.Table table9 = new global::Reqnroll.Table(new string[] {
                         "roster",
                         "owner",
                         "team name",
                         "commissioner"});
-            table6.AddRow(new string[] {
+            table9.AddRow(new string[] {
                         "1",
                         "Jacob",
                         "Hog Wild",
                         "yes"});
-            table6.AddRow(new string[] {
+            table9.AddRow(new string[] {
                         "2",
                         "Sam",
                         "Sam\'s Slammers",
                         "no"});
-            table6.AddRow(new string[] {
+            table9.AddRow(new string[] {
                         "3",
                         "Priya",
                         "",
                         "no"});
 #line 6
-    await testRunner.GivenAsync("the Sleeper league \"Holland Hogs\" for the 2026 season with these teams:", ((string)(null)), table6, "Given ");
+    await testRunner.GivenAsync("the Sleeper league \"Holland Hogs\" for the 2026 season with these teams:", ((string)(null)), table9, "Given ");
 #line hidden
 #line 11
     await testRunner.AndAsync("Jacob has imported the league", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
@@ -194,27 +194,27 @@ namespace BallBank.Specs.Features
 #line 5
   await this.FeatureBackgroundAsync();
 #line hidden
-                global::Reqnroll.Table table7 = new global::Reqnroll.Table(new string[] {
+                global::Reqnroll.Table table10 = new global::Reqnroll.Table(new string[] {
                             "email",
                             "phone",
                             "discord username"});
-                table7.AddRow(new string[] {
+                table10.AddRow(new string[] {
                             "priya@example.com",
                             "(555) 010-0003",
                             "@Priya"});
 #line 15
-    await testRunner.WhenAsync("Jacob records these contact details for \"Priya\":", ((string)(null)), table7, "When ");
+    await testRunner.WhenAsync("Jacob records these contact details for \"Priya\":", ((string)(null)), table10, "When ");
 #line hidden
-                global::Reqnroll.Table table8 = new global::Reqnroll.Table(new string[] {
+                global::Reqnroll.Table table11 = new global::Reqnroll.Table(new string[] {
                             "email",
                             "phone",
                             "discord username"});
-                table8.AddRow(new string[] {
+                table11.AddRow(new string[] {
                             "priya@example.com",
                             "+15550100003",
                             "priya"});
 #line 18
-    await testRunner.ThenAsync("\"Priya\" has these contact details:", ((string)(null)), table8, "Then ");
+    await testRunner.ThenAsync("\"Priya\" has these contact details:", ((string)(null)), table11, "Then ");
 #line hidden
             }
             await this.ScenarioCleanupAsync();
@@ -356,27 +356,27 @@ namespace BallBank.Specs.Features
 #line 5
   await this.FeatureBackgroundAsync();
 #line hidden
-                global::Reqnroll.Table table9 = new global::Reqnroll.Table(new string[] {
+                global::Reqnroll.Table table12 = new global::Reqnroll.Table(new string[] {
                             "email",
                             "phone",
                             "discord username"});
-                table9.AddRow(new string[] {
+                table12.AddRow(new string[] {
                             "sam@example.com",
                             "555-010-0002",
                             ""});
 #line 47
-    await testRunner.WhenAsync("Sam records these contact details for \"Sam\'s Slammers\":", ((string)(null)), table9, "When ");
+    await testRunner.WhenAsync("Sam records these contact details for \"Sam\'s Slammers\":", ((string)(null)), table12, "When ");
 #line hidden
-                global::Reqnroll.Table table10 = new global::Reqnroll.Table(new string[] {
+                global::Reqnroll.Table table13 = new global::Reqnroll.Table(new string[] {
                             "email",
                             "phone",
                             "discord username"});
-                table10.AddRow(new string[] {
+                table13.AddRow(new string[] {
                             "sam@example.com",
                             "+15550100002",
                             ""});
 #line 50
-    await testRunner.ThenAsync("\"Sam\'s Slammers\" has these contact details:", ((string)(null)), table10, "Then ");
+    await testRunner.ThenAsync("\"Sam\'s Slammers\" has these contact details:", ((string)(null)), table13, "Then ");
 #line hidden
             }
             await this.ScenarioCleanupAsync();
