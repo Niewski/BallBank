@@ -88,7 +88,7 @@ public class AssessingTests(PostgresFixture postgres)
     public async Task A_member_added_since_the_season_opened_gets_an_account_with_their_first_assessment()
     {
         var hogs = await HollandHogs.OpenSeason(this);
-        var danas = await hogs.TeamJoins(this);
+        var danas = await hogs.ImportAddsDana(this);
 
         var response = await Assess(hogs.Jacob, hogs, new AssessmentRequest(Guid.NewGuid(), 50m, SeasonDueDate, "Season dues", [danas]));
 
@@ -105,7 +105,7 @@ public class AssessingTests(PostgresFixture postgres)
     public async Task Assessing_everyone_includes_a_member_added_since_the_season_opened()
     {
         var hogs = await HollandHogs.OpenSeason(this);
-        var danas = await hogs.TeamJoins(this);
+        var danas = await hogs.ImportAddsDana(this);
 
         var touched = await (await Assess(hogs.Jacob, hogs, LateFee())).Content.ReadFromJsonAsync<AssessedAccount[]>();
 
@@ -131,7 +131,7 @@ public class AssessingTests(PostgresFixture postgres)
     public async Task A_refusal_for_one_member_records_nothing_for_the_others()
     {
         var hogs = await HollandHogs.OpenSeason(this);
-        var danas = await hogs.TeamJoins(this);
+        var danas = await hogs.ImportAddsDana(this);
 
         var response = await Assess(hogs.Jacob, hogs, LateFee() with { DueDate = null });
 
@@ -275,8 +275,8 @@ public class AssessingTests(PostgresFixture postgres)
             return new HollandHogs(leagueId, sleeperLeagueId, jacob, MemberOn(1), sam, MemberOn(2), MemberOn(3), MemberOn(4));
         }
 
-        /// <summary>Dana's team joins on Sleeper and Jacob imports the league again; returns Dana's member id.</summary>
-        public async Task<Guid> TeamJoins(AssessingTests tests)
+        /// <summary>A roster for Dana appears on Sleeper and Jacob imports the league again; returns Dana's member id.</summary>
+        public async Task<Guid> ImportAddsDana(AssessingTests tests)
         {
             tests.Api.Sleeper.TeamJoins(SleeperLeagueId, rosterId: 5, ownerUserId: "100000000000000099", ownerName: "Dana", teamName: "Dana's Dynasty");
             (await tests.Api.CreateClientFor(Jacob).PostAsJsonAsync($"/leagues/{LeagueId}/import", new { }))

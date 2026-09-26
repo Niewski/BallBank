@@ -252,7 +252,7 @@ namespace BallBank.Specs.Features
     await testRunner.GivenAsync("the treasurer has opened the \"2026\" season with dues of $50 due on 2026-10-01", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
 #line hidden
 #line 23
-    await testRunner.AndAsync("Dana joins the league", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+    await testRunner.AndAsync("importing the league again adds Dana", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
 #line 24
     await testRunner.WhenAsync("the treasurer assesses Dana $50 for \"Season dues\" due on 2026-10-01", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");

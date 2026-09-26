@@ -40,8 +40,8 @@ public static class AssessEndpoint
 
         var league = await session.Events.AggregateStreamAsync<League>(leagueId, token: cancellation);
         var seasonId = SeasonIds.SeasonId(leagueId, season);
-        var opened = await session.Events.AggregateStreamAsync<Season>(seasonId, token: cancellation);
-        if (league is null || opened is null)
+        var openSeason = await session.Events.AggregateStreamAsync<Season>(seasonId, token: cancellation);
+        if (league is null || openSeason is null)
         {
             return Results.NotFound();
         }
@@ -55,14 +55,14 @@ public static class AssessEndpoint
                 detail: $"Only a treasurer of {league.Name} can assess.");
         }
 
+        if (request.MemberIds is { Length: 0 })
+        {
+            return Refused("An assessment needs at least one member; name none to assess everyone.");
+        }
+
         if (Targets(request, league) is not { } memberIds)
         {
-            return Results.Problem(
-                statusCode: StatusCodes.Status409Conflict,
-                title: "Refused",
-                detail: request.MemberIds is { Length: 0 }
-                    ? "An assessment needs at least one member; name none to assess everyone."
-                    : $"Only members of {league.Name} can be assessed.");
+            return Refused($"Only members of {league.Name} can be assessed.");
         }
 
         session.SetHeader(EventHeaders.Subject, user.Subject());
@@ -88,7 +88,7 @@ public static class AssessEndpoint
             }
 
             // A member added since the season opened: their first assessment opens their account.
-            var accountOpened = MemberAccount.Open(new OpenAccount(accountId, leagueId, opened.Label, memberId), now);
+            var accountOpened = MemberAccount.Open(new OpenAccount(accountId, leagueId, openSeason.Label, memberId), now);
             stream.AppendMany(accountOpened, MemberAccount.Replay(accountOpened).Assess(command, now)!);
             touched.Add(new AssessedAccount(accountId, memberId, Opened: true));
         }
@@ -105,7 +105,7 @@ public static class AssessEndpoint
             cancellation);
     }
 
-    // Every member when none are named; null when the list is empty or names someone outside the league.
+    // Every member when none are named; null when one named is not a member of the league.
     private static IReadOnlyList<Guid>? Targets(AssessmentRequest request, League league)
     {
         var members = league.Members.Select(m => m.MemberId).ToHashSet();
@@ -115,6 +115,9 @@ public static class AssessEndpoint
         }
 
         var named = request.MemberIds.Distinct().ToList();
-        return named.Count > 0 && named.All(members.Contains) ? named : null;
+        return named.All(members.Contains) ? named : null;
     }
+
+    private static IResult Refused(string detail) =>
+        Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "Refused", detail: detail);
 }

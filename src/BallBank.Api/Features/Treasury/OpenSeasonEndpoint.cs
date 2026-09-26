@@ -3,7 +3,6 @@ using BallBank.Api.Features.Membership;
 using BallBank.Domain.Membership;
 using BallBank.Domain.Treasury;
 using JasperFx;
-using JasperFx.Events;
 using Marten;
 using Microsoft.AspNetCore.Authorization;
 using Wolverine.Http;
@@ -81,12 +80,12 @@ public static class OpenSeasonEndpoint
             })
             .ToList();
 
-        SetSubjectHeader(session.Events.StartStream<Season>(seasonId, [opened]), user.Subject());
+        // The caller's sign-in subject, alongside the acting member id already on each event's body.
+        session.SetHeader(EventHeaders.Subject, user.Subject());
+        session.Events.StartStream<Season>(seasonId, [opened]);
         foreach (var account in accounts)
         {
-            SetSubjectHeader(
-                session.Events.StartStream<MemberAccount>(account.AccountId, [account.Opened, account.Assessed]),
-                user.Subject());
+            session.Events.StartStream<MemberAccount>(account.AccountId, [account.Opened, account.Assessed]);
         }
 
         // Another treasurer's click may have opened this season, or one of its accounts, since the checks above.
@@ -97,14 +96,5 @@ public static class OpenSeasonEndpoint
             summary,
             onCollision: () => Results.Ok(summary),
             cancellation);
-    }
-
-    // The caller's sign-in subject, alongside the acting member id already on each event's body.
-    private static void SetSubjectHeader(StreamAction stream, string subject)
-    {
-        foreach (var @event in stream.Events)
-        {
-            @event.SetHeader(EventHeaders.Subject, subject);
-        }
     }
 }

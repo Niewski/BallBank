@@ -35,7 +35,10 @@ Three layers that converge:
 - The same key and fingerprint again: the stored response, without touching the aggregate.
 - The same key with a different fingerprint: `422 Unprocessable Content`.
 - Two requests racing on one key: the loser's commit collides with the winner's (on the record or
-  on the streams), and it re-reads the record and answers with the stored response.
+  on the streams), and it re-reads the record and answers with the stored response. "On the streams"
+  includes a stream appended to since it was read (Marten's `ConcurrencyException`), which a bulk
+  assessment meets because it carries no expected version. When the per-account commands add the
+  expected version, its stale-version `409` must be answered before this catch-all.
 - Records are kept. Purging old ones is an operational task (M3 runbook).
 - The web client generates a fresh key per submission and reuses it when retrying that submission
   (`web/src/lib/idempotency.ts`).
