@@ -114,7 +114,11 @@ export function MemberList({ leagueId }: { leagueId: string }) {
         )}
       </header>
 
-      <Season leagueId={league.leagueId} youAreTreasurer={youAreTreasurer} />
+      <Season
+        leagueId={league.leagueId}
+        yourMemberId={league.yourMemberId}
+        youAreTreasurer={youAreTreasurer}
+      />
 
       <div className="overflow-x-auto rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
         <table className="w-full text-left text-sm">
