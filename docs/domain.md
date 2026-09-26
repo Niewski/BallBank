@@ -53,7 +53,8 @@ the `LeaguePot` projection, computes payouts from the structure and standings, a
 
 | Projection | Kind | Serves |
 |---|---|---|
-| `MemberStatement` | single-stream, inline | The member page: assessments for now (memo, due date, who, when); attestations and payouts join it later. |
+| `MemberStatement` | single-stream, inline | `GET …/accounts/{accountId}`: line items in order — assessments (memo, due date) and attestations (rail, reference, status, rejection reason), each with who and when; adjustments and payouts join it later. Totals and the balance are computed from the lines when served, never stored. |
+| Ledger | none — a query over `MemberStatement` | `GET …/seasons/{season}/ledger`: every account of the season with its computed balance, pending count and version, named from the league's member list. |
 | `SeasonListing` | single-stream, inline | `GET …/seasons`: a season's label, dues and due date, without replaying its stream. |
 | `LeaguePot` *(planned)* | multi-stream, async | Treasurer dashboard: pot, confirmed vs outstanding, delinquency. |
 | `ConfirmationQueue` *(planned)* | multi-stream, inline | The treasurer's "needs a decision" list. |
