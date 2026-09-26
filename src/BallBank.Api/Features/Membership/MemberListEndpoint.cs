@@ -17,6 +17,10 @@ public sealed record LeagueMembers(
 
 /// <summary>One member on the member list.</summary>
 /// <param name="HolderDisplayName">What the identity holding this member goes by; <c>null</c> while unclaimed.</param>
+/// <param name="HeldBySubject">
+/// The sign-in subject of the identity holding this member, so a treasurer can revoke its claim;
+/// <c>null</c> while unclaimed, or for anyone but a treasurer.
+/// </param>
 /// <param name="Contact">
 /// How to reach the member, for a treasurer and for the member themselves, who may also change it;
 /// <c>null</c> for anyone else. Fields with nothing recorded are <c>null</c>.
@@ -27,6 +31,7 @@ public sealed record LeagueMemberEntry(
     string? SleeperDisplayName,
     bool Claimed,
     string? HolderDisplayName,
+    string? HeldBySubject,
     bool SuggestedTreasurer,
     IReadOnlyList<string> Roles,
     ContactDetails? Contact);
@@ -46,6 +51,7 @@ public static class MemberListEndpoint
 
         var caller = league.MemberHeldBy(user.Subject());
         var contacts = await ContactsVisibleTo(caller, session, cancellation);
+        var isTreasurer = caller is { IsTreasurer: true };
 
         return Results.Ok(new LeagueMembers(
             league.Id,
@@ -60,6 +66,7 @@ public static class MemberListEndpoint
                     m.SleeperDisplayName,
                     m.IsClaimed,
                     m.HolderDisplayName,
+                    isTreasurer ? m.HeldBy : null,
                     m.SuggestedTreasurer,
                     Roles.Of(m),
                     contacts(m.MemberId)))

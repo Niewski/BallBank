@@ -261,6 +261,45 @@ public sealed class League
         return new TreasurerAppointed(command.MemberId, command.AppointerSubject, now);
     }
 
+    /// <summary>
+    /// A treasurer revokes a subject's claim to a member, with a reason, so it can be claimed again.
+    /// The member keeps its account and history (ADR-0010). Returns <c>null</c> when that subject does
+    /// not hold the member: they may never have claimed it, or their claim may already be revoked, or
+    /// claimed since by someone else.
+    /// </summary>
+    public MemberClaimRevoked? RevokeClaim(RevokeClaim command, DateTimeOffset now)
+    {
+        if (!_members.TryGetValue(command.MemberId, out var member))
+        {
+            throw new DomainException($"{Name} has no such member.");
+        }
+
+        // The API asks the caller's memberships first; the league, the source of truth, asks again (ADR-0011).
+        if (MemberHeldBy(command.RevokerSubject) is not { IsTreasurer: true })
+        {
+            throw new DomainException($"Only a treasurer of {Name} can revoke a claim.");
+        }
+
+        if (member.HeldBy != command.Subject)
+        {
+            return null;
+        }
+
+        // A league keeps at least one treasurer; appoint another before revoking the only one's claim.
+        if (member.IsTreasurer && _members.Values.Count(m => m.IsTreasurer) == 1)
+        {
+            throw new DomainException(
+                $"{member.TeamName} is the only treasurer of {Name}. Appoint another treasurer before revoking this claim.");
+        }
+
+        if (string.IsNullOrWhiteSpace(command.Reason))
+        {
+            throw new DomainException("Revoking a claim needs a reason.");
+        }
+
+        return new MemberClaimRevoked(command.MemberId, command.Subject, command.RevokerSubject, command.Reason.Trim(), now);
+    }
+
     // One member per roster, from its owner; co-owners never appear here because a roster names one owner.
     private static MemberAdded MemberFor(
         SleeperLeagueSnapshot.Roster roster,
@@ -325,6 +364,14 @@ public sealed class League
         _latestInvites[@event.MemberId] = @event.InviteId;
     }
 
+    private void When(MemberClaimRevoked @event) =>
+        _members[@event.MemberId] = _members[@event.MemberId] with
+        {
+            HeldBy = null,
+            HolderDisplayName = null,
+            IsTreasurer = false,
+        };
+
     /// <summary>Applies any event of this stream after the first.</summary>
     public void Evolve(object @event)
     {
@@ -343,6 +390,9 @@ public sealed class League
                 When(e);
                 break;
             case InviteIssued e:
+                When(e);
+                break;
+            case MemberClaimRevoked e:
                 When(e);
                 break;
             default:

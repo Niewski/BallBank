@@ -40,6 +40,11 @@ The person who imports a league claims their own member in the same step. Not: "
 person can claim it. Opening it while signed in completes the claim; no approval step. Not:
 "invitation code", "join link".
 
+**Revoke** — A treasurer's act of ending an identity's claim to a member: the wrong person claimed
+it, or its owner left. The member keeps its account and history for whoever claims it next; only its
+claimant changes (ADR-0010). A league always keeps at least one treasurer, so revoking the only
+treasurer's claim is refused. Not: "unclaim", "remove", "kick".
+
 **Contact details** — How to reach a member: email, phone number, Discord username. They belong
 to the member within a league, so a treasurer can record a phone number for a member who has not
 claimed yet and text them their invite. A person in two leagues has contact details in each.

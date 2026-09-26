@@ -49,3 +49,14 @@ public sealed record InviteIssued(
     string IssuedBy,
     DateTimeOffset ExpiresAt,
     DateTimeOffset IssuedAt);
+
+/// <summary>
+/// A treasurer revoked an identity's claim to a member: the wrong person claimed it, or its owner
+/// left. The member keeps its account and history for whoever claims it next (ADR-0010).
+/// </summary>
+public sealed record MemberClaimRevoked(
+    Guid MemberId,
+    string Subject,
+    string RevokedBy,
+    string Reason,
+    DateTimeOffset RevokedAt);

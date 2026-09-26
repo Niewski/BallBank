@@ -79,3 +79,17 @@ public sealed record ClaimMember(
 public sealed record AppointTreasurer(
     Guid MemberId,
     string AppointerSubject);
+
+/// <summary>
+/// Revoke <see cref="Subject"/>'s claim to a member, with a reason: the wrong person claimed it, or
+/// its owner left. The member keeps its account and history for whoever claims it next (ADR-0010).
+/// Replaying it, once <see cref="Subject"/> no longer holds the member, revokes nothing more: they
+/// may have been revoked already, or the member may have been claimed since by someone else.
+/// </summary>
+/// <param name="Subject">The sign-in subject whose claim is being revoked.</param>
+/// <param name="RevokerSubject">The sign-in subject of the treasurer revoking it.</param>
+public sealed record RevokeClaim(
+    Guid MemberId,
+    string Subject,
+    string RevokerSubject,
+    string Reason);

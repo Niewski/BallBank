@@ -31,3 +31,14 @@ Feature: Claiming a member
     And Priya claims "Priya" with the invite again
     Then Priya holds the member "Priya"
     And "Priya" was claimed once
+
+  Scenario: A treasurer revokes a claim
+    Given Priya has claimed "Priya" with the invite
+    When Jacob revokes Priya's claim to "Priya" because "Wrong person claimed it"
+    Then "Priya" is unclaimed
+    And Jacob can invite someone else to "Priya"
+
+  Scenario: A treasurer cannot revoke the last treasurer's claim
+    When Jacob revokes Jacob's claim to "Hog Wild" because "Stepping down"
+    Then the revocation is refused
+    And Jacob holds the member "Hog Wild"
