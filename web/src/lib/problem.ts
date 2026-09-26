@@ -15,3 +15,7 @@ export function unreachableMessage(error: unknown): string {
     ? `Could not reach BallBank: ${error.message}`
     : "Could not reach BallBank.";
 }
+
+// The problem type of a command sent against a version of an account that
+// someone has changed since (ADR-0005): reload it and try again.
+export const versionConflictType = "version-conflict";

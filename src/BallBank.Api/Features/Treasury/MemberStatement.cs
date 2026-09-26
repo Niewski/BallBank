@@ -71,9 +71,15 @@ public sealed record StatementTotals(decimal Assessed, decimal Confirmed)
 /// </summary>
 public sealed class MemberStatementProjection : SingleStreamProjection<MemberStatement, Guid>
 {
-    public override MemberStatement? Evolve(MemberStatement? snapshot, Guid id, IEvent e)
+    public override MemberStatement? Evolve(MemberStatement? snapshot, Guid id, IEvent e) => Evolve(snapshot, e.Data);
+
+    /// <summary>
+    /// How one event of the account changes its statement. Also shows a statement with an event not yet
+    /// committed, as the command that records it will answer (<see cref="AttestPaymentEndpoint"/>).
+    /// </summary>
+    public static MemberStatement? Evolve(MemberStatement? snapshot, object @event)
     {
-        switch (e.Data)
+        switch (@event)
         {
             case AccountOpened opened:
                 return new MemberStatement

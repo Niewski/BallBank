@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { apiBaseUrl } from "@/lib/config";
 import { describeBalance, formatMoney } from "@/lib/money";
 import { problemMessage, unreachableMessage } from "@/lib/problem";
+import { AttestPayment } from "./attest-payment";
 
 type StatementLine = {
   kind: "Assessment" | "Attestation";
@@ -25,7 +26,7 @@ type StatementLine = {
   reason: string | null;
 };
 
-type AccountStatement = {
+export type AccountStatement = {
   accountId: string;
   season: string;
   memberId: string;
@@ -116,6 +117,9 @@ function StatementView({
 }) {
   const { getAccessTokenSilently } = useAuth0();
   const [state, setState] = useState<StatementState>({ kind: "loading" });
+  // Bumped to read the statement again, as after a version conflict.
+  const [reloads, setReloads] = useState(0);
+  const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -158,7 +162,7 @@ function StatementView({
       });
 
     return () => controller.abort();
-  }, [getAccessTokenSilently, leagueId, accountId]);
+  }, [getAccessTokenSilently, leagueId, accountId, reloads]);
 
   if (state.kind === "loading") {
     return <p className="text-zinc-500">Loading the statement…</p>;
@@ -197,6 +201,34 @@ function StatementView({
           {formatMoney(statement.totals.confirmed)}
         </p>
       </div>
+
+      {notice && (
+        <p
+          role="status"
+          className="rounded-md bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-200"
+        >
+          {notice}
+        </p>
+      )}
+
+      {/* Keyed by version: once the account changes, the form starts again from its new balance. */}
+      <AttestPayment
+        key={statement.version}
+        leagueId={leagueId}
+        accountId={accountId}
+        balance={statement.balance}
+        version={statement.version}
+        onAttested={(attested) => {
+          setNotice(null);
+          setState({ kind: "ok", statement: attested });
+        }}
+        onVersionConflict={() => {
+          setNotice(
+            "This account changed since you opened it, so nothing was recorded. It has been reloaded: check it and try again.",
+          );
+          setReloads((count) => count + 1);
+        }}
+      />
 
       <ol className="divide-y divide-zinc-200 rounded-lg border border-zinc-200 bg-white text-sm dark:divide-zinc-800 dark:border-zinc-800 dark:bg-zinc-950">
         {statement.lines.map((line) => (
