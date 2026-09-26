@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using BallBank.Api;
 using BallBank.Api.Features.Membership;
 using BallBank.Api.Features.Treasury;
 using BallBank.Domain.Membership;
@@ -179,9 +180,12 @@ public class LedgerTests(PostgresFixture postgres)
             var sam = NewSubject();
             var league = await tests.ClaimAsync(leagueId, rosterId: 2, sam, "Sam");
 
-            (await jacobsClient.PostAsJsonAsync(
-                $"/leagues/{leagueId}/seasons",
-                new OpenSeasonRequest("2026", 50m, DueDate))).StatusCode.ShouldBe(HttpStatusCode.Created);
+            var open = new HttpRequestMessage(HttpMethod.Post, $"/leagues/{leagueId}/seasons")
+            {
+                Content = JsonContent.Create(new OpenSeasonRequest("2026", 50m, DueDate)),
+            };
+            open.Headers.Add(Idempotency.Header, Guid.NewGuid().ToString());
+            (await jacobsClient.SendAsync(open)).StatusCode.ShouldBe(HttpStatusCode.Created);
 
             return new HollandHogs(
                 leagueId,
