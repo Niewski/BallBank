@@ -71,8 +71,11 @@ One projection is async on purpose: it exercises the projection daemon and gives
 
 - Commands carry the id of the fact they create (`assessmentId`, `attestationId`). Replays converge
   inside the aggregate.
-- Every mutating HTTP request will carry an `Idempotency-Key`; the stored response is returned on a
-  retry. Webhooks use the provider's event id as the key.
+- Every mutating HTTP request carries an `Idempotency-Key` (`412` without one); the stored response
+  is returned on a retry, and the same key for a different request is a `422`. The answer is an
+  `IdempotencyRecord`, scoped to league and caller, written in the same transaction as the events.
+  Opening a season is the first endpoint to require it; later mutating endpoints adopt it
+  ([ADR-0005](adr/0005-idempotency-and-concurrency.md)). Webhooks use the provider's event id as the key.
 - Commands carry the expected stream `Version`; a stale version is a `409` with the current version.
   Two treasurers confirming the same attestation at once produce exactly one `PaymentConfirmed`.
 - Events and outgoing messages are committed in one transaction (Wolverine's outbox on the Marten

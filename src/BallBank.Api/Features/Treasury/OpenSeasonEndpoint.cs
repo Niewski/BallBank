@@ -26,6 +26,7 @@ public static class OpenSeasonEndpoint
     public static async Task<IResult> Post(
         Guid leagueId,
         OpenSeasonRequest request,
+        IdempotentRequest idempotency,
         ClaimsPrincipal user,
         IDocumentStore store,
         CancellationToken cancellation)
@@ -59,10 +60,11 @@ public static class OpenSeasonEndpoint
             stream.Aggregate,
             now);
 
-        // Already open: a retry, or a second treasurer's click, adds nothing.
+        // Already open: a retry, or a second treasurer's click, adds nothing. A retry of this very
+        // request that committed after the middleware looked answers as it did then.
         if (opened is null)
         {
-            return Results.Ok(SeasonSummary.Of(stream.Aggregate!));
+            return await idempotency.ReplayAsync(session, cancellation) ?? Results.Ok(SeasonSummary.Of(stream.Aggregate!));
         }
 
         var assessmentId = SeasonIds.DuesAssessmentId(seasonId);
@@ -87,17 +89,14 @@ public static class OpenSeasonEndpoint
                 user.Subject());
         }
 
-        try
-        {
-            await session.SaveChangesAsync(cancellation);
-        }
-        catch (Marten.Exceptions.ExistingStreamIdCollisionException)
-        {
-            // Another treasurer's click opened this season, or one of its accounts, between the checks above and now.
-            return Results.Ok(SeasonSummary.Of(Season.Replay(opened)));
-        }
-
-        return Results.Created((string?)null, SeasonSummary.Of(Season.Replay(opened)));
+        // Another treasurer's click may have opened this season, or one of its accounts, since the checks above.
+        var summary = SeasonSummary.Of(Season.Replay(opened));
+        return await idempotency.CommitAsync(
+            session,
+            StatusCodes.Status201Created,
+            summary,
+            onCollision: () => Results.Ok(summary),
+            cancellation);
     }
 
     // The caller's sign-in subject, alongside the acting member id already on each event's body.
