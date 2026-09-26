@@ -3,6 +3,7 @@
 import { useAuth0 } from "@auth0/auth0-react";
 import { useState, type FormEvent } from "react";
 import { apiBaseUrl } from "@/lib/config";
+import { idempotencyHeader, useIdempotencyKey } from "@/lib/idempotency";
 import { problemMessage, unreachableMessage } from "@/lib/problem";
 
 type OpenSeasonState =
@@ -13,6 +14,8 @@ type OpenSeasonState =
 // A treasurer opens the season with a label, the dues amount and the due
 // date. Every current member is assessed the dues in one step. Opening a
 // season that is already open changes nothing, so a retry cannot double-assess.
+// Submitting again after a failure retries the same submission, under the same
+// Idempotency-Key; changing a field makes it a new one.
 export function OpenSeason({
   leagueId,
   onOpened,
@@ -25,6 +28,14 @@ export function OpenSeason({
   const [duesAmount, setDuesAmount] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [state, setState] = useState<OpenSeasonState>({ kind: "idle" });
+  const idempotencyKey = useIdempotencyKey();
+
+  function edit(set: (value: string) => void) {
+    return (value: string) => {
+      idempotencyKey.reset();
+      set(value);
+    };
+  }
 
   async function open(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -39,6 +50,7 @@ export function OpenSeason({
           headers: {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
+            [idempotencyHeader]: idempotencyKey.current(),
           },
           body: JSON.stringify({
             label,
@@ -53,6 +65,7 @@ export function OpenSeason({
         return;
       }
 
+      idempotencyKey.reset();
       setState({ kind: "idle" });
       onOpened();
     } catch (error: unknown) {
@@ -81,7 +94,7 @@ export function OpenSeason({
             required
             autoComplete="off"
             value={label}
-            onChange={(event) => setLabel(event.target.value)}
+            onChange={(event) => edit(setLabel)(event.target.value)}
             className={field}
           />
         </label>
@@ -94,7 +107,7 @@ export function OpenSeason({
             step="0.01"
             required
             value={duesAmount}
-            onChange={(event) => setDuesAmount(event.target.value)}
+            onChange={(event) => edit(setDuesAmount)(event.target.value)}
             className={field}
           />
         </label>
@@ -105,7 +118,7 @@ export function OpenSeason({
             type="date"
             required
             value={dueDate}
-            onChange={(event) => setDueDate(event.target.value)}
+            onChange={(event) => edit(setDueDate)(event.target.value)}
             className={field}
           />
         </label>

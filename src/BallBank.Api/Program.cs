@@ -139,6 +139,9 @@ app.MapWolverineEndpoints(options =>
 {
     // The league id in the route is the tenant. Endpoints without it run in the default tenant.
     options.TenantId.DetectWith(new LeagueTenant());
+
+    // A retried mutating request answers as the first try did and records nothing new (ADR-0005).
+    options.UseIdempotency();
 });
 
 await app.RunAsync();

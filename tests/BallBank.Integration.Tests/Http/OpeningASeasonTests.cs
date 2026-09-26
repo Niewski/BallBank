@@ -124,9 +124,7 @@ public class OpeningASeasonTests(PostgresFixture postgres)
     {
         var hogs = await HollandHogs.Import(this);
 
-        var response = await Api.CreateClientFor(hogs.Jacob).PostAsJsonAsync(
-            $"/leagues/{hogs.LeagueId}/seasons",
-            new OpenSeasonRequest("2026", 50m, DueDate: null));
+        var response = await Send(Api.CreateClientFor(hogs.Jacob), hogs.LeagueId, new OpenSeasonRequest("2026", 50m, DueDate: null));
 
         response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
         (await response.Content.ReadFromJsonAsync<ProblemDetails>()).ShouldNotBeNull()
@@ -154,18 +152,132 @@ public class OpeningASeasonTests(PostgresFixture postgres)
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
 
-    private Task<HttpResponseMessage> Open(string subject, HollandHogs hogs, string label = "2026", decimal amount = 50m, DateOnly? dueDate = null) =>
-        Api.CreateClientFor(subject).PostAsJsonAsync(
+    [Fact]
+    public async Task Opening_a_season_without_an_idempotency_key_is_a_precondition_failure()
+    {
+        var hogs = await HollandHogs.Import(this);
+
+        var response = await Api.CreateClientFor(hogs.Jacob).PostAsJsonAsync(
             $"/leagues/{hogs.LeagueId}/seasons",
-            new OpenSeasonRequest(label, amount, dueDate ?? DueDate));
+            new OpenSeasonRequest("2026", 50m, DueDate));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.PreconditionFailed);
+        (await response.Content.ReadFromJsonAsync<ProblemDetails>()).ShouldNotBeNull()
+            .Title.ShouldBe("Idempotency-Key required");
+    }
+
+    [Fact]
+    public async Task A_retried_request_answers_as_the_first_try_did_and_records_nothing_new()
+    {
+        var hogs = await HollandHogs.Import(this);
+        var key = Guid.NewGuid().ToString();
+
+        var first = await Open(hogs.Jacob, hogs, idempotencyKey: key);
+        var retry = await Open(hogs.Jacob, hogs, idempotencyKey: key);
+
+        first.StatusCode.ShouldBe(HttpStatusCode.Created);
+        retry.StatusCode.ShouldBe(HttpStatusCode.Created);
+        (await retry.Content.ReadAsStringAsync()).ShouldBe(await first.Content.ReadAsStringAsync());
+
+        await using var session = Store.QuerySession(hogs.LeagueId.ToString());
+        var state = await session.Events.FetchStreamStateAsync(SeasonIds.SeasonId(hogs.LeagueId, "2026"));
+        state.ShouldNotBeNull().Version.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task Two_tries_of_one_request_in_flight_at_once_both_answer_as_the_one_that_committed()
+    {
+        var hogs = await HollandHogs.Import(this);
+        var key = Guid.NewGuid().ToString();
+
+        var responses = await Task.WhenAll(Open(hogs.Jacob, hogs, idempotencyKey: key), Open(hogs.Jacob, hogs, idempotencyKey: key));
+
+        responses.ShouldAllBe(response => response.StatusCode == HttpStatusCode.Created);
+        (await responses[1].Content.ReadAsStringAsync()).ShouldBe(await responses[0].Content.ReadAsStringAsync());
+    }
+
+    [Fact]
+    public async Task An_idempotency_key_reused_for_a_different_request_is_unprocessable()
+    {
+        var hogs = await HollandHogs.Import(this);
+        var key = Guid.NewGuid().ToString();
+        await Open(hogs.Jacob, hogs, idempotencyKey: key);
+
+        var response = await Open(hogs.Jacob, hogs, amount: 60m, idempotencyKey: key);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity);
+        (await response.Content.ReadFromJsonAsync<ProblemDetails>()).ShouldNotBeNull()
+            .Title.ShouldBe("Idempotency-Key reused");
+    }
+
+    [Fact]
+    public async Task A_refused_request_records_no_answer_so_a_corrected_retry_goes_through()
+    {
+        var hogs = await HollandHogs.Import(this);
+        var key = Guid.NewGuid().ToString();
+
+        (await Open(hogs.Jacob, hogs, amount: 0m, idempotencyKey: key)).StatusCode.ShouldBe(HttpStatusCode.Conflict);
+        var corrected = await Open(hogs.Jacob, hogs, idempotencyKey: key);
+
+        corrected.StatusCode.ShouldBe(HttpStatusCode.Created);
+    }
+
+    [Fact]
+    public async Task Two_treasurers_using_the_same_idempotency_key_do_not_collide()
+    {
+        var hogs = await HollandHogs.Import(this);
+        (await Api.CreateClientFor(hogs.Jacob).PostAsJsonAsync(
+            $"/leagues/{hogs.LeagueId}/treasurers", new AppointTreasurerRequest(hogs.Sams))).StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        var key = Guid.NewGuid().ToString();
+        await Open(hogs.Jacob, hogs, label: "2026", idempotencyKey: key);
+
+        var response = await Open(hogs.Sam, hogs, label: "2027", idempotencyKey: key);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Created);
+        (await response.Content.ReadFromJsonAsync<SeasonSummary>()).ShouldNotBeNull().Label.ShouldBe("2027");
+    }
+
+    [Fact]
+    public async Task The_same_idempotency_key_in_two_leagues_does_not_collide()
+    {
+        var hogs = await HollandHogs.Import(this);
+        var otherHogs = await HollandHogs.Import(this, hogs.Jacob);
+        var key = Guid.NewGuid().ToString();
+        await Open(hogs.Jacob, hogs, idempotencyKey: key);
+
+        var response = await Open(hogs.Jacob, otherHogs, idempotencyKey: key);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Created);
+        await using var session = Store.QuerySession(otherHogs.LeagueId.ToString());
+        (await session.Query<MemberStatement>().CountAsync()).ShouldBe(4);
+    }
+
+    private Task<HttpResponseMessage> Open(
+        string subject,
+        HollandHogs hogs,
+        string label = "2026",
+        decimal amount = 50m,
+        DateOnly? dueDate = null,
+        string? idempotencyKey = null) =>
+        Send(Api.CreateClientFor(subject), hogs.LeagueId, new OpenSeasonRequest(label, amount, dueDate ?? DueDate), idempotencyKey);
+
+    private static Task<HttpResponseMessage> Send(HttpClient client, Guid leagueId, OpenSeasonRequest request, string? idempotencyKey = null)
+    {
+        var message = new HttpRequestMessage(HttpMethod.Post, $"/leagues/{leagueId}/seasons")
+        {
+            Content = JsonContent.Create(request),
+        };
+        message.Headers.Add(Idempotency.Header, idempotencyKey ?? Guid.NewGuid().ToString());
+        return client.SendAsync(message);
+    }
 
     /// <summary>Holland Hogs as imported by Jacob, who keeps its books, with Sam holding Sam's Slammers.</summary>
-    private sealed record HollandHogs(Guid LeagueId, string Jacob, Guid Jacobs, string Sam)
+    private sealed record HollandHogs(Guid LeagueId, string Jacob, Guid Jacobs, string Sam, Guid Sams)
     {
-        public static async Task<HollandHogs> Import(OpeningASeasonTests tests)
+        public static async Task<HollandHogs> Import(OpeningASeasonTests tests, string? jacob = null)
         {
             var leagueId = Guid.NewGuid();
-            var jacob = NewSubject();
+            jacob ??= NewSubject();
             var response = await tests.Api.CreateClientFor(jacob).PostAsJsonAsync(
                 $"/leagues/{leagueId}/import",
                 new ImportLeagueRequest(tests.Api.Sleeper.CopyOfHollandHogs(), "jacob", "Jacob"));
@@ -175,7 +287,8 @@ public class OpeningASeasonTests(PostgresFixture postgres)
             var league = await tests.ClaimAsync(leagueId, rosterId: 2, sam, "Sam");
 
             var jacobs = league.Members.Single(m => m.SleeperRosterId == 1).MemberId;
-            return new HollandHogs(leagueId, jacob, jacobs, sam);
+            var sams = league.Members.Single(m => m.SleeperRosterId == 2).MemberId;
+            return new HollandHogs(leagueId, jacob, jacobs, sam, sams);
         }
     }
 
