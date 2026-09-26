@@ -88,6 +88,39 @@ public class ConfirmationQueueTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task Two_treasurers_confirming_at_once_record_one_confirmation()
+    {
+        var hogs = await HollandHogsSeason.Open(Api);
+        var attestation = await Attest(hogs.Sam, hogs, hogs.Sams, 50m, PaymentRail.Venmo, "VN-1234", OpenedVersion);
+
+        var responses = await Task.WhenAll(
+            Confirm(hogs.Jacob, hogs, hogs.Sams, attestation, OpenedVersion + 1),
+            Confirm(hogs.Jacob, hogs, hogs.Sams, attestation, OpenedVersion + 1));
+
+        // The loser either saw the confirmation already recorded (a no-op) or collided with it.
+        responses.Count(r => r.StatusCode == HttpStatusCode.OK).ShouldBeGreaterThanOrEqualTo(1);
+        responses.ShouldAllBe(r => r.StatusCode == HttpStatusCode.OK || r.StatusCode == HttpStatusCode.Conflict);
+        await using var session = Store.QuerySession(hogs.LeagueId.ToString());
+        (await session.Events.FetchStreamAsync(hogs.AccountOf(hogs.Sams)))
+            .Count(e => e.Data is PaymentConfirmed).ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task A_double_submission_records_one_confirmation()
+    {
+        var hogs = await HollandHogsSeason.Open(Api);
+        var attestation = await Attest(hogs.Sam, hogs, hogs.Sams, 50m, PaymentRail.Venmo, "VN-1234", OpenedVersion);
+        var key = Guid.NewGuid().ToString();
+
+        var first = await Confirm(hogs.Jacob, hogs, hogs.Sams, attestation, OpenedVersion + 1, key);
+        var again = await Confirm(hogs.Jacob, hogs, hogs.Sams, attestation, OpenedVersion + 1, key);
+
+        first.StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await again.Content.ReadAsStringAsync()).ShouldBe(await first.Content.ReadAsStringAsync());
+        (await StreamVersionOf(hogs, hogs.Sams)).ShouldBe(OpenedVersion + 2);
+    }
+
+    [Fact]
     public async Task A_treasurer_confirms_their_own_attestation()
     {
         var hogs = await HollandHogsSeason.Open(Api);
@@ -221,18 +254,18 @@ public class ConfirmationQueueTests(PostgresFixture postgres)
         return attestationId;
     }
 
-    private Task<HttpResponseMessage> Confirm(string subject, HollandHogsSeason hogs, Guid memberId, Guid attestationId, int? version) =>
+    private Task<HttpResponseMessage> Confirm(string subject, HollandHogsSeason hogs, Guid memberId, Guid attestationId, int? version, string? idempotencyKey = null) =>
         Send(subject, $"/leagues/{hogs.LeagueId}/accounts/{hogs.AccountOf(memberId)}/attestations/{attestationId}/confirmation",
-            new ConfirmPaymentRequest(version));
+            new ConfirmPaymentRequest(version), idempotencyKey);
 
     private Task<HttpResponseMessage> Reject(string subject, HollandHogsSeason hogs, Guid memberId, Guid attestationId, string? reason, int? version) =>
         Send(subject, $"/leagues/{hogs.LeagueId}/accounts/{hogs.AccountOf(memberId)}/attestations/{attestationId}/rejection",
             new RejectPaymentRequest(reason, version));
 
-    private Task<HttpResponseMessage> Send(string subject, string path, object body)
+    private Task<HttpResponseMessage> Send(string subject, string path, object body, string? idempotencyKey = null)
     {
         var message = new HttpRequestMessage(HttpMethod.Post, path) { Content = JsonContent.Create(body, body.GetType()) };
-        message.Headers.Add(Idempotency.Header, Guid.NewGuid().ToString());
+        message.Headers.Add(Idempotency.Header, idempotencyKey ?? Guid.NewGuid().ToString());
         return Api.CreateClientFor(subject).SendAsync(message);
     }
 }
