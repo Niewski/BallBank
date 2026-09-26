@@ -2,6 +2,7 @@
 
 import { useAuth0 } from "@auth0/auth0-react";
 import { useEffect, useState } from "react";
+import { ContactDetails, type Contact } from "@/components/contact-details";
 import { ImportAgain } from "@/components/import-again";
 import { apiBaseUrl } from "@/lib/config";
 import { problemMessage, unreachableMessage } from "@/lib/problem";
@@ -14,6 +15,8 @@ type Member = {
   holderDisplayName: string | null;
   suggestedTreasurer: boolean;
   roles: string[];
+  // Only for a treasurer, and for the member themselves; null for anyone else.
+  contact: Contact | null;
 };
 
 type LeagueMembers = {
@@ -81,6 +84,7 @@ export function MemberList({ leagueId }: { leagueId: string }) {
 
   const { league } = state;
   const you = league.members.find((m) => m.memberId === league.yourMemberId);
+  const showsContacts = league.members.some((m) => m.contact !== null);
 
   return (
     <section className="flex flex-col gap-6">
@@ -117,6 +121,11 @@ export function MemberList({ leagueId }: { leagueId: string }) {
               <th scope="col" className="p-3 font-medium">
                 Roles
               </th>
+              {showsContacts && (
+                <th scope="col" className="p-3 font-medium">
+                  Contact
+                </th>
+              )}
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
@@ -162,6 +171,20 @@ export function MemberList({ leagueId }: { leagueId: string }) {
                     )}
                   </div>
                 </td>
+                {showsContacts && (
+                  <td className="p-3 align-top">
+                    {member.contact && (
+                      <ContactDetails
+                        leagueId={league.leagueId}
+                        memberId={member.memberId}
+                        teamName={member.teamName}
+                        claimed={member.claimed}
+                        contact={member.contact}
+                        onSaved={() => setReads((n) => n + 1)}
+                      />
+                    )}
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>

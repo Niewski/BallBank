@@ -17,6 +17,10 @@ public sealed record LeagueMembers(
 
 /// <summary>One member on the member list.</summary>
 /// <param name="HolderDisplayName">What the identity holding this member goes by; <c>null</c> while unclaimed.</param>
+/// <param name="Contact">
+/// How to reach the member, for a treasurer and for the member themselves, who may also change it;
+/// <c>null</c> for anyone else. Fields with nothing recorded are <c>null</c>.
+/// </param>
 public sealed record LeagueMemberEntry(
     Guid MemberId,
     string TeamName,
@@ -24,7 +28,8 @@ public sealed record LeagueMemberEntry(
     bool Claimed,
     string? HolderDisplayName,
     bool SuggestedTreasurer,
-    IReadOnlyList<string> Roles);
+    IReadOnlyList<string> Roles,
+    ContactDetails? Contact);
 
 public static class MemberListEndpoint
 {
@@ -39,11 +44,14 @@ public static class MemberListEndpoint
             return Results.NotFound();
         }
 
+        var caller = league.MemberHeldBy(user.Subject());
+        var contacts = await ContactsVisibleTo(caller, session, cancellation);
+
         return Results.Ok(new LeagueMembers(
             league.Id,
             league.Name,
             league.Season,
-            league.MemberHeldBy(user.Subject())?.MemberId,
+            caller?.MemberId,
             league.Members
                 .OrderBy(m => m.TeamName, StringComparer.OrdinalIgnoreCase)
                 .Select(m => new LeagueMemberEntry(
@@ -53,7 +61,29 @@ public static class MemberListEndpoint
                     m.IsClaimed,
                     m.HolderDisplayName,
                     m.SuggestedTreasurer,
-                    Roles.Of(m)))
+                    Roles.Of(m),
+                    contacts(m.MemberId)))
                 .ToArray()));
+    }
+
+    /// <summary>
+    /// Every member's contact details for a treasurer, a member's own for them, nobody's for anyone else:
+    /// what is not shown is not read.
+    /// </summary>
+    private static async Task<Func<Guid, ContactDetails?>> ContactsVisibleTo(Member? caller, IQuerySession session, CancellationToken cancellation)
+    {
+        if (caller is { IsTreasurer: true })
+        {
+            var all = (await session.Query<MemberContact>().ToListAsync(cancellation)).ToDictionary(c => c.Id, c => c.Details);
+            return memberId => all.GetValueOrDefault(memberId, ContactDetails.None);
+        }
+
+        if (caller is not null)
+        {
+            var own = (await session.LoadAsync<MemberContact>(caller.MemberId, cancellation))?.Details ?? ContactDetails.None;
+            return memberId => memberId == caller.MemberId ? own : null;
+        }
+
+        return _ => null;
     }
 }
