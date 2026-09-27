@@ -16,7 +16,7 @@ Where the money invariants live.
 | `AttestPayment` | `PaymentAttested { attestationId, amount, rail, reference }` | Amount > 0. Reference required unless the rail is Cash. Same `attestationId` again → no event. Does **not** change the balance. |
 | `ConfirmPayment` | `PaymentConfirmed { attestationId }` | Attestation must exist and be pending. Already confirmed → no event. Rejected → refused. Moves the balance. |
 | `RejectPayment` | `PaymentRejected { attestationId, reason }` | Reason required. Already rejected → no event. Confirmed → refused (post an adjustment instead). |
-| `PostAdjustment` | `AdjustmentPosted { adjustmentId, amount, reason, postedBy }` | Id required. Reason required. Amount signed (positive raises the balance, negative lowers it), not zero, in whole cents. Same `adjustmentId` again → no event. Treasurer only (enforced at the endpoint, which knows the league's roles). |
+| `PostAdjustment` | `AdjustmentPosted { adjustmentId, amount, reason, refund, postedBy }` | Id required. Reason required. Amount signed (positive raises the balance, negative lowers it), not zero, in whole cents. A refund must be positive, and is the only adjustment that lowers the pot. Same `adjustmentId` again → no event. Treasurer only (enforced at the endpoint, which knows the league's roles). |
 | `RecordPayout` *(planned)* | `PayoutRecorded { amount, reason }` | Issued only by the season-close process manager. |
 | `CloseAccount` *(planned)* | `AccountClosed` or `BalanceWrittenOff` | Balance must be zero, or the remainder is explicitly written off. |
 
@@ -52,8 +52,8 @@ lookup first.
 
 ### The rule that spans streams
 
-Total payouts cannot exceed the confirmed pot. The pot is the sum over every `MemberAccount` in the
-season, so no single stream can enforce it. A **process manager** reacting to `SeasonClosed` reads
+Total payouts cannot exceed the pot. The pot is the sum over every `MemberAccount` in the season of
+its confirmed payments less its refunds (`MemberAccount.InThePot`), so no single stream can enforce it. A **process manager** reacting to `SeasonClosed` reads
 the `LeaguePot` projection, computes payouts from the structure and standings, and issues
 `RecordPayout` to each account. Eventually consistent, deliberately —
 [ADR-0003](adr/0003-aggregate-boundaries-and-payout-process-manager.md) covers the alternatives.

@@ -27,6 +27,12 @@ public sealed class MemberAccount
     public decimal Adjusted => _adjustments.Values.Sum();
     public decimal Balance => Assessed - Confirmed + Adjusted;
 
+    /// <summary>The adjustments that were refunds: money paid back to the member out of the pot.</summary>
+    public decimal Refunded { get; private set; }
+
+    /// <summary>What this account holds in the pot: confirmed payments less refunds.</summary>
+    public decimal InThePot => Confirmed - Refunded;
+
     public IReadOnlyCollection<Attestation> Attestations => _attestations.Values;
     public IEnumerable<Attestation> PendingAttestations =>
         _attestations.Values.Where(a => a.Status == AttestationStatus.Pending);
@@ -162,7 +168,13 @@ public sealed class MemberAccount
 
         RequireWholeCents(command.Amount, "An adjustment");
 
-        return new AdjustmentPosted(command.AdjustmentId, command.Amount, command.Reason.Trim(), command.PostedBy, now);
+        if (command.Refund && command.Amount < 0)
+        {
+            throw new DomainException("A refund pays the member back, so it must raise the balance.");
+        }
+
+        return new AdjustmentPosted(
+            command.AdjustmentId, command.Amount, command.Reason.Trim(), command.Refund, command.PostedBy, now);
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -203,7 +215,14 @@ public sealed class MemberAccount
         _attestations[@event.AttestationId] = attestation with { Status = AttestationStatus.Rejected };
     }
 
-    private void When(AdjustmentPosted @event) => _adjustments[@event.AdjustmentId] = @event.Amount;
+    private void When(AdjustmentPosted @event)
+    {
+        _adjustments[@event.AdjustmentId] = @event.Amount;
+        if (@event.Refund)
+        {
+            Refunded += @event.Amount;
+        }
+    }
 
     /// <summary>Applies any event of this stream after the first.</summary>
     public void Evolve(object @event)

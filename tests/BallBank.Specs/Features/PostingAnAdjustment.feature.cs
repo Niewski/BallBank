@@ -26,7 +26,8 @@ namespace BallBank.Specs.Features
         
         private static global::Reqnroll.FeatureInfo featureInfo = new global::Reqnroll.FeatureInfo(new global::System.Globalization.CultureInfo("en-US"), "Features", "Adjustments need a reason", @"  A treasurer corrects a member's balance with an adjustment: a waiver lowers what the member owes, a
   refund of an overpayment settles what the pot owed them, a correction goes either way. Every
-  adjustment says why, and the member reads it on their statement. Only a treasurer posts one.", global::Reqnroll.ProgrammingLanguage.CSharp, featureTags, InitializeCucumberMessages());
+  adjustment says why, and the member reads it on their statement. Only a treasurer posts one. Only
+  a refund moves money, so only a refund takes anything out of the pot.", global::Reqnroll.ProgrammingLanguage.CSharp, featureTags, InitializeCucumberMessages());
         
         private global::Xunit.Abstractions.ITestOutputHelper _testOutputHelper;
         
@@ -107,12 +108,12 @@ namespace BallBank.Specs.Features
         
         public virtual async global::System.Threading.Tasks.Task FeatureBackgroundAsync()
         {
-#line 6
-  #line hidden
 #line 7
+  #line hidden
+#line 8
     await testRunner.GivenAsync("a league \"Holland Hogs\" with members Jacob, Sam", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
 #line hidden
-#line 8
+#line 9
     await testRunner.AndAsync("season dues of $50 due on 2026-10-01", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
         }
@@ -158,7 +159,7 @@ namespace BallBank.Specs.Features
             global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("A waiver lowers the balance", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
             string[] tagsOfRule = ((string[])(null));
             global::Reqnroll.RuleInfo ruleInfo = null;
-#line 10
+#line 11
   this.ScenarioInitialize(scenarioInfo, ruleInfo);
 #line hidden
             if ((global::Reqnroll.TagHelper.ContainsIgnoreTag(scenarioInfo.CombinedTags) || global::Reqnroll.TagHelper.ContainsIgnoreTag(featureTags)))
@@ -168,17 +169,20 @@ namespace BallBank.Specs.Features
             else
             {
                 await this.ScenarioStartAsync();
-#line 6
+#line 7
   await this.FeatureBackgroundAsync();
 #line hidden
-#line 11
+#line 12
     await testRunner.WhenAsync("the treasurer adjusts Sam\'s balance by -$50 because \"Waived: hosted the draft\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
 #line hidden
-#line 12
+#line 13
     await testRunner.ThenAsync("Sam\'s balance is $0", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
 #line hidden
-#line 13
+#line 14
     await testRunner.AndAsync("Jacob\'s balance is $50", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+#line 15
+    await testRunner.AndAsync("the league pot is $0", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
             }
             await this.ScenarioCleanupAsync();
@@ -195,7 +199,7 @@ namespace BallBank.Specs.Features
             global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("A refund of an overpayment", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
             string[] tagsOfRule = ((string[])(null));
             global::Reqnroll.RuleInfo ruleInfo = null;
-#line 15
+#line 17
   this.ScenarioInitialize(scenarioInfo, ruleInfo);
 #line hidden
             if ((global::Reqnroll.TagHelper.ContainsIgnoreTag(scenarioInfo.CombinedTags) || global::Reqnroll.TagHelper.ContainsIgnoreTag(featureTags)))
@@ -205,26 +209,26 @@ namespace BallBank.Specs.Features
             else
             {
                 await this.ScenarioStartAsync();
-#line 6
+#line 7
   await this.FeatureBackgroundAsync();
 #line hidden
-#line 16
+#line 18
     await testRunner.WhenAsync("Jacob attests a $60 Cash payment", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
 #line hidden
-#line 17
+#line 19
     await testRunner.AndAsync("the treasurer confirms Jacob\'s payment", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
-#line 18
+#line 20
     await testRunner.ThenAsync("the pot owes Jacob $10", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
 #line hidden
-#line 19
-    await testRunner.WhenAsync("the treasurer adjusts Jacob\'s balance by $10 because \"Refunded the $10 overpaid\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
+#line 21
+    await testRunner.WhenAsync("the treasurer refunds Jacob $10 because \"Refunded the $10 overpaid\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
 #line hidden
-#line 20
+#line 22
     await testRunner.ThenAsync("Jacob\'s balance is $0", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
 #line hidden
-#line 21
-    await testRunner.AndAsync("the league pot is $60", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line 23
+    await testRunner.AndAsync("the league pot is $50", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
             }
             await this.ScenarioCleanupAsync();
@@ -241,7 +245,7 @@ namespace BallBank.Specs.Features
             global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("An adjustment without a reason is refused", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
             string[] tagsOfRule = ((string[])(null));
             global::Reqnroll.RuleInfo ruleInfo = null;
-#line 23
+#line 25
   this.ScenarioInitialize(scenarioInfo, ruleInfo);
 #line hidden
             if ((global::Reqnroll.TagHelper.ContainsIgnoreTag(scenarioInfo.CombinedTags) || global::Reqnroll.TagHelper.ContainsIgnoreTag(featureTags)))
@@ -251,17 +255,17 @@ namespace BallBank.Specs.Features
             else
             {
                 await this.ScenarioStartAsync();
-#line 6
+#line 7
   await this.FeatureBackgroundAsync();
 #line hidden
-#line 24
+#line 26
     await testRunner.WhenAsync("the treasurer adjusts Sam\'s balance by -$50 without a reason", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
 #line hidden
-#line 25
+#line 27
     await testRunner.ThenAsync("the adjustment is refused because \"An adjustment needs a reason the member will s" +
                         "ee.\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
 #line hidden
-#line 26
+#line 28
     await testRunner.AndAsync("Sam\'s balance is $50", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
             }
@@ -279,7 +283,7 @@ namespace BallBank.Specs.Features
             global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("A member cannot post an adjustment", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
             string[] tagsOfRule = ((string[])(null));
             global::Reqnroll.RuleInfo ruleInfo = null;
-#line 28
+#line 30
   this.ScenarioInitialize(scenarioInfo, ruleInfo);
 #line hidden
             if ((global::Reqnroll.TagHelper.ContainsIgnoreTag(scenarioInfo.CombinedTags) || global::Reqnroll.TagHelper.ContainsIgnoreTag(featureTags)))
@@ -289,16 +293,16 @@ namespace BallBank.Specs.Features
             else
             {
                 await this.ScenarioStartAsync();
-#line 6
+#line 7
   await this.FeatureBackgroundAsync();
 #line hidden
-#line 29
+#line 31
     await testRunner.WhenAsync("Sam adjusts Sam\'s balance by -$50 because \"Short this month\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
 #line hidden
-#line 30
+#line 32
     await testRunner.ThenAsync("Sam is not allowed to", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
 #line hidden
-#line 31
+#line 33
     await testRunner.AndAsync("Sam\'s balance is $50", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
             }

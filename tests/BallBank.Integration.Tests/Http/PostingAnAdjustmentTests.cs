@@ -37,6 +37,7 @@ public class PostingAnAdjustmentTests(PostgresFixture postgres)
             line => line.Id.ShouldBe(adjustmentId),
             line => line.Amount.ShouldBe(-20m),
             line => line.Reason.ShouldBe("Waived: hosted the draft"),
+            line => line.Refund.ShouldBeFalse(),
             line => line.By.ShouldBe(hogs.Jacobs),
             line => line.ByName.ShouldBe("Jacob"));
 
@@ -131,10 +132,26 @@ public class PostingAnAdjustmentTests(PostgresFixture postgres)
         (await Send(hogs.Jacob, $"/leagues/{hogs.LeagueId}/accounts/{hogs.AccountOf(hogs.Sams)}/attestations/{attestationId}/confirmation",
             new ConfirmPaymentRequest(OpenedVersion + 1))).StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        var response = await Adjust(hogs.Jacob, hogs, hogs.Sams, new PostAdjustmentRequest(Guid.NewGuid(), 10m, "Refunded the $10 overpaid", OpenedVersion + 2));
+        var response = await Adjust(hogs.Jacob, hogs, hogs.Sams, new PostAdjustmentRequest(Guid.NewGuid(), 10m, "Refunded the $10 overpaid", OpenedVersion + 2, Refund: true));
 
         response.StatusCode.ShouldBe(HttpStatusCode.Created);
-        (await response.Content.ReadFromJsonAsync<AccountStatement>()).ShouldNotBeNull().Balance.ShouldBe(0m);
+        var statement = (await response.Content.ReadFromJsonAsync<AccountStatement>()).ShouldNotBeNull();
+        statement.Balance.ShouldBe(0m);
+        statement.Lines.Last().ShouldSatisfyAllConditions(
+            line => line.Kind.ShouldBe(StatementLineKind.Adjustment),
+            line => line.Refund.ShouldBeTrue());
+    }
+
+    [Fact]
+    public async Task A_refund_that_lowers_the_balance_is_refused()
+    {
+        var hogs = await HollandHogsSeason.Open(Api);
+
+        var response = await Adjust(hogs.Jacob, hogs, hogs.Sams, new PostAdjustmentRequest(Guid.NewGuid(), -10m, "Refunded", OpenedVersion, Refund: true));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+        (await response.Content.ReadFromJsonAsync<ProblemDetails>()).ShouldNotBeNull()
+            .Detail.ShouldBe("A refund pays the member back, so it must raise the balance.");
     }
 
     private async Task<long> StreamVersionOf(HollandHogsSeason hogs, Guid memberId)

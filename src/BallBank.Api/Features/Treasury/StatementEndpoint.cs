@@ -58,7 +58,8 @@ public sealed record AccountStatement(
                     line.Rail?.ToString(),
                     line.Reference,
                     line.Status?.ToString(),
-                    line.Reason))
+                    line.Reason,
+                    line.Refund))
                 .ToArray(),
             statement.Version);
     }
@@ -69,6 +70,7 @@ public sealed record AccountStatement(
 /// <param name="Status">An attestation's: Pending, Confirmed or Rejected; <c>null</c> for an assessment.</param>
 /// <param name="Amount">Signed for an adjustment: positive raised the balance, negative lowered it.</param>
 /// <param name="Reason">Why an attestation was rejected, or why an adjustment was posted.</param>
+/// <param name="Refund">An adjustment that paid the member back out of the pot.</param>
 public sealed record StatementEntry(
     string Kind,
     Guid Id,
@@ -81,7 +83,8 @@ public sealed record StatementEntry(
     string? Rail,
     string? Reference,
     string? Status,
-    string? Reason);
+    string? Reason,
+    bool Refund);
 
 public static class StatementEndpoint
 {

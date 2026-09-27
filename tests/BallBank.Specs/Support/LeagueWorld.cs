@@ -18,7 +18,7 @@ public sealed class LeagueWorld
     public Guid TreasurerId { get; } = Guid.NewGuid();
     public Guid LeagueId { get; private set; }
     public IReadOnlyList<object> History => _history;
-    public decimal Pot => _accounts.Values.Sum(account => account.Confirmed);
+    public decimal Pot => _accounts.Values.Sum(account => account.InThePot);
 
     /// <summary>Why the last <see cref="Attempt"/> was refused; <c>null</c> if it was not.</summary>
     public DomainException? Refusal { get; private set; }
@@ -86,7 +86,7 @@ public sealed class LeagueWorld
     /// member is a treasurer is the league's to say, so the account cannot refuse them; the world stands
     /// in for the endpoint that does (<c>403</c>) and records who was not allowed.
     /// </summary>
-    public void PostAdjustment(string member, decimal amount, string reason, string? postedBy = null)
+    public void PostAdjustment(string member, decimal amount, string reason, string? postedBy = null, bool refund = false)
     {
         var poster = postedBy is null ? TreasurerId : Account(postedBy).MemberId;
         RefusedPoster = poster == TreasurerId ? null : postedBy;
@@ -97,7 +97,7 @@ public sealed class LeagueWorld
 
         var account = Account(member);
         Record(account, account.PostAdjustment(
-            new PostAdjustment(account.Id, Guid.NewGuid(), amount, reason, poster), Now));
+            new PostAdjustment(account.Id, Guid.NewGuid(), amount, reason, refund, poster), Now));
     }
 
     /// <summary>Runs a command that may be refused, keeping the refusal for a later step to check.</summary>

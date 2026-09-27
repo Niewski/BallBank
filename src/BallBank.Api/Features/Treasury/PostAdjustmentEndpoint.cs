@@ -13,7 +13,8 @@ namespace BallBank.Api.Features.Treasury;
 /// <param name="Amount">Signed: positive raises what the member owes, negative lowers it.</param>
 /// <param name="Reason">Why, for the member to read on their statement; required.</param>
 /// <param name="Version">The account's version the treasurer last saw (ADR-0005); required.</param>
-public sealed record PostAdjustmentRequest(Guid AdjustmentId, decimal Amount, string? Reason, int? Version);
+/// <param name="Refund">The treasurer paid the member back out of the pot; the amount must then be positive.</param>
+public sealed record PostAdjustmentRequest(Guid AdjustmentId, decimal Amount, string? Reason, int? Version, bool Refund = false);
 
 public static class PostAdjustmentEndpoint
 {
@@ -60,7 +61,7 @@ public static class PostAdjustmentEndpoint
         }
 
         var posted = account.PostAdjustment(
-            new PostAdjustment(accountId, request.AdjustmentId, request.Amount, request.Reason ?? string.Empty, treasurer.MemberId),
+            new PostAdjustment(accountId, request.AdjustmentId, request.Amount, request.Reason ?? string.Empty, request.Refund, treasurer.MemberId),
             DateTimeOffset.UtcNow);
 
         // Already recorded: a double submission adds nothing, whatever version it carries. A retry of this

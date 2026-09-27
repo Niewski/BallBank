@@ -36,7 +36,8 @@ public sealed class MemberStatement
 
 /// <summary>
 /// One line of a statement: an assessment (memo, due date), an attestation (rail, reference, status,
-/// and the reason when rejected) or an adjustment (signed amount, reason). Payouts join it later.
+/// and the reason when rejected) or an adjustment (signed amount, reason, whether it was a refund). Payouts
+/// join it later.
 /// </summary>
 /// <param name="Id">The assessment, attestation or adjustment id.</param>
 /// <param name="By">The acting member: who assessed, who attested, or who posted the adjustment.</param>
@@ -51,7 +52,8 @@ public sealed record StatementLine(
     PaymentRail? Rail = null,
     string? Reference = null,
     AttestationStatus? Status = null,
-    string? Reason = null);
+    string? Reason = null,
+    bool Refund = false);
 
 public static class StatementLineKind
 {
@@ -111,7 +113,7 @@ public sealed class MemberStatementProjection : SingleStreamProjection<MemberSta
             case AdjustmentPosted adjusted when snapshot is not null:
                 snapshot.Lines.Add(new StatementLine(
                     StatementLineKind.Adjustment, adjusted.AdjustmentId, adjusted.Amount, adjusted.PostedBy, adjusted.PostedAt,
-                    Reason: adjusted.Reason));
+                    Reason: adjusted.Reason, Refund: adjusted.Refund));
                 return snapshot;
             default:
                 return snapshot;

@@ -10,6 +10,10 @@ public sealed class PostingAnAdjustmentSteps(LeagueWorld world)
     public void WhenTheTreasurerAdjusts(string member, string sign, decimal amount, string reason) =>
         world.Attempt(() => world.PostAdjustment(member, Signed(sign, amount), reason));
 
+    [When(@"^the treasurer refunds (\w+) \$(\d+(?:\.\d+)?) because ""([^""]*)""$")]
+    public void WhenTheTreasurerRefunds(string member, decimal amount, string reason) =>
+        world.Attempt(() => world.PostAdjustment(member, amount, reason, refund: true));
+
     [When(@"^the treasurer adjusts (\w+)'s balance by (-?)\$(\d+(?:\.\d+)?) without a reason$")]
     public void WhenTheTreasurerAdjustsWithoutAReason(string member, string sign, decimal amount) =>
         world.Attempt(() => world.PostAdjustment(member, Signed(sign, amount), reason: ""));

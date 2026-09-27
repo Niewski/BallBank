@@ -28,6 +28,8 @@ type StatementLine = {
   status: "Pending" | "Confirmed" | "Rejected" | null;
   // Why an attestation was rejected, or why an adjustment was posted.
   reason: string | null;
+  // An adjustment that paid the member back out of the pot.
+  refund: boolean;
 };
 
 export type AccountStatement = {
@@ -288,7 +290,7 @@ function StatementView({
               ) : line.kind === "Adjustment" ? (
                 <>
                   <span className="font-medium text-zinc-950 dark:text-zinc-50">
-                    Adjustment
+                    {line.refund ? "Refund" : "Adjustment"}
                   </span>
                   {line.reason && (
                     <span className="text-zinc-600 dark:text-zinc-400">

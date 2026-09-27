@@ -22,11 +22,11 @@ public class MemberAccountTests
     private static AssessDues AssessCommand(MemberAccount account, decimal amount, Guid? assessmentId = null) =>
         new(account.Id, assessmentId ?? Guid.NewGuid(), amount, DueDate, "Season dues", Treasurer);
 
-    private static PostAdjustment AdjustCommand(MemberAccount account, decimal amount, string reason = "Waived: hosted the draft", Guid? adjustmentId = null) =>
-        new(account.Id, adjustmentId ?? Guid.NewGuid(), amount, reason, Treasurer);
+    private static PostAdjustment AdjustCommand(MemberAccount account, decimal amount, string reason = "Waived: hosted the draft", Guid? adjustmentId = null, bool refund = false) =>
+        new(account.Id, adjustmentId ?? Guid.NewGuid(), amount, reason, refund, Treasurer);
 
-    private static AdjustmentPosted Adjusted(decimal amount, Guid? adjustmentId = null) =>
-        new(adjustmentId ?? Guid.NewGuid(), amount, "Correction", Treasurer, Now);
+    private static AdjustmentPosted Adjusted(decimal amount, Guid? adjustmentId = null, bool refund = false) =>
+        new(adjustmentId ?? Guid.NewGuid(), amount, refund ? "Refunded" : "Correction", refund, Treasurer, Now);
 
     [Fact]
     public void A_new_account_owes_nothing()
@@ -438,7 +438,7 @@ public class MemberAccountTests
             new PaymentConfirmed(overpaid, Treasurer, Now),
             Attested(20m, bounced),
             new PaymentRejected(bounced, Treasurer, "Nothing arrived", Now),
-            Adjusted(20m),
+            Adjusted(20m, refund: true),
             Attested(20m, sideBet),
             new PaymentConfirmed(sideBet, Treasurer, Now),
             Adjusted(10m));
@@ -447,6 +447,47 @@ public class MemberAccountTests
         account.Confirmed.ShouldBe(90m);
         account.Adjusted.ShouldBe(20m);
         account.Balance.ShouldBe(-10m);
+        account.Refunded.ShouldBe(20m);
+        account.InThePot.ShouldBe(70m);
         account.PendingAttestations.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void A_refund_of_an_overpayment_settles_the_balance_and_leaves_the_pot()
+    {
+        var attestationId = Guid.NewGuid();
+        var account = MemberAccount.Replay(
+            Opened(), Assessed(50m), Attested(60m, attestationId), new PaymentConfirmed(attestationId, Treasurer, Now));
+
+        var refunded = account.PostAdjustment(AdjustCommand(account, 10m, "Refunded the $10 overpaid", refund: true), Now);
+
+        refunded.ShouldNotBeNull().Refund.ShouldBeTrue();
+        account.Evolve(refunded);
+        account.Balance.ShouldBe(0m);
+        account.Confirmed.ShouldBe(60m);
+        account.Refunded.ShouldBe(10m);
+        account.InThePot.ShouldBe(50m);
+    }
+
+    [Fact]
+    public void A_waiver_leaves_the_pot_alone()
+    {
+        var account = MemberAccount.Replay(Opened(), Assessed(50m));
+
+        account.Evolve(account.PostAdjustment(AdjustCommand(account, -50m), Now)!);
+
+        account.Refunded.ShouldBe(0m);
+        account.InThePot.ShouldBe(0m);
+    }
+
+    [Fact]
+    public void A_refund_pays_the_member_back_so_it_raises_the_balance()
+    {
+        var account = MemberAccount.Replay(Opened(), Assessed(50m));
+
+        Should.Throw<DomainException>(() =>
+        {
+            account.PostAdjustment(AdjustCommand(account, -10m, "Refunded", refund: true), Now);
+        }).Message.ShouldBe("A refund pays the member back, so it must raise the balance.");
     }
 }

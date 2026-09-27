@@ -11,7 +11,9 @@ import {
 } from "@/lib/problem";
 import type { AccountStatement } from "./statement";
 
-type Direction = "lower" | "raise";
+// A refund raises the balance like any raise, but it is money paid back out of
+// the pot, so the API records it as one.
+type Direction = "lower" | "raise" | "refund";
 
 type AdjustState =
   | { kind: "idle" }
@@ -79,6 +81,7 @@ export function PostAdjustment({
           body: JSON.stringify({
             adjustmentId: adjustmentId.current(),
             amount: direction === "lower" ? -Number(amount) : Number(amount),
+            refund: direction === "refund",
             reason,
             version,
           }),
@@ -136,7 +139,8 @@ export function PostAdjustment({
             className={field}
           >
             <option value="lower">Lower what they owe (a waiver)</option>
-            <option value="raise">Raise what they owe (a refund paid back)</option>
+            <option value="raise">Raise what they owe (a correction)</option>
+            <option value="refund">Refund an overpayment</option>
           </select>
         </label>
         <label className="flex flex-col gap-0.5 text-xs text-zinc-500">

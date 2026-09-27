@@ -34,9 +34,11 @@ public sealed record ConfirmPayment(Guid AccountId, Guid AttestationId, Guid Con
 public sealed record RejectPayment(Guid AccountId, Guid AttestationId, Guid RejectedBy, string Reason);
 
 /// <param name="Amount">Signed: positive raises what the member owes, negative lowers it.</param>
+/// <param name="Refund">Money the treasurer paid the member back out of the pot, as for an overpayment.</param>
 public sealed record PostAdjustment(
     Guid AccountId,
     Guid AdjustmentId,
     decimal Amount,
     string Reason,
+    bool Refund,
     Guid PostedBy);
