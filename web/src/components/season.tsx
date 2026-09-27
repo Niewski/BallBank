@@ -6,6 +6,8 @@ import { useEffect, useState } from "react";
 import { Ledger } from "@/components/ledger";
 import { OpenSeason } from "@/components/open-season";
 import { apiBaseUrl } from "@/lib/config";
+import { formatDueDate } from "@/lib/dates";
+import { formatMoney } from "@/lib/money";
 import { problemMessage, unreachableMessage } from "@/lib/problem";
 
 type SeasonSummary = {
@@ -95,13 +97,7 @@ export function Season({
           {open.label} season
         </p>
         <p className="text-zinc-600 dark:text-zinc-400">
-          Dues ${open.duesAmount.toFixed(2)}, due{" "}
-          {new Date(open.dueDate).toLocaleDateString(undefined, {
-            month: "short",
-            day: "numeric",
-            year: "numeric",
-            timeZone: "UTC",
-          })}
+          Dues {formatMoney(open.duesAmount)}, due {formatDueDate(open.dueDate)}
         </p>
         {youAreTreasurer && (
           <Link

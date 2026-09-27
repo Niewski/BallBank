@@ -5,8 +5,10 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { apiBaseUrl } from "@/lib/config";
+import { formatDate, formatDueDate } from "@/lib/dates";
 import { describeBalance, formatMoney } from "@/lib/money";
 import { problemMessage, unreachableMessage } from "@/lib/problem";
+import { AccountHistory } from "./account-history";
 import { AttestPayment } from "./attest-payment";
 import { PostAdjustment } from "./post-adjustment";
 import { SettleAttestation } from "./settle-attestation";
@@ -60,15 +62,6 @@ const statusStyles = {
     "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300",
   Rejected: "bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300",
 };
-
-function formatDate(iso: string, timeZone?: string): string {
-  return new Date(iso).toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    timeZone,
-  });
-}
 
 // How a line moves the balance: an assessment raises it, an attestation lowers
 // it once confirmed, an adjustment goes the way its sign says.
@@ -283,7 +276,7 @@ function StatementView({
                   </span>
                   {line.dueDate && (
                     <span className="text-zinc-500">
-                      Due {formatDate(line.dueDate, "UTC")}
+                      Due {formatDueDate(line.dueDate)}
                     </span>
                   )}
                 </>
@@ -350,6 +343,12 @@ function StatementView({
           </li>
         ))}
       </ol>
+
+      <AccountHistory
+        key={`history/${statement.version}`}
+        leagueId={leagueId}
+        accountId={accountId}
+      />
     </section>
   );
 }

@@ -1,5 +1,3 @@
-using System.Globalization;
-
 namespace BallBank.Domain.Treasury;
 
 /// <summary>
@@ -180,7 +178,7 @@ public sealed class MemberAccount
         if (command.Refund && command.Amount > owed)
         {
             throw new DomainException(
-                $"A refund cannot be more than the pot owes the member (${owed.ToString("0.00", CultureInfo.InvariantCulture)}).");
+                $"A refund cannot be more than the pot owes the member ({Format.Money(owed)}).");
         }
 
         return new AdjustmentPosted(
