@@ -305,7 +305,18 @@ public sealed record SentRequest(string Person, HttpMethod Method, string Path, 
 /// <summary>What the API answered.</summary>
 public sealed record Answer(HttpStatusCode Status, string Body)
 {
-    public ProblemAnswer? Problem() => JsonSerializer.Deserialize<ProblemAnswer>(Body, JsonSerializerOptions.Web);
+    /// <summary>The problem answered; <c>null</c> when the body is not one.</summary>
+    public ProblemAnswer? Problem()
+    {
+        try
+        {
+            return JsonSerializer.Deserialize<ProblemAnswer>(Body, JsonSerializerOptions.Web);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
 }
 
 /// <summary>A problem the API answered with; <paramref name="CurrentVersion"/> on a version conflict.</summary>

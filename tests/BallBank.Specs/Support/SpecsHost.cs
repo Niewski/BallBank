@@ -46,12 +46,20 @@ public sealed class SpecsHost
             if (_shared is null)
             {
                 var database = new PostgreSqlBuilder("postgres:17-alpine").Build();
-                await database.StartAsync();
-                var host = new SpecsHost(database);
+                try
+                {
+                    await database.StartAsync();
+                    var host = new SpecsHost(database);
 
-                // Started here, once: the factory starts its server on first use, and features run in parallel.
-                _ = host._host.Server;
-                _shared = host;
+                    // Started here, once: the factory starts its server on first use, and features run in parallel.
+                    _ = host._host.Server;
+                    _shared = host;
+                }
+                catch
+                {
+                    await database.DisposeAsync();
+                    throw;
+                }
             }
 
             return _shared;

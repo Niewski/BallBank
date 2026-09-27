@@ -39,7 +39,10 @@ public interface ILeagueDriver
 
     Task RejectLatest(string member, string reason);
 
-    /// <summary>The treasurer posts an adjustment, unless the member named <paramref name="postedBy"/> tries to.</summary>
+    /// <summary>
+    /// The treasurer posts an adjustment, unless the member named <paramref name="postedBy"/>, who is no
+    /// treasurer, tries to.
+    /// </summary>
     Task PostAdjustment(string member, decimal amount, string reason, bool refund = false, string? postedBy = null);
 
     /// <summary>Positive: the member owes the pot. Negative: the pot owes the member.</summary>
