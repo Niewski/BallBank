@@ -61,8 +61,7 @@ public sealed class MemberAccount
             return null;
         }
 
-        RequirePositive(command.Amount, "An assessment");
-        RequireWholeCents(command.Amount, "An assessment");
+        RequireAmount(command.Amount, "An assessment");
 
         if (command.DueDate is not { } dueDate)
         {
@@ -86,7 +85,7 @@ public sealed class MemberAccount
             return null;
         }
 
-        RequirePositive(command.Amount, "A payment");
+        RequireAmount(command.Amount, "A payment");
 
         if (command.Rail != PaymentRail.Cash && string.IsNullOrWhiteSpace(command.Reference))
         {
@@ -217,17 +216,14 @@ public sealed class MemberAccount
             ? attestation
             : throw new DomainException("There is no such payment attestation on this account.");
 
-    private static void RequirePositive(decimal amount, string what)
+    // Positive, and in whole cents: dollars have no smaller unit, so neither does any amount owed or paid.
+    private static void RequireAmount(decimal amount, string what)
     {
         if (amount <= 0)
         {
             throw new DomainException($"{what} must be a positive amount.");
         }
-    }
 
-    // The books never show a fraction of a cent.
-    private static void RequireWholeCents(decimal amount, string what)
-    {
         if (decimal.Round(amount, 2) != amount)
         {
             throw new DomainException($"{what} must be in whole cents.");

@@ -94,7 +94,7 @@ public static class OpenSeasonEndpoint
             session,
             StatusCodes.Status201Created,
             summary,
-            onCollision: () => Results.Ok(summary),
+            onCollision: _ => Task.FromResult(Results.Ok(summary)),
             cancellation);
     }
 }

@@ -36,13 +36,14 @@ public sealed class IdempotentRequest(string recordId, string fingerprint, JsonS
     /// <summary>
     /// Commits <paramref name="session"/> with the answer stored alongside, and returns the answer. If
     /// another request committed the same facts first, answers as that request did when it used this
-    /// key (a retry that won the race), and with <paramref name="onCollision"/> otherwise.
+    /// key (a retry that won the race), and with <paramref name="onCollision"/>, given a session on what was
+    /// committed, otherwise.
     /// </summary>
     public async Task<IResult> CommitAsync(
         IDocumentSession session,
         int status,
         object body,
-        Func<IResult> onCollision,
+        Func<IQuerySession, Task<IResult>> onCollision,
         CancellationToken cancellation)
     {
         var record = new IdempotencyRecord
@@ -62,7 +63,7 @@ public sealed class IdempotentRequest(string recordId, string fingerprint, JsonS
         catch (Exception exception) when (IsCollision(exception))
         {
             await using var committed = session.DocumentStore.QuerySession(session.TenantId);
-            return await ReplayAsync(committed, cancellation) ?? onCollision();
+            return await ReplayAsync(committed, cancellation) ?? await onCollision(committed);
         }
 
         return Answer(record);
@@ -91,9 +92,8 @@ public sealed class IdempotentRequest(string recordId, string fingerprint, JsonS
     private static IResult Answer(IdempotencyRecord record) =>
         Results.Text(record.Body, MediaTypeNames.Application.Json, Encoding.UTF8, record.Status);
 
-    // A stream or document that another transaction wrote first, or a stream it appended to since this
-    // one read it. Marten reports a stream id taken mid-transaction as a unique violation wrapped in a
-    // command failure, not as a collision.
+    // A stream, a stream version or a document that another transaction wrote first. Marten reports a
+    // stream id taken mid-transaction as a unique violation wrapped in a command failure, not as a collision.
     private static bool IsCollision(Exception exception) =>
         exception is ExistingStreamIdCollisionException or DocumentAlreadyExistsException or ConcurrencyException
         || exception.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation };

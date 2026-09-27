@@ -98,10 +98,10 @@ public static class AssessEndpoint
             session,
             StatusCodes.Status200OK,
             answer,
-            onCollision: () => Results.Problem(
+            onCollision: _ => Task.FromResult(Results.Problem(
                 statusCode: StatusCodes.Status409Conflict,
                 title: "Accounts changed",
-                detail: "An account changed while it was being assessed. Assess again: members already assessed will not be assessed twice."),
+                detail: "An account changed while it was being assessed. Assess again: members already assessed will not be assessed twice.")),
             cancellation);
     }
 

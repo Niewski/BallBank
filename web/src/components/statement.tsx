@@ -7,6 +7,8 @@ import { useEffect, useState } from "react";
 import { apiBaseUrl } from "@/lib/config";
 import { describeBalance, formatMoney } from "@/lib/money";
 import { problemMessage, unreachableMessage } from "@/lib/problem";
+import { AttestPayment } from "./attest-payment";
+import { SettleAttestation } from "./settle-attestation";
 
 type StatementLine = {
   kind: "Assessment" | "Attestation";
@@ -25,7 +27,7 @@ type StatementLine = {
   reason: string | null;
 };
 
-type AccountStatement = {
+export type AccountStatement = {
   accountId: string;
   season: string;
   memberId: string;
@@ -33,6 +35,8 @@ type AccountStatement = {
   displayName: string | null;
   // The caller holds this member, rather than reading it as a treasurer.
   yours: boolean;
+  // The caller is a treasurer of the league, so can confirm or reject.
+  youAreTreasurer: boolean;
   balance: number;
   totals: { assessed: number; confirmed: number };
   lines: StatementLine[];
@@ -116,6 +120,9 @@ function StatementView({
 }) {
   const { getAccessTokenSilently } = useAuth0();
   const [state, setState] = useState<StatementState>({ kind: "loading" });
+  // Bumped to read the statement again, as after a version conflict.
+  const [reloads, setReloads] = useState(0);
+  const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -158,7 +165,7 @@ function StatementView({
       });
 
     return () => controller.abort();
-  }, [getAccessTokenSilently, leagueId, accountId]);
+  }, [getAccessTokenSilently, leagueId, accountId, reloads]);
 
   if (state.kind === "loading") {
     return <p className="text-zinc-500">Loading the statement…</p>;
@@ -169,6 +176,19 @@ function StatementView({
   }
 
   const { statement } = state;
+
+  // Every command about the account answers with its statement as it now stands.
+  function changed(fresh: AccountStatement) {
+    setNotice(null);
+    setState({ kind: "ok", statement: fresh });
+  }
+
+  function conflicted() {
+    setNotice(
+      "This account changed since you opened it, so nothing was recorded. It has been reloaded: check it and try again.",
+    );
+    setReloads((count) => count + 1);
+  }
 
   return (
     <section className="flex flex-col gap-6">
@@ -197,6 +217,26 @@ function StatementView({
           {formatMoney(statement.totals.confirmed)}
         </p>
       </div>
+
+      {notice && (
+        <p
+          role="status"
+          className="rounded-md bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-200"
+        >
+          {notice}
+        </p>
+      )}
+
+      {/* Keyed by version: once the account changes, the form starts again from its new balance. */}
+      <AttestPayment
+        key={statement.version}
+        leagueId={leagueId}
+        accountId={accountId}
+        balance={statement.balance}
+        version={statement.version}
+        onAttested={changed}
+        onVersionConflict={conflicted}
+      />
 
       <ol className="divide-y divide-zinc-200 rounded-lg border border-zinc-200 bg-white text-sm dark:divide-zinc-800 dark:border-zinc-800 dark:bg-zinc-950">
         {statement.lines.map((line) => (
@@ -240,6 +280,19 @@ function StatementView({
                 {formatDate(line.at)}
                 {line.byName && ` · by ${line.byName}`}
               </span>
+              {statement.youAreTreasurer && line.status === "Pending" && (
+                <div className="pt-1">
+                  <SettleAttestation
+                    key={statement.version}
+                    leagueId={leagueId}
+                    accountId={accountId}
+                    attestationId={line.id}
+                    version={statement.version}
+                    onSettled={changed}
+                    onVersionConflict={conflicted}
+                  />
+                </div>
+              )}
             </div>
             {/* Only a confirmed attestation counts against the balance. */}
             <span

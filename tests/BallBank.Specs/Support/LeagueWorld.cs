@@ -1,3 +1,4 @@
+using BallBank.Domain;
 using BallBank.Domain.Treasury;
 
 namespace BallBank.Specs.Support;
@@ -18,6 +19,9 @@ public sealed class LeagueWorld
     public Guid LeagueId { get; private set; }
     public IReadOnlyList<object> History => _history;
     public decimal Pot => _accounts.Values.Sum(account => account.Confirmed);
+
+    /// <summary>Why the last <see cref="Attempt"/> was refused; <c>null</c> if it was not.</summary>
+    public DomainException? Refusal { get; private set; }
 
     public MemberAccount Account(string member) =>
         _accounts.TryGetValue(member, out var account)
@@ -45,10 +49,11 @@ public sealed class LeagueWorld
         }
     }
 
-    public void Attest(string member, decimal amount, PaymentRail rail, string reference)
+    /// <summary>The member attests their own payment, unless a treasurer attests it for them.</summary>
+    public void Attest(string member, decimal amount, PaymentRail rail, string? reference, Guid? attestedBy = null)
     {
         var account = Account(member);
-        var command = new AttestPayment(account.Id, Guid.NewGuid(), amount, rail, reference, account.MemberId);
+        var command = new AttestPayment(account.Id, Guid.NewGuid(), amount, rail, reference, attestedBy ?? account.MemberId);
         _latestAttestation[member] = command;
         Record(account, account.Attest(command, Now));
     }
@@ -71,6 +76,20 @@ public sealed class LeagueWorld
         var account = Account(member);
         Record(account, account.Reject(
             new RejectPayment(account.Id, LatestAttestation(member).AttestationId, TreasurerId, reason), Now));
+    }
+
+    /// <summary>Runs a command that may be refused, keeping the refusal for a later step to check.</summary>
+    public void Attempt(Action command)
+    {
+        try
+        {
+            command();
+            Refusal = null;
+        }
+        catch (DomainException refusal)
+        {
+            Refusal = refusal;
+        }
     }
 
     private AttestPayment LatestAttestation(string member) =>

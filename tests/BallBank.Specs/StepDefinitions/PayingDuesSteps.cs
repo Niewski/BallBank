@@ -23,6 +23,15 @@ public sealed class PayingDuesSteps(LeagueWorld world)
     public void WhenAMemberAttestsAPayment(string member, decimal amount, string rail, string reference) =>
         world.Attest(member, amount, Enum.Parse<PaymentRail>(rail, ignoreCase: true), reference);
 
+    // Any number of decimals, so a fraction of a cent can be tried and refused.
+    [When(@"^(\w+) attests a \$(\d+(?:\.\d+)?) Cash payment$")]
+    public void WhenAMemberAttestsACashPayment(string member, decimal amount) =>
+        world.Attempt(() => world.Attest(member, amount, PaymentRail.Cash, reference: null));
+
+    [When(@"^the treasurer attests a \$(\d+(?:\.\d{1,2})?) Cash payment for (\w+)$")]
+    public void WhenTheTreasurerAttestsACashPaymentFor(decimal amount, string member) =>
+        world.Attest(member, amount, PaymentRail.Cash, reference: null, attestedBy: world.TreasurerId);
+
     [When(@"^(\w+) attests that same payment again$")]
     public void WhenAMemberAttestsTheSamePaymentAgain(string member) => world.AttestSameAgain(member);
 
@@ -30,7 +39,8 @@ public sealed class PayingDuesSteps(LeagueWorld world)
     public void WhenTheTreasurerConfirms(string member) => world.ConfirmLatest(member);
 
     [When(@"^the treasurer rejects (\w+)'s payment because ""([^""]*)""$")]
-    public void WhenTheTreasurerRejects(string member, string reason) => world.RejectLatest(member, reason);
+    public void WhenTheTreasurerRejects(string member, string reason) =>
+        world.Attempt(() => world.RejectLatest(member, reason));
 
     [Then(@"^(\w+)'s balance is \$(\d+(?:\.\d{1,2})?)$")]
     public void ThenTheBalanceIs(string member, decimal expected) =>
@@ -42,6 +52,23 @@ public sealed class PayingDuesSteps(LeagueWorld world)
     [Then(@"^(\w+) has (\d+) pending payments?$")]
     public void ThenPendingPayments(string member, int expected) =>
         world.Account(member).PendingAttestations.Count().ShouldBe(expected);
+
+    [Then(@"^the pot owes (\w+) \$(\d+(?:\.\d{1,2})?)$")]
+    public void ThenThePotOwes(string member, decimal expected) =>
+        world.Account(member).Balance.ShouldBe(-expected);
+
+    [Then(@"^the payment is refused because ""([^""]*)""$")]
+    public void ThenThePaymentIsRefused(string reason) => world.Refusal.ShouldNotBeNull().Message.ShouldBe(reason);
+
+    [Then(@"^the history shows the treasurer attested (\w+)'s payment$")]
+    public void ThenTheHistoryShowsTheTreasurerAttested(string member)
+    {
+        var attestationIds = world.Account(member).Attestations.Select(a => a.AttestationId).ToHashSet();
+
+        world.History
+            .OfType<PaymentAttested>()
+            .ShouldContain(e => e.AttestedBy == world.TreasurerId && attestationIds.Contains(e.AttestationId));
+    }
 
     [Then(@"^the history shows the treasurer confirmed (\w+)'s payment$")]
     public void ThenTheHistoryShowsTheConfirmation(string member)
