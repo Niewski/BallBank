@@ -25,7 +25,7 @@ Deploy target: API on Container Apps, web on Static Web Apps, so nothing lives o
   not events (ADR-0012): a treasurer edits anyone's, a member their own, nobody else sees them.
 - Reqnroll: *Importing a league*, *Keeping contact details*.
 
-## M2 — The ledger (league goes live)
+## M2 — The ledger (league goes live) ✅
 
 - `OpenSeason`, bulk `AssessDues`, `AttestPayment`, `ConfirmPayment`, `RejectPayment`, `PostAdjustment`.
 - `MemberStatement` inline projection; `GET …/history`.

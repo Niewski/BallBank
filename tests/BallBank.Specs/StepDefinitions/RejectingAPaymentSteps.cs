@@ -7,6 +7,6 @@ namespace BallBank.Specs.StepDefinitions;
 public sealed class RejectingAPaymentSteps(LeagueWorld world)
 {
     [When(@"^the treasurer rejects (\w+)'s payment without a reason$")]
-    public void WhenTheTreasurerRejectsWithoutAReason(string member) =>
-        world.Attempt(() => world.RejectLatest(member, reason: ""));
+    public Task WhenTheTreasurerRejectsWithoutAReason(string member) =>
+        world.Attempt(() => world.Driver.RejectLatest(member, reason: ""));
 }

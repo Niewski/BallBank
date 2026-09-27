@@ -36,6 +36,15 @@ jobs:
           --logger "trx;LogFileName=results.trx"
           --results-directory TestResults
 
+      # The same specs again, driven through the API over HTTP rather than the aggregates in memory.
+      - name: Specs over HTTP
+        env:
+          BALLBANK_SPECS_DRIVER: http
+        run: >
+          dotnet test tests/BallBank.Specs --no-build --configuration Release
+          --logger "trx;LogFileName=specs-over-http.trx"
+          --results-directory TestResults
+
       - uses: actions/upload-artifact@v7
         if: always()
         with:

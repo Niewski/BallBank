@@ -83,6 +83,7 @@ The integration tests do not need any of this: they sign their own tokens with a
 
 ```bash
 dotnet test tests/BallBank.Domain.Tests tests/BallBank.Specs   # fast, no Docker
+BALLBANK_SPECS_DRIVER=http dotnet test tests/BallBank.Specs  # the same specs against the API over HTTP
 dotnet test                                                     # + integration tests (Testcontainers → PostgreSQL)
 cd web && npm run lint && npm run build
 ```
@@ -91,7 +92,8 @@ Three layers, on purpose:
 
 - **Domain tests** — given events, when command, then event (or a refusal). Pure, milliseconds.
 - **Specs** — [Reqnroll](https://reqnroll.net) scenarios in league language (`tests/BallBank.Specs/Features`), the
-  suite that gates a deploy.
+  suite that gates a deploy. The treasury specs run against the aggregates in memory by default and against the
+  real API with `BALLBANK_SPECS_DRIVER=http`; scenarios tagged `@http` (retries, races) run over HTTP only.
 - **Integration tests** — Marten against a real PostgreSQL: aggregation, tenancy isolation, projections;
   and the API over HTTP (`WebApplicationFactory`), with bearer tokens from a test signing key.
 

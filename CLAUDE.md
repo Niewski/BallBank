@@ -20,11 +20,12 @@ endpoints, transactional outbox, scheduled messages) · Aspire (local orchestrat
 | Run everything locally (Postgres, API, web, dashboard) | `aspire run` (or `dotnet run --project src/BallBank.AppHost`) |
 | Build all .NET | `dotnet build` |
 | Fast tests, no Docker | `dotnet test tests/BallBank.Domain.Tests tests/BallBank.Specs` |
+| Specs against the API over HTTP (Docker required) | `BALLBANK_SPECS_DRIVER=http dotnet test tests/BallBank.Specs` |
 | All .NET tests (integration tests start PostgreSQL via Testcontainers; Docker required) | `dotnet test` |
 | Web | `cd web && npm run dev` / `npm run lint` / `npm run build` |
 | Postgres without Aspire | `docker compose up -d` |
 
-CI (`.github/workflows/ci.yml`) runs build, all .NET tests, web lint and web build on every PR.
+CI (`.github/workflows/ci.yml`) runs build, all .NET tests, the specs again over HTTP, web lint and web build on every PR.
 
 ## Layout
 

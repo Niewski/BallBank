@@ -51,3 +51,21 @@ Feature: Paying dues
     When Jacob attests a $50.005 Cash payment
     Then the payment is refused because "A payment must be in whole cents."
     And Jacob has 0 pending payments
+
+  # Only over HTTP does a request carry a key to retry it with, or can two treasurers race.
+
+  @http
+  Scenario: Retrying a request
+    When Jacob attests a $50 Venmo payment with reference "VN-1234"
+    And Jacob's app sends that request again with the same idempotency key
+    Then the retry is answered the same as the first request
+    And Jacob has 1 pending payment
+
+  @http
+  Scenario: Two treasurers confirm at once
+    Given Priya is a treasurer too
+    When Jacob attests a $50 Venmo payment with reference "VN-1234"
+    And the treasurer and Priya confirm Jacob's payment at once
+    Then Jacob's payment was confirmed once
+    And the other treasurer is told the account changed and sees its current version
+    And Jacob's balance is $0
