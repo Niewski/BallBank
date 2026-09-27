@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace BallBank.Domain.Treasury;
 
 /// <summary>
@@ -171,6 +173,14 @@ public sealed class MemberAccount
         if (command.Refund && command.Amount < 0)
         {
             throw new DomainException("A refund pays the member back, so it must raise the balance.");
+        }
+
+        // A refund settles what the pot owes the member; paying back more would leave them owing it again.
+        var owed = Math.Max(-Balance, 0m);
+        if (command.Refund && command.Amount > owed)
+        {
+            throw new DomainException(
+                $"A refund cannot be more than the pot owes the member (${owed.ToString("0.00", CultureInfo.InvariantCulture)}).");
         }
 
         return new AdjustmentPosted(

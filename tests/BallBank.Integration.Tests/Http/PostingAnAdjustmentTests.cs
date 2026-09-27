@@ -143,6 +143,19 @@ public class PostingAnAdjustmentTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task A_refund_of_more_than_the_pot_owes_is_refused()
+    {
+        var hogs = await HollandHogsSeason.Open(Api);
+
+        var response = await Adjust(hogs.Jacob, hogs, hogs.Sams, new PostAdjustmentRequest(Guid.NewGuid(), 10m, "Refunded", OpenedVersion, Refund: true));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+        (await response.Content.ReadFromJsonAsync<ProblemDetails>()).ShouldNotBeNull()
+            .Detail.ShouldBe("A refund cannot be more than the pot owes the member ($0.00).");
+        (await StreamVersionOf(hogs, hogs.Sams)).ShouldBe(OpenedVersion);
+    }
+
+    [Fact]
     public async Task A_refund_that_lowers_the_balance_is_refused()
     {
         var hogs = await HollandHogsSeason.Open(Api);

@@ -31,3 +31,11 @@ Feature: Adjustments need a reason
     When Sam adjusts Sam's balance by -$50 because "Short this month"
     Then Sam is not allowed to
     And Sam's balance is $50
+
+  Scenario: A refund cannot be more than the pot owes
+    When Jacob attests a $60 Cash payment
+    And the treasurer confirms Jacob's payment
+    And the treasurer refunds Jacob $50 because "Refunded"
+    Then the adjustment is refused because "A refund cannot be more than the pot owes the member ($10.00)."
+    And the pot owes Jacob $10
+    And the league pot is $60

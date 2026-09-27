@@ -490,4 +490,42 @@ public class MemberAccountTests
             account.PostAdjustment(AdjustCommand(account, -10m, "Refunded", refund: true), Now);
         }).Message.ShouldBe("A refund pays the member back, so it must raise the balance.");
     }
+
+    [Theory]
+    [InlineData("10.01")]
+    [InlineData("50")]
+    public void A_refund_cannot_be_more_than_the_pot_owes_the_member(string amount)
+    {
+        var attestationId = Guid.NewGuid();
+        var account = MemberAccount.Replay(
+            Opened(), Assessed(50m), Attested(60m, attestationId), new PaymentConfirmed(attestationId, Treasurer, Now));
+
+        Should.Throw<DomainException>(() =>
+        {
+            account.PostAdjustment(AdjustCommand(account, decimal.Parse(amount, CultureInfo.InvariantCulture), "Refunded", refund: true), Now);
+        }).Message.ShouldBe("A refund cannot be more than the pot owes the member ($10.00).");
+    }
+
+    [Fact]
+    public void A_member_the_pot_owes_nothing_cannot_be_refunded()
+    {
+        var account = MemberAccount.Replay(Opened(), Assessed(50m));
+
+        Should.Throw<DomainException>(() =>
+        {
+            account.PostAdjustment(AdjustCommand(account, 10m, "Refunded", refund: true), Now);
+        }).Message.ShouldBe("A refund cannot be more than the pot owes the member ($0.00).");
+    }
+
+    [Fact]
+    public void A_refund_can_be_part_of_what_the_pot_owes()
+    {
+        var attestationId = Guid.NewGuid();
+        var account = MemberAccount.Replay(
+            Opened(), Assessed(50m), Attested(60m, attestationId), new PaymentConfirmed(attestationId, Treasurer, Now));
+
+        account.Evolve(account.PostAdjustment(AdjustCommand(account, 4m, "Refunded part", refund: true), Now)!);
+
+        account.Balance.ShouldBe(-6m);
+    }
 }

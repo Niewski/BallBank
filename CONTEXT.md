@@ -99,7 +99,8 @@ the member owes the pot. Not: "amount due", "outstanding" (that is the league-wi
 drawn from. Other adjustments move no money, so they leave the pot alone. Not: "prize pool", "bank".
 
 **Refund** — An adjustment that records money the treasurer paid a member back out of the pot, as
-after an overpayment. Raises the balance and lowers the pot by the same amount. Not: "reimbursement",
+after an overpayment. Raises the balance and lowers the pot by the same amount, and can be no more than
+the pot owes the member. Not: "reimbursement",
 "chargeback".
 
 **Payout** — Money the pot returns to a member at season close, per the payout structure and the
