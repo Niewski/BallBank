@@ -67,7 +67,7 @@ the `LeaguePot` projection, computes payouts from the structure and standings, a
 | `SeasonListing` | single-stream, inline | `GET …/seasons`: a season's label, dues and due date, without replaying its stream. |
 | `LeaguePot` *(planned)* | multi-stream, async | Treasurer dashboard: pot, confirmed vs outstanding, delinquency. |
 | Confirmation queue | none — a query over `MemberStatement` | `GET …/seasons/{season}/confirmations` (treasurers): every pending attestation of the season, oldest first, with member, amount, rail, reference, who attested and when, and the account's version ([ADR-0006](adr/0006-inline-vs-async-projections.md)). |
-| History | none — the stream itself | `GET …/history`: events with timestamps, causation/correlation ids and the acting user. |
+| History | none — the stream itself | `GET …/accounts/{accountId}/history`: one entry per event of the account, in order — sequence, version, when, event type, the acting member and their name, and a sentence the API renders in league language. An account's opener is whoever assessed its first dues, in the same step. Causation/correlation ids join it later. |
 
 `Season` and `MemberAccount` themselves stay private-set domain aggregates, rebuilt live from raw
 events (never stored) so a command can decide against current state; `MemberStatement` and

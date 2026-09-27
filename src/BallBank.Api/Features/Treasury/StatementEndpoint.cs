@@ -109,17 +109,9 @@ public static class StatementEndpoint
             return Results.NotFound();
         }
 
-        // The policy knows the caller is a member; whose account this is only the statement knows.
-        // UserMemberships lives in the default tenant, not the league's (ADR-0011).
-        await using var memberships = store.QuerySession();
-        var caller = (await memberships.LoadAsync<UserMemberships>(user.Subject(), cancellation))?
-            .Leagues.FirstOrDefault(l => l.LeagueId == leagueId);
-        if (caller is null || !(caller.Roles.Contains(Roles.Treasurer) || caller.MemberId == statement.MemberId))
+        if (await AccountReaders.CallerAsync(store, user, leagueId, statement.MemberId, cancellation) is not { } caller)
         {
-            return Results.Problem(
-                statusCode: StatusCodes.Status403Forbidden,
-                title: "Not your account",
-                detail: "Only a treasurer, or the account's own member, can read its statement.");
+            return AccountReaders.NotYourAccount("statement");
         }
 
         return Results.Ok(AccountStatement.Of(statement, league, caller.MemberId));
