@@ -78,7 +78,7 @@ public static class AccountHistory
                 var (by, at, sentence) = e.Data switch
                 {
                     AccountOpened opened => (openedBy, opened.OpenedAt,
-                        $"{Name(openedBy)} opened {MemberName(opened.MemberId)}'s account for the {opened.Season} season"),
+                        $"{Name(openedBy)} opened {Name(opened.MemberId)}'s account for the {opened.Season} season"),
                     DuesAssessed assessed => (assessed.AssessedBy, assessed.AssessedAt,
                         $"{Name(assessed.AssessedBy)} assessed {Money(assessed.Amount)} for {assessed.Memo}, due {assessed.DueDate.ToString("MMM d, yyyy", CultureInfo.InvariantCulture)}"),
                     PaymentAttested attested => (attested.AttestedBy, attested.AttestedAt,
@@ -104,8 +104,6 @@ public static class AccountHistory
             .ToArray();
 
         string Name(Guid memberId) => MemberNames.ActingName(members, memberId) ?? "A former member";
-
-        string MemberName(Guid memberId) => MemberNames.ActingName(members, memberId) ?? "a former member";
     }
 
     private static string Payment(PaymentAttested attested) =>
