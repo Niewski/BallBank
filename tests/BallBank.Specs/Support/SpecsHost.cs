@@ -1,0 +1,82 @@
+using System.Net.Http.Headers;
+using BallBank.Integration.Tests.Http;
+using BallBank.Integration.Tests.Sleeper;
+using Marten;
+using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.DependencyInjection;
+using Testcontainers.PostgreSql;
+
+namespace BallBank.Specs.Support;
+
+/// <summary>
+/// The API hosted in memory over a throwaway PostgreSQL, started by the first scenario that needs it
+/// and shared by every scenario after, each in a league of its own. Signs tokens with the integration
+/// tests' test issuer and talks to their fake Sleeper.
+/// </summary>
+public sealed class SpecsHost
+{
+    private static readonly SemaphoreSlim Starting = new(1, 1);
+    private static SpecsHost? _shared;
+
+    private readonly PostgreSqlContainer _database;
+    private readonly BallBankApi _api;
+    private readonly WebApplicationFactory<Program> _host;
+
+    private SpecsHost(PostgreSqlContainer database)
+    {
+        _database = database;
+        _api = new BallBankApi(database.GetConnectionString());
+        _host = _api.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+            services.ConfigureMarten(options => options.Listeners.Add(Commits))));
+    }
+
+    public FakeSleeper Sleeper => _api.Sleeper;
+
+    /// <summary>Holds commits back when a scenario needs two requests to race.</summary>
+    public CommitGate Commits { get; } = new();
+
+    public IDocumentStore Store => _host.Services.GetRequiredService<IDocumentStore>();
+
+    public static async Task<SpecsHost> Shared()
+    {
+        await Starting.WaitAsync();
+        try
+        {
+            if (_shared is null)
+            {
+                var database = new PostgreSqlBuilder("postgres:17-alpine").Build();
+                await database.StartAsync();
+                var host = new SpecsHost(database);
+
+                // Started here, once: the factory starts its server on first use, and features run in parallel.
+                _ = host._host.Server;
+                _shared = host;
+            }
+
+            return _shared;
+        }
+        finally
+        {
+            Starting.Release();
+        }
+    }
+
+    public static async Task StopAsync()
+    {
+        if (_shared is { } host)
+        {
+            _shared = null;
+            await host._api.DisposeAsync(); // disposes the host derived from it too
+            await host._database.DisposeAsync();
+        }
+    }
+
+    /// <summary>A client signed in as <paramref name="subject"/>.</summary>
+    public HttpClient ClientFor(string subject)
+    {
+        var client = _host.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _api.TokenFor(subject));
+        return client;
+    }
+}

@@ -4,13 +4,12 @@ Feature: Opening a season
   that is already open changes nothing, so a retry or a second treasurer's click cannot double-assess.
 
   Background:
-    Given a league with members Jacob, Sam, Priya
+    Given a league with members Jacob, Sam
 
   Scenario: Opening a season assesses every current member
     When the treasurer opens the "2026" season with dues of $50 due on 2026-10-01
     Then Jacob owes $50
     And Sam owes $50
-    And Priya owes $50
 
   Scenario: Opening a season twice assesses once
     Given the treasurer has opened the "2026" season with dues of $50 due on 2026-10-01
@@ -20,7 +19,7 @@ Feature: Opening a season
 
   Scenario: A member added later is assessed on request
     Given the treasurer has opened the "2026" season with dues of $50 due on 2026-10-01
-    And importing the league again adds Dana
-    When the treasurer assesses Dana $50 for "Season dues" due on 2026-10-01
-    Then Dana owes $50
+    And importing the league again adds Priya
+    When the treasurer assesses Priya $50 for "Season dues" due on 2026-10-01
+    Then Priya owes $50
     And Jacob owes $50

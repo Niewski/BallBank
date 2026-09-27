@@ -110,7 +110,7 @@ namespace BallBank.Specs.Features
 #line 6
   #line hidden
 #line 7
-    await testRunner.GivenAsync("a league with members Jacob, Sam, Priya", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
+    await testRunner.GivenAsync("a league with members Jacob, Sam", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
 #line hidden
         }
         
@@ -177,9 +177,6 @@ namespace BallBank.Specs.Features
 #line 12
     await testRunner.AndAsync("Sam owes $50", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
-#line 13
-    await testRunner.AndAsync("Priya owes $50", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
-#line hidden
             }
             await this.ScenarioCleanupAsync();
         }
@@ -195,7 +192,7 @@ namespace BallBank.Specs.Features
             global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("Opening a season twice assesses once", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
             string[] tagsOfRule = ((string[])(null));
             global::Reqnroll.RuleInfo ruleInfo = null;
-#line 15
+#line 14
   this.ScenarioInitialize(scenarioInfo, ruleInfo);
 #line hidden
             if ((global::Reqnroll.TagHelper.ContainsIgnoreTag(scenarioInfo.CombinedTags) || global::Reqnroll.TagHelper.ContainsIgnoreTag(featureTags)))
@@ -208,16 +205,16 @@ namespace BallBank.Specs.Features
 #line 6
   await this.FeatureBackgroundAsync();
 #line hidden
-#line 16
+#line 15
     await testRunner.GivenAsync("the treasurer has opened the \"2026\" season with dues of $50 due on 2026-10-01", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
 #line hidden
-#line 17
+#line 16
     await testRunner.WhenAsync("the treasurer opens the \"2026\" season with dues of $50 due on 2026-10-01 again", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
 #line hidden
-#line 18
+#line 17
     await testRunner.ThenAsync("Jacob owes $50", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
 #line hidden
-#line 19
+#line 18
     await testRunner.AndAsync("the season was opened once", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
             }
@@ -235,7 +232,7 @@ namespace BallBank.Specs.Features
             global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("A member added later is assessed on request", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
             string[] tagsOfRule = ((string[])(null));
             global::Reqnroll.RuleInfo ruleInfo = null;
-#line 21
+#line 20
   this.ScenarioInitialize(scenarioInfo, ruleInfo);
 #line hidden
             if ((global::Reqnroll.TagHelper.ContainsIgnoreTag(scenarioInfo.CombinedTags) || global::Reqnroll.TagHelper.ContainsIgnoreTag(featureTags)))
@@ -248,19 +245,19 @@ namespace BallBank.Specs.Features
 #line 6
   await this.FeatureBackgroundAsync();
 #line hidden
-#line 22
+#line 21
     await testRunner.GivenAsync("the treasurer has opened the \"2026\" season with dues of $50 due on 2026-10-01", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
 #line hidden
+#line 22
+    await testRunner.AndAsync("importing the league again adds Priya", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
 #line 23
-    await testRunner.AndAsync("importing the league again adds Dana", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+    await testRunner.WhenAsync("the treasurer assesses Priya $50 for \"Season dues\" due on 2026-10-01", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
 #line hidden
 #line 24
-    await testRunner.WhenAsync("the treasurer assesses Dana $50 for \"Season dues\" due on 2026-10-01", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
+    await testRunner.ThenAsync("Priya owes $50", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
 #line hidden
 #line 25
-    await testRunner.ThenAsync("Dana owes $50", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
-#line hidden
-#line 26
     await testRunner.AndAsync("Jacob owes $50", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
             }

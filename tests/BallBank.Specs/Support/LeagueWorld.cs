@@ -1,132 +1,39 @@
 using BallBank.Domain;
-using BallBank.Domain.Treasury;
 
 namespace BallBank.Specs.Support;
 
 /// <summary>
-/// In-memory league for the specs: accounts keyed by member name plus the full event history.
-/// Injected into step classes by Reqnroll (one instance per scenario).
+/// The league the treasury specs act on, through the driver <see cref="SpecsDriver"/> selects, and what
+/// the last attempted command was refused with. Injected into step classes by Reqnroll (one instance
+/// per scenario).
 /// </summary>
 public sealed class LeagueWorld
 {
-    private static readonly DateTimeOffset Now = new(2026, 9, 24, 12, 0, 0, TimeSpan.Zero);
-
-    private readonly Dictionary<string, MemberAccount> _accounts = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<string, AttestPayment> _latestAttestation = new(StringComparer.OrdinalIgnoreCase);
-    private readonly List<object> _history = new();
-
-    public Guid TreasurerId { get; } = Guid.NewGuid();
-    public Guid LeagueId { get; private set; }
-    public IReadOnlyList<object> History => _history;
-    public decimal Pot => _accounts.Values.Sum(account => account.InThePot);
+    public ILeagueDriver Driver { get; } = SpecsDriver.IsHttp ? new HttpLeagueDriver() : new InMemoryLeagueDriver();
 
     /// <summary>Why the last <see cref="Attempt"/> was refused; <c>null</c> if it was not.</summary>
     public DomainException? Refusal { get; private set; }
 
-    /// <summary>The member the last adjustment was posted by, who is no treasurer; <c>null</c> if a treasurer posted it.</summary>
-    public string? RefusedPoster { get; private set; }
-
-    public MemberAccount Account(string member) =>
-        _accounts.TryGetValue(member, out var account)
-            ? account
-            : throw new KeyNotFoundException($"No member named '{member}' in this league.");
-
-    public void OpenLeague(IEnumerable<string> members)
-    {
-        LeagueId = Guid.NewGuid();
-
-        foreach (var member in members)
-        {
-            var opened = MemberAccount.Open(new OpenAccount(Guid.NewGuid(), LeagueId, "2026", Guid.NewGuid()), Now);
-            _history.Add(opened);
-            _accounts[member] = MemberAccount.Replay(opened);
-        }
-    }
-
-    public void AssessEveryone(decimal amount, DateOnly dueDate)
-    {
-        foreach (var account in _accounts.Values)
-        {
-            Record(account, account.Assess(
-                new AssessDues(account.Id, Guid.NewGuid(), amount, dueDate, "Season dues", TreasurerId), Now));
-        }
-    }
-
-    /// <summary>The member attests their own payment, unless a treasurer attests it for them.</summary>
-    public void Attest(string member, decimal amount, PaymentRail rail, string? reference, Guid? attestedBy = null)
-    {
-        var account = Account(member);
-        var command = new AttestPayment(account.Id, Guid.NewGuid(), amount, rail, reference, attestedBy ?? account.MemberId);
-        _latestAttestation[member] = command;
-        Record(account, account.Attest(command, Now));
-    }
-
-    public void AttestSameAgain(string member)
-    {
-        var account = Account(member);
-        Record(account, account.Attest(LatestAttestation(member), Now));
-    }
-
-    public void ConfirmLatest(string member)
-    {
-        var account = Account(member);
-        Record(account, account.Confirm(
-            new ConfirmPayment(account.Id, LatestAttestation(member).AttestationId, TreasurerId), Now));
-    }
-
-    public void RejectLatest(string member, string reason)
-    {
-        var account = Account(member);
-        Record(account, account.Reject(
-            new RejectPayment(account.Id, LatestAttestation(member).AttestationId, TreasurerId, reason), Now));
-    }
-
-    /// <summary>
-    /// A treasurer posts an adjustment, unless the member named <paramref name="postedBy"/> tries to. Which
-    /// member is a treasurer is the league's to say, so the account cannot refuse them; the world stands
-    /// in for the endpoint that does (<c>403</c>) and records who was not allowed.
-    /// </summary>
-    public void PostAdjustment(string member, decimal amount, string reason, string? postedBy = null, bool refund = false)
-    {
-        var poster = postedBy is null ? TreasurerId : Account(postedBy).MemberId;
-        RefusedPoster = poster == TreasurerId ? null : postedBy;
-        if (RefusedPoster is not null)
-        {
-            return;
-        }
-
-        var account = Account(member);
-        Record(account, account.PostAdjustment(
-            new PostAdjustment(account.Id, Guid.NewGuid(), amount, reason, refund, poster), Now));
-    }
+    /// <summary>Who the last <see cref="Attempt"/> was not allowed to; <c>null</c> if it was allowed.</summary>
+    public string? NotAllowed { get; private set; }
 
     /// <summary>Runs a command that may be refused, keeping the refusal for a later step to check.</summary>
-    public void Attempt(Action command)
+    public async Task Attempt(Func<Task> command)
     {
+        Refusal = null;
+        NotAllowed = null;
+
         try
         {
-            command();
-            Refusal = null;
+            await command();
         }
         catch (DomainException refusal)
         {
             Refusal = refusal;
         }
-    }
-
-    private AttestPayment LatestAttestation(string member) =>
-        _latestAttestation.TryGetValue(member, out var command)
-            ? command
-            : throw new InvalidOperationException($"{member} has not attested a payment yet.");
-
-    private void Record(MemberAccount account, object? @event)
-    {
-        if (@event is null)
+        catch (NotAllowedException notAllowed)
         {
-            return; // idempotent replay: nothing new happened
+            NotAllowed = notAllowed.Member;
         }
-
-        account.Evolve(@event);
-        _history.Add(@event);
     }
 }
