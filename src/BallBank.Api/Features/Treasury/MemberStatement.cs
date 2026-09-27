@@ -26,7 +26,8 @@ public sealed class MemberStatement
     /// <summary>What the lines add up to. Only a confirmed attestation counts against what is owed.</summary>
     public StatementTotals Totals() => new(
         Assessed: Lines.Where(l => l.Kind == StatementLineKind.Assessment).Sum(l => l.Amount),
-        Confirmed: Lines.Where(l => l is { Kind: StatementLineKind.Attestation, Status: AttestationStatus.Confirmed }).Sum(l => l.Amount));
+        Confirmed: Lines.Where(l => l is { Kind: StatementLineKind.Attestation, Status: AttestationStatus.Confirmed }).Sum(l => l.Amount),
+        Adjusted: Lines.Where(l => l.Kind == StatementLineKind.Adjustment).Sum(l => l.Amount));
 
     /// <summary>How many attestations wait for a treasurer to confirm or reject them.</summary>
     public int PendingAttestations() =>
@@ -34,11 +35,12 @@ public sealed class MemberStatement
 }
 
 /// <summary>
-/// One line of a statement: an assessment (memo, due date) or an attestation (rail, reference, status,
-/// and the reason when rejected). Adjustments and payouts join it later.
+/// One line of a statement: an assessment (memo, due date), an attestation (rail, reference, status,
+/// and the reason when rejected) or an adjustment (signed amount, reason, whether it was a refund). Payouts
+/// join it later.
 /// </summary>
-/// <param name="Id">The assessment or attestation id.</param>
-/// <param name="By">The acting member: who assessed, or who attested.</param>
+/// <param name="Id">The assessment, attestation or adjustment id.</param>
+/// <param name="By">The acting member: who assessed, who attested, or who posted the adjustment.</param>
 public sealed record StatementLine(
     string Kind,
     Guid Id,
@@ -50,19 +52,22 @@ public sealed record StatementLine(
     PaymentRail? Rail = null,
     string? Reference = null,
     AttestationStatus? Status = null,
-    string? Reason = null);
+    string? Reason = null,
+    bool Refund = false);
 
 public static class StatementLineKind
 {
     public const string Assessment = "Assessment";
     public const string Attestation = "Attestation";
+    public const string Adjustment = "Adjustment";
 }
 
 /// <summary>What a statement's lines add up to, computed whenever it is served.</summary>
-public sealed record StatementTotals(decimal Assessed, decimal Confirmed)
+/// <param name="Adjusted">The sum of the adjustments, signed: positive raises the balance.</param>
+public sealed record StatementTotals(decimal Assessed, decimal Confirmed, decimal Adjusted)
 {
     /// <summary>Positive: the member owes the pot. Negative: the pot owes the member.</summary>
-    public decimal Balance => Assessed - Confirmed;
+    public decimal Balance => Assessed - Confirmed + Adjusted;
 }
 
 /// <summary>
@@ -104,6 +109,11 @@ public sealed class MemberStatementProjection : SingleStreamProjection<MemberSta
                 return snapshot;
             case PaymentRejected rejected when snapshot is not null:
                 Settle(snapshot, rejected.AttestationId, line => line with { Status = AttestationStatus.Rejected, Reason = rejected.Reason });
+                return snapshot;
+            case AdjustmentPosted adjusted when snapshot is not null:
+                snapshot.Lines.Add(new StatementLine(
+                    StatementLineKind.Adjustment, adjusted.AdjustmentId, adjusted.Amount, adjusted.PostedBy, adjusted.PostedAt,
+                    Reason: adjusted.Reason, Refund: adjusted.Refund));
                 return snapshot;
             default:
                 return snapshot;

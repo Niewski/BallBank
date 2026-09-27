@@ -8,11 +8,13 @@ import { apiBaseUrl } from "@/lib/config";
 import { describeBalance, formatMoney } from "@/lib/money";
 import { problemMessage, unreachableMessage } from "@/lib/problem";
 import { AttestPayment } from "./attest-payment";
+import { PostAdjustment } from "./post-adjustment";
 import { SettleAttestation } from "./settle-attestation";
 
 type StatementLine = {
-  kind: "Assessment" | "Attestation";
+  kind: "Assessment" | "Attestation" | "Adjustment";
   id: string;
+  // Signed for an adjustment: positive raised the balance, negative lowered it.
   amount: number;
   by: string;
   byName: string | null;
@@ -24,7 +26,10 @@ type StatementLine = {
   rail: string | null;
   reference: string | null;
   status: "Pending" | "Confirmed" | "Rejected" | null;
+  // Why an attestation was rejected, or why an adjustment was posted.
   reason: string | null;
+  // An adjustment that paid the member back out of the pot.
+  refund: boolean;
 };
 
 export type AccountStatement = {
@@ -38,7 +43,7 @@ export type AccountStatement = {
   // The caller is a treasurer of the league, so can confirm or reject.
   youAreTreasurer: boolean;
   balance: number;
-  totals: { assessed: number; confirmed: number };
+  totals: { assessed: number; confirmed: number; adjusted: number };
   lines: StatementLine[];
   version: number;
 };
@@ -63,6 +68,19 @@ function formatDate(iso: string, timeZone?: string): string {
     year: "numeric",
     timeZone,
   });
+}
+
+// How a line moves the balance: an assessment raises it, an attestation lowers
+// it once confirmed, an adjustment goes the way its sign says.
+function lineSign(line: StatementLine): string {
+  switch (line.kind) {
+    case "Assessment":
+      return "";
+    case "Attestation":
+      return "−";
+    case "Adjustment":
+      return line.amount < 0 ? "−" : "+";
+  }
 }
 
 // A statement needs a signed-in treasurer or the account's own member: the API
@@ -215,6 +233,8 @@ function StatementView({
         <p className="text-sm text-zinc-600 dark:text-zinc-400">
           Assessed {formatMoney(statement.totals.assessed)} · Confirmed paid{" "}
           {formatMoney(statement.totals.confirmed)}
+          {statement.totals.adjusted !== 0 &&
+            ` · Adjusted ${statement.totals.adjusted < 0 ? "−" : "+"}${formatMoney(statement.totals.adjusted)}`}
         </p>
       </div>
 
@@ -238,6 +258,17 @@ function StatementView({
         onVersionConflict={conflicted}
       />
 
+      {statement.youAreTreasurer && (
+        <PostAdjustment
+          key={`adjust/${statement.version}`}
+          leagueId={leagueId}
+          accountId={accountId}
+          version={statement.version}
+          onPosted={changed}
+          onVersionConflict={conflicted}
+        />
+      )}
+
       <ol className="divide-y divide-zinc-200 rounded-lg border border-zinc-200 bg-white text-sm dark:divide-zinc-800 dark:border-zinc-800 dark:bg-zinc-950">
         {statement.lines.map((line) => (
           <li
@@ -253,6 +284,17 @@ function StatementView({
                   {line.dueDate && (
                     <span className="text-zinc-500">
                       Due {formatDate(line.dueDate, "UTC")}
+                    </span>
+                  )}
+                </>
+              ) : line.kind === "Adjustment" ? (
+                <>
+                  <span className="font-medium text-zinc-950 dark:text-zinc-50">
+                    {line.refund ? "Refund" : "Adjustment"}
+                  </span>
+                  {line.reason && (
+                    <span className="text-zinc-600 dark:text-zinc-400">
+                      {line.reason}
                     </span>
                   )}
                 </>
@@ -302,7 +344,7 @@ function StatementView({
                   : "font-medium text-zinc-950 dark:text-zinc-50"
               }
             >
-              {line.kind === "Assessment" ? "" : "−"}
+              {lineSign(line)}
               {formatMoney(line.amount)}
             </span>
           </li>

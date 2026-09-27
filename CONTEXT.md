@@ -95,8 +95,13 @@ payment (Venmo note, Zelle confirmation, check number). Required for every rail 
 **Balance** — Derived: assessed − confirmed ± adjustments − payouts. Never stored. Positive means
 the member owes the pot. Not: "amount due", "outstanding" (that is the league-wide total).
 
-**Pot** — The sum of confirmed payments across a season's accounts. What payouts are drawn from.
-Not: "prize pool", "bank".
+**Pot** — The sum of confirmed payments across a season's accounts, less refunds. What payouts are
+drawn from. Other adjustments move no money, so they leave the pot alone. Not: "prize pool", "bank".
+
+**Refund** — An adjustment that records money the treasurer paid a member back out of the pot, as
+after an overpayment. Raises the balance and lowers the pot by the same amount, and can be no more than
+the pot owes the member. Not: "reimbursement",
+"chargeback".
 
 **Payout** — Money the pot returns to a member at season close, per the payout structure and the
 declared standings. Recorded on the member's account. Not: "prize", "winnings".

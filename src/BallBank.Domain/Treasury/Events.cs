@@ -51,3 +51,16 @@ public sealed record PaymentRejected(
     Guid RejectedBy,
     string Reason,
     DateTimeOffset RejectedAt);
+
+/// <summary>
+/// The treasurer corrected the balance, and said why: a waiver, a refund of an overpayment, a fix.
+/// Positive raises what the member owes; negative lowers it. A refund is money paid back out of the pot,
+/// so it lowers the pot too; any other adjustment moves no money and leaves the pot alone.
+/// </summary>
+public sealed record AdjustmentPosted(
+    Guid AdjustmentId,
+    decimal Amount,
+    string Reason,
+    bool Refund,
+    Guid PostedBy,
+    DateTimeOffset PostedAt);

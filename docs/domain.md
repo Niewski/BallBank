@@ -16,11 +16,12 @@ Where the money invariants live.
 | `AttestPayment` | `PaymentAttested { attestationId, amount, rail, reference }` | Amount > 0. Reference required unless the rail is Cash. Same `attestationId` again → no event. Does **not** change the balance. |
 | `ConfirmPayment` | `PaymentConfirmed { attestationId }` | Attestation must exist and be pending. Already confirmed → no event. Rejected → refused. Moves the balance. |
 | `RejectPayment` | `PaymentRejected { attestationId, reason }` | Reason required. Already rejected → no event. Confirmed → refused (post an adjustment instead). |
-| `PostAdjustment` *(planned)* | `AdjustmentPosted { amount, reason }` | Reason required. Treasurer only. |
+| `PostAdjustment` | `AdjustmentPosted { adjustmentId, amount, reason, refund, postedBy }` | Id required. Reason required. Amount signed (positive raises the balance, negative lowers it), not zero, in whole cents. A refund must be positive, cannot be more than the pot owes the member (the negative of the balance), and is the only adjustment that lowers the pot. Same `adjustmentId` again → no event. Treasurer only (enforced at the endpoint, which knows the league's roles). |
 | `RecordPayout` *(planned)* | `PayoutRecorded { amount, reason }` | Issued only by the season-close process manager. |
 | `CloseAccount` *(planned)* | `AccountClosed` or `BalanceWrittenOff` | Balance must be zero, or the remainder is explicitly written off. |
 
-**Balance** = assessed − confirmed ± adjustments − payouts. Derived on read; never stored.
+**Balance** = assessed − confirmed + adjusted − payouts, where adjusted is the signed sum of the
+adjustments. Derived on read; never stored.
 
 ### `Season` — one per league × label
 
@@ -51,8 +52,8 @@ lookup first.
 
 ### The rule that spans streams
 
-Total payouts cannot exceed the confirmed pot. The pot is the sum over every `MemberAccount` in the
-season, so no single stream can enforce it. A **process manager** reacting to `SeasonClosed` reads
+Total payouts cannot exceed the pot. The pot is the sum over every `MemberAccount` in the season of
+its confirmed payments less its refunds (`MemberAccount.InThePot`), so no single stream can enforce it. A **process manager** reacting to `SeasonClosed` reads
 the `LeaguePot` projection, computes payouts from the structure and standings, and issues
 `RecordPayout` to each account. Eventually consistent, deliberately —
 [ADR-0003](adr/0003-aggregate-boundaries-and-payout-process-manager.md) covers the alternatives.
@@ -61,7 +62,7 @@ the `LeaguePot` projection, computes payouts from the structure and standings, a
 
 | Projection | Kind | Serves |
 |---|---|---|
-| `MemberStatement` | single-stream, inline | `GET …/accounts/{accountId}`: line items in order — assessments (memo, due date) and attestations (rail, reference, status, rejection reason), each with who and when; adjustments and payouts join it later. Totals and the balance are computed from the lines when served, never stored. |
+| `MemberStatement` | single-stream, inline | `GET …/accounts/{accountId}`: line items in order — assessments (memo, due date), attestations (rail, reference, status, rejection reason) and adjustments (signed amount, reason), each with who and when; payouts join it later. Totals and the balance are computed from the lines when served, never stored. |
 | Ledger | none — a query over `MemberStatement` | `GET …/seasons/{season}/ledger`: every account of the season with its computed balance, pending count and version, named from the league's member list. |
 | `SeasonListing` | single-stream, inline | `GET …/seasons`: a season's label, dues and due date, without replaying its stream. |
 | `LeaguePot` *(planned)* | multi-stream, async | Treasurer dashboard: pot, confirmed vs outstanding, delinquency. |
