@@ -20,6 +20,13 @@ public sealed class OpeningASeasonSteps(SeasonWorld world)
     public void WhenTheTreasurerOpensTheSeason(string label, decimal duesAmount, string dueDate) =>
         world.OpenSeason(label, duesAmount, DateOnly.Parse(dueDate, CultureInfo.InvariantCulture));
 
+    [Given(@"^importing the league again adds (\w+)$")]
+    public void GivenImportingTheLeagueAgainAdds(string member) => world.AddMembers([member]);
+
+    [When(@"^the treasurer assesses (\w+) \$(\d+(?:\.\d{1,2})?) for ""([^""]*)"" due on (\d{4}-\d{2}-\d{2})$")]
+    public void WhenTheTreasurerAssesses(string member, decimal amount, string memo, string dueDate) =>
+        world.Assess([member], amount, memo, DateOnly.Parse(dueDate, CultureInfo.InvariantCulture));
+
     [Then(@"^(\w+) owes \$(\d+(?:\.\d{1,2})?)$")]
     public void ThenOwes(string member, decimal expected) => world.Account(member).Balance.ShouldBe(expected);
 

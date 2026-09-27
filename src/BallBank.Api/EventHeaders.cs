@@ -8,8 +8,8 @@ namespace BallBank.Api;
 public static class EventHeaders
 {
     /// <summary>
-    /// The caller's sign-in subject. <see cref="Features.Treasury.OpenSeasonEndpoint"/> sets this on
-    /// every event it writes; later handlers should reuse the same key rather than inventing their own.
+    /// The caller's sign-in subject, set on every event a Treasury endpoint writes through
+    /// <c>session.SetHeader</c>; later handlers should reuse the same key rather than inventing their own.
     /// </summary>
     public const string Subject = "subject";
 }

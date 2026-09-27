@@ -93,6 +93,36 @@ public class MemberAccountTests
         }).Message.ShouldBe("An assessment must be in whole cents.");
     }
 
+    [Fact]
+    public void An_assessment_to_the_cent_is_recorded()
+    {
+        var account = MemberAccount.Replay(Opened());
+
+        account.Assess(AssessCommand(account, 12.50m), Now).ShouldNotBeNull().Amount.ShouldBe(12.50m);
+    }
+
+    [Fact]
+    public void An_assessment_needs_an_id()
+    {
+        var account = MemberAccount.Replay(Opened());
+
+        Should.Throw<DomainException>(() =>
+        {
+            account.Assess(AssessCommand(account, 10m, Guid.Empty), Now);
+        }).Message.ShouldBe("An assessment needs an id.");
+    }
+
+    [Fact]
+    public void An_assessment_needs_a_due_date()
+    {
+        var account = MemberAccount.Replay(Opened());
+
+        Should.Throw<DomainException>(() =>
+        {
+            account.Assess(AssessCommand(account, 10m) with { DueDate = null }, Now);
+        }).Message.ShouldBe("An assessment needs a due date.");
+    }
+
     [Theory]
     [InlineData("50.001")]
     [InlineData("0.005")]

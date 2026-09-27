@@ -51,6 +51,11 @@ public sealed class MemberAccount
     /// <summary>Returns <c>null</c> when this assessment id was already recorded (idempotent replay).</summary>
     public DuesAssessed? Assess(AssessDues command, DateTimeOffset now)
     {
+        if (command.AssessmentId == Guid.Empty)
+        {
+            throw new DomainException("An assessment needs an id.");
+        }
+
         if (_assessments.ContainsKey(command.AssessmentId))
         {
             return null;
@@ -58,10 +63,15 @@ public sealed class MemberAccount
 
         RequireAmount(command.Amount, "An assessment");
 
+        if (command.DueDate is not { } dueDate)
+        {
+            throw new DomainException("An assessment needs a due date.");
+        }
+
         return new DuesAssessed(
             command.AssessmentId,
             command.Amount,
-            command.DueDate,
+            dueDate,
             command.Memo?.Trim() ?? string.Empty,
             command.AssessedBy,
             now);

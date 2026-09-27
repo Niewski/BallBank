@@ -12,7 +12,7 @@ Where the money invariants live.
 | Command | Event | Invariant / behaviour |
 |---|---|---|
 | `OpenAccount` | `AccountOpened` | One per member per season. Needs a season. |
-| `AssessDues` | `DuesAssessed { assessmentId, amount, dueDate, memo }` | Amount > 0. Same `assessmentId` again → no event (idempotent). |
+| `AssessDues` | `DuesAssessed { assessmentId, amount, dueDate, memo }` | Id required. Amount > 0, in whole cents. Due date required. Same `assessmentId` again → no event (idempotent). |
 | `AttestPayment` | `PaymentAttested { attestationId, amount, rail, reference }` | Amount > 0. Reference required unless the rail is Cash. Same `attestationId` again → no event. Does **not** change the balance. |
 | `ConfirmPayment` | `PaymentConfirmed { attestationId }` | Attestation must exist and be pending. Already confirmed → no event. Rejected → refused. Moves the balance. |
 | `RejectPayment` | `PaymentRejected { attestationId, reason }` | Reason required. Already rejected → no event. Confirmed → refused (post an adjustment instead). |
@@ -33,6 +33,14 @@ Where the money invariants live.
 
 Opening a season also opens an `AccountOpened` + `DuesAssessed` for every current member of the league,
 each on that member's own `MemberAccount` stream, all in the transaction that writes `SeasonOpened`.
+
+Assessing a late fee or a side-pot buy-in (`POST …/seasons/{season}/assessments`) appends `DuesAssessed`
+with one assessment id to every targeted account (every member, or the members named) in one
+transaction. The id is shared on purpose: one assessment applied to many books, unique within each
+stream, so an account that already carries it is skipped. A member added since the season opened has
+no account yet; their first assessment opens it (`AccountOpened` + `DuesAssessed`) in the same
+transaction. No expected version, since it spans many streams: an account appended to meanwhile
+fails the whole transaction, and assessing again converges.
 
 **Deterministic ids** (`SeasonIds`, base-class-library only — a hand-rolled name-based UUID, since the
 BCL has no version-5 `Guid` factory): the season id is computed from the league id and label; the
