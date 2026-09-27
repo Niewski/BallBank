@@ -8,6 +8,7 @@ import { apiBaseUrl } from "@/lib/config";
 import { describeBalance, formatMoney } from "@/lib/money";
 import { problemMessage, unreachableMessage } from "@/lib/problem";
 import { AttestPayment } from "./attest-payment";
+import { SettleAttestation } from "./settle-attestation";
 
 type StatementLine = {
   kind: "Assessment" | "Attestation";
@@ -34,6 +35,8 @@ export type AccountStatement = {
   displayName: string | null;
   // The caller holds this member, rather than reading it as a treasurer.
   yours: boolean;
+  // The caller is a treasurer of the league, so can confirm or reject.
+  youAreTreasurer: boolean;
   balance: number;
   totals: { assessed: number; confirmed: number };
   lines: StatementLine[];
@@ -174,6 +177,19 @@ function StatementView({
 
   const { statement } = state;
 
+  // Every command about the account answers with its statement as it now stands.
+  function changed(fresh: AccountStatement) {
+    setNotice(null);
+    setState({ kind: "ok", statement: fresh });
+  }
+
+  function conflicted() {
+    setNotice(
+      "This account changed since you opened it, so nothing was recorded. It has been reloaded: check it and try again.",
+    );
+    setReloads((count) => count + 1);
+  }
+
   return (
     <section className="flex flex-col gap-6">
       <header className="flex flex-col gap-1">
@@ -218,16 +234,8 @@ function StatementView({
         accountId={accountId}
         balance={statement.balance}
         version={statement.version}
-        onAttested={(attested) => {
-          setNotice(null);
-          setState({ kind: "ok", statement: attested });
-        }}
-        onVersionConflict={() => {
-          setNotice(
-            "This account changed since you opened it, so nothing was recorded. It has been reloaded: check it and try again.",
-          );
-          setReloads((count) => count + 1);
-        }}
+        onAttested={changed}
+        onVersionConflict={conflicted}
       />
 
       <ol className="divide-y divide-zinc-200 rounded-lg border border-zinc-200 bg-white text-sm dark:divide-zinc-800 dark:border-zinc-800 dark:bg-zinc-950">
@@ -272,6 +280,19 @@ function StatementView({
                 {formatDate(line.at)}
                 {line.byName && ` · by ${line.byName}`}
               </span>
+              {statement.youAreTreasurer && line.status === "Pending" && (
+                <div className="pt-1">
+                  <SettleAttestation
+                    key={statement.version}
+                    leagueId={leagueId}
+                    accountId={accountId}
+                    attestationId={line.id}
+                    version={statement.version}
+                    onSettled={changed}
+                    onVersionConflict={conflicted}
+                  />
+                </div>
+              )}
             </div>
             {/* Only a confirmed attestation counts against the balance. */}
             <span

@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuth0 } from "@auth0/auth0-react";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Ledger } from "@/components/ledger";
 import { OpenSeason } from "@/components/open-season";
@@ -102,6 +103,14 @@ export function Season({
             timeZone: "UTC",
           })}
         </p>
+        {youAreTreasurer && (
+          <Link
+            href={`/confirmations?league=${encodeURIComponent(leagueId)}&season=${encodeURIComponent(open.label)}`}
+            className="mt-2 inline-block underline decoration-zinc-400 underline-offset-4"
+          >
+            Confirmation queue
+          </Link>
+        )}
       </div>
       <Ledger
         leagueId={leagueId}
