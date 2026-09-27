@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { apiBaseUrl } from "@/lib/config";
 import { describeBalance, formatMoney } from "@/lib/money";
 import { problemMessage, unreachableMessage } from "@/lib/problem";
+import { AccountHistory } from "./account-history";
 import { AttestPayment } from "./attest-payment";
 import { PostAdjustment } from "./post-adjustment";
 import { SettleAttestation } from "./settle-attestation";
@@ -350,6 +351,12 @@ function StatementView({
           </li>
         ))}
       </ol>
+
+      <AccountHistory
+        key={`history/${statement.version}`}
+        leagueId={leagueId}
+        accountId={accountId}
+      />
     </section>
   );
 }
