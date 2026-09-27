@@ -24,7 +24,7 @@ public sealed class LeagueWorld
     public DomainException? Refusal { get; private set; }
 
     /// <summary>The member the last adjustment was posted by, who is no treasurer; <c>null</c> if a treasurer posted it.</summary>
-    public string? Forbidden { get; private set; }
+    public string? RefusedPoster { get; private set; }
 
     public MemberAccount Account(string member) =>
         _accounts.TryGetValue(member, out var account)
@@ -88,16 +88,16 @@ public sealed class LeagueWorld
     /// </summary>
     public void PostAdjustment(string member, decimal amount, string reason, string? postedBy = null)
     {
-        Forbidden = null;
-        if (postedBy is not null)
+        var poster = postedBy is null ? TreasurerId : Account(postedBy).MemberId;
+        RefusedPoster = poster == TreasurerId ? null : postedBy;
+        if (RefusedPoster is not null)
         {
-            Forbidden = postedBy;
             return;
         }
 
         var account = Account(member);
         Record(account, account.PostAdjustment(
-            new PostAdjustment(account.Id, Guid.NewGuid(), amount, reason, TreasurerId), Now));
+            new PostAdjustment(account.Id, Guid.NewGuid(), amount, reason, poster), Now));
     }
 
     /// <summary>Runs a command that may be refused, keeping the refusal for a later step to check.</summary>

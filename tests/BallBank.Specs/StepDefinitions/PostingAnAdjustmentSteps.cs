@@ -19,7 +19,7 @@ public sealed class PostingAnAdjustmentSteps(LeagueWorld world)
         world.Attempt(() => world.PostAdjustment(member, Signed(sign, amount), reason, postedBy: poster));
 
     [Then(@"^(\w+) is not allowed to$")]
-    public void ThenNotAllowed(string member) => world.Forbidden.ShouldBe(member);
+    public void ThenNotAllowed(string member) => world.RefusedPoster.ShouldBe(member);
 
     private static decimal Signed(string sign, decimal amount) => sign == "-" ? -amount : amount;
 }

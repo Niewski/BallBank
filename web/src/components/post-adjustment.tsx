@@ -135,8 +135,8 @@ export function PostAdjustment({
             }}
             className={field}
           >
-            <option value="lower">Lower what they owe</option>
-            <option value="raise">Raise what they owe</option>
+            <option value="lower">Lower what they owe (a waiver)</option>
+            <option value="raise">Raise what they owe (a refund paid back)</option>
           </select>
         </label>
         <label className="flex flex-col gap-0.5 text-xs text-zinc-500">

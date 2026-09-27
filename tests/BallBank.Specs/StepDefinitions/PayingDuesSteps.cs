@@ -58,7 +58,7 @@ public sealed class PayingDuesSteps(LeagueWorld world)
         world.Account(member).Balance.ShouldBe(-expected);
 
     [Then(@"^the (?:payment|adjustment) is refused because ""([^""]*)""$")]
-    public void ThenThePaymentIsRefused(string reason) => world.Refusal.ShouldNotBeNull().Message.ShouldBe(reason);
+    public void ThenTheCommandIsRefused(string reason) => world.Refusal.ShouldNotBeNull().Message.ShouldBe(reason);
 
     [Then(@"^the history shows the treasurer attested (\w+)'s payment$")]
     public void ThenTheHistoryShowsTheTreasurerAttested(string member)
