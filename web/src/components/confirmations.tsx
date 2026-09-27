@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { apiBaseUrl } from "@/lib/config";
+import { formatTimestamp } from "@/lib/dates";
 import { formatMoney } from "@/lib/money";
 import { problemMessage, unreachableMessage } from "@/lib/problem";
 import { SettleAttestation } from "./settle-attestation";
@@ -206,10 +207,7 @@ function ConfirmationQueue({
                   {entry.reference && ` · ${entry.reference}`}
                 </span>
                 <span className="text-xs text-zinc-500">
-                  {new Date(entry.attestedAt).toLocaleString(undefined, {
-                    dateStyle: "medium",
-                    timeStyle: "short",
-                  })}
+                  {formatTimestamp(entry.attestedAt)}
                   {entry.attestedByName && ` · by ${entry.attestedByName}`}
                 </span>
               </div>

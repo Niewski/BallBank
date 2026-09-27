@@ -3,6 +3,7 @@
 import { useAuth0 } from "@auth0/auth0-react";
 import { useEffect, useState } from "react";
 import { apiBaseUrl } from "@/lib/config";
+import { formatTimestamp } from "@/lib/dates";
 import { problemMessage, unreachableMessage } from "@/lib/problem";
 
 // One event of the account's stream, as the API renders it.
@@ -20,16 +21,6 @@ type HistoryState =
   | { kind: "loading" }
   | { kind: "ok"; entries: HistoryEntry[] }
   | { kind: "error"; message: string };
-
-function formatTimestamp(iso: string): string {
-  return new Date(iso).toLocaleString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
 
 // Every event of the account, oldest first, so a dispute can be settled from
 // the record. Key it by the account's version to read it again after a change.

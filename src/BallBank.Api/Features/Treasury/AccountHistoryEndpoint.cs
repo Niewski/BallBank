@@ -1,6 +1,6 @@
-using System.Globalization;
 using System.Security.Claims;
 using BallBank.Api.Features.Membership;
+using BallBank.Domain;
 using BallBank.Domain.Membership;
 using BallBank.Domain.Treasury;
 using JasperFx.Events;
@@ -80,7 +80,7 @@ public static class AccountHistory
                     AccountOpened opened => (openedBy, opened.OpenedAt,
                         $"{Name(openedBy)} opened {Name(opened.MemberId)}'s account for the {opened.Season} season"),
                     DuesAssessed assessed => (assessed.AssessedBy, assessed.AssessedAt,
-                        $"{Name(assessed.AssessedBy)} assessed {Money(assessed.Amount)} for {assessed.Memo}, due {assessed.DueDate.ToString("MMM d, yyyy", CultureInfo.InvariantCulture)}"),
+                        $"{Name(assessed.AssessedBy)} assessed {Format.Money(assessed.Amount)} for {assessed.Memo}, due {Format.Date(assessed.DueDate)}"),
                     PaymentAttested attested => (attested.AttestedBy, attested.AttestedAt,
                         $"{Name(attested.AttestedBy)} attested a {Payment(attested)}"),
                     PaymentConfirmed confirmed => (confirmed.ConfirmedBy, confirmed.ConfirmedAt,
@@ -88,9 +88,9 @@ public static class AccountHistory
                     PaymentRejected rejected => (rejected.RejectedBy, rejected.RejectedAt,
                         $"{Name(rejected.RejectedBy)} rejected the {Payment(attestations[rejected.AttestationId])}: {rejected.Reason}"),
                     AdjustmentPosted { Refund: true } refund => (refund.PostedBy, refund.PostedAt,
-                        $"{Name(refund.PostedBy)} refunded {Money(refund.Amount)} out of the pot: {refund.Reason}"),
+                        $"{Name(refund.PostedBy)} refunded {Format.Money(refund.Amount)} out of the pot: {refund.Reason}"),
                     AdjustmentPosted adjusted => (adjusted.PostedBy, adjusted.PostedAt,
-                        $"{Name(adjusted.PostedBy)} {(adjusted.Amount < 0 ? "lowered" : "raised")} the balance by {Money(adjusted.Amount)}: {adjusted.Reason}"),
+                        $"{Name(adjusted.PostedBy)} {(adjusted.Amount < 0 ? "lowered" : "raised")} the balance by {Format.Money(adjusted.Amount)}: {adjusted.Reason}"),
                     var unknown => throw new InvalidOperationException($"No sentence for the event {unknown.GetType().Name}."),
                 };
 
@@ -107,7 +107,5 @@ public static class AccountHistory
     }
 
     private static string Payment(PaymentAttested attested) =>
-        $"{Money(attested.Amount)} {attested.Rail} payment{(attested.Reference is { } reference ? $" {reference}" : "")}";
-
-    private static string Money(decimal amount) => $"${Math.Abs(amount).ToString("0.00", CultureInfo.InvariantCulture)}";
+        $"{Format.Money(attested.Amount)} {attested.Rail} payment{(attested.Reference is { } reference ? $" {reference}" : "")}";
 }
