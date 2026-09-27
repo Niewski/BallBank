@@ -77,7 +77,7 @@ public class LedgerTests(PostgresFixture postgres)
         statement.Yours.ShouldBeTrue();
         statement.Season.ShouldBe("2026");
         statement.Balance.ShouldBe(50m);
-        statement.Totals.ShouldBe(new StatementTotals(Assessed: 50m, Confirmed: 0m));
+        statement.Totals.ShouldBe(new StatementTotals(Assessed: 50m, Confirmed: 0m, Adjusted: 0m));
         statement.Version.ShouldBe(5);
         statement.Lines.Select(l => (l.Kind, l.Amount, l.Memo, l.DueDate, l.Rail, l.Reference, l.Status, l.Reason, l.ByName)).ShouldBe(
         [
@@ -99,7 +99,7 @@ public class LedgerTests(PostgresFixture postgres)
         var statement = await Api.CreateClientFor(hogs.Sam).GetFromJsonAsync<AccountStatement>($"/leagues/{hogs.LeagueId}/accounts/{hogs.AccountOf(hogs.Sams)}");
 
         statement.ShouldNotBeNull().Balance.ShouldBe(-10m);
-        statement.Totals.ShouldBe(new StatementTotals(Assessed: 50m, Confirmed: 60m));
+        statement.Totals.ShouldBe(new StatementTotals(Assessed: 50m, Confirmed: 60m, Adjusted: 0m));
     }
 
     [Fact]

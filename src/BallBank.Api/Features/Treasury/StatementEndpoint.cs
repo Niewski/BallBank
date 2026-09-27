@@ -67,7 +67,8 @@ public sealed record AccountStatement(
 /// <summary>One line of a statement as served, with the acting member's name alongside their id.</summary>
 /// <param name="Kind">An <see cref="StatementLineKind"/>.</param>
 /// <param name="Status">An attestation's: Pending, Confirmed or Rejected; <c>null</c> for an assessment.</param>
-/// <param name="Reason">Why an attestation was rejected.</param>
+/// <param name="Amount">Signed for an adjustment: positive raised the balance, negative lowered it.</param>
+/// <param name="Reason">Why an attestation was rejected, or why an adjustment was posted.</param>
 public sealed record StatementEntry(
     string Kind,
     Guid Id,

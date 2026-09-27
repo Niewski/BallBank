@@ -23,6 +23,9 @@ public sealed class LeagueWorld
     /// <summary>Why the last <see cref="Attempt"/> was refused; <c>null</c> if it was not.</summary>
     public DomainException? Refusal { get; private set; }
 
+    /// <summary>The member the last adjustment was posted by, who is no treasurer; <c>null</c> if a treasurer posted it.</summary>
+    public string? Forbidden { get; private set; }
+
     public MemberAccount Account(string member) =>
         _accounts.TryGetValue(member, out var account)
             ? account
@@ -76,6 +79,25 @@ public sealed class LeagueWorld
         var account = Account(member);
         Record(account, account.Reject(
             new RejectPayment(account.Id, LatestAttestation(member).AttestationId, TreasurerId, reason), Now));
+    }
+
+    /// <summary>
+    /// A treasurer posts an adjustment, unless the member named <paramref name="postedBy"/> tries to. Which
+    /// member is a treasurer is the league's to say, so the account cannot refuse them; the world stands
+    /// in for the endpoint that does (<c>403</c>) and records who was not allowed.
+    /// </summary>
+    public void PostAdjustment(string member, decimal amount, string reason, string? postedBy = null)
+    {
+        Forbidden = null;
+        if (postedBy is not null)
+        {
+            Forbidden = postedBy;
+            return;
+        }
+
+        var account = Account(member);
+        Record(account, account.PostAdjustment(
+            new PostAdjustment(account.Id, Guid.NewGuid(), amount, reason, TreasurerId), Now));
     }
 
     /// <summary>Runs a command that may be refused, keeping the refusal for a later step to check.</summary>

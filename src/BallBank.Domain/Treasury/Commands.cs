@@ -32,3 +32,11 @@ public sealed record AttestPayment(
 public sealed record ConfirmPayment(Guid AccountId, Guid AttestationId, Guid ConfirmedBy);
 
 public sealed record RejectPayment(Guid AccountId, Guid AttestationId, Guid RejectedBy, string Reason);
+
+/// <param name="Amount">Signed: positive raises what the member owes, negative lowers it.</param>
+public sealed record PostAdjustment(
+    Guid AccountId,
+    Guid AdjustmentId,
+    decimal Amount,
+    string Reason,
+    Guid PostedBy);

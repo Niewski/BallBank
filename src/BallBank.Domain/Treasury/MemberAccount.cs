@@ -10,6 +10,7 @@ public sealed class MemberAccount
 {
     private readonly Dictionary<Guid, decimal> _assessments = new();
     private readonly Dictionary<Guid, Attestation> _attestations = new();
+    private readonly Dictionary<Guid, decimal> _adjustments = new();
 
     /// <summary>Stream identity. Public setter so the event store can assign it during aggregation.</summary>
     public Guid Id { get; set; }
@@ -23,7 +24,8 @@ public sealed class MemberAccount
 
     public decimal Assessed => _assessments.Values.Sum();
     public decimal Confirmed { get; private set; }
-    public decimal Balance => Assessed - Confirmed;
+    public decimal Adjusted => _adjustments.Values.Sum();
+    public decimal Balance => Assessed - Confirmed + Adjusted;
 
     public IReadOnlyCollection<Attestation> Attestations => _attestations.Values;
     public IEnumerable<Attestation> PendingAttestations =>
@@ -135,6 +137,34 @@ public sealed class MemberAccount
         };
     }
 
+    /// <summary>Returns <c>null</c> when this adjustment id was already recorded (idempotent replay).</summary>
+    public AdjustmentPosted? PostAdjustment(PostAdjustment command, DateTimeOffset now)
+    {
+        if (command.AdjustmentId == Guid.Empty)
+        {
+            throw new DomainException("An adjustment needs an id.");
+        }
+
+        if (_adjustments.ContainsKey(command.AdjustmentId))
+        {
+            return null;
+        }
+
+        if (string.IsNullOrWhiteSpace(command.Reason))
+        {
+            throw new DomainException("An adjustment needs a reason the member will see.");
+        }
+
+        if (command.Amount == 0)
+        {
+            throw new DomainException("An adjustment must raise or lower the balance.");
+        }
+
+        RequireWholeCents(command.Amount, "An adjustment");
+
+        return new AdjustmentPosted(command.AdjustmentId, command.Amount, command.Reason.Trim(), command.PostedBy, now);
+    }
+
     // ---------------------------------------------------------------------------------------------
     // Evolution. How each event changes state. Not named Apply/Create: Marten treats those names as its
     // own conventions, which need a source generator this package-free assembly cannot run.
@@ -173,6 +203,8 @@ public sealed class MemberAccount
         _attestations[@event.AttestationId] = attestation with { Status = AttestationStatus.Rejected };
     }
 
+    private void When(AdjustmentPosted @event) => _adjustments[@event.AdjustmentId] = @event.Amount;
+
     /// <summary>Applies any event of this stream after the first.</summary>
     public void Evolve(object @event)
     {
@@ -191,6 +223,9 @@ public sealed class MemberAccount
                 When(e);
                 break;
             case PaymentRejected e:
+                When(e);
+                break;
+            case AdjustmentPosted e:
                 When(e);
                 break;
             default:
@@ -224,6 +259,11 @@ public sealed class MemberAccount
             throw new DomainException($"{what} must be a positive amount.");
         }
 
+        RequireWholeCents(amount, what);
+    }
+
+    private static void RequireWholeCents(decimal amount, string what)
+    {
         if (decimal.Round(amount, 2) != amount)
         {
             throw new DomainException($"{what} must be in whole cents.");
