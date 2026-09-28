@@ -29,6 +29,7 @@ public static class InviteEndpoint
         IssueInviteRequest request,
         ClaimsPrincipal user,
         IDocumentStore store,
+        TimeProvider clock,
         CancellationToken cancellation)
     {
         // Committed explicitly below, so a league changed since it was read is a 409 rather than a 500.
@@ -60,7 +61,7 @@ public static class InviteEndpoint
         }
 
         // A claimed member is a DomainException: a 409 carrying its message.
-        var issued = league.IssueInvite(new IssueInvite(request.InviteId, memberId, user.Subject()), DateTimeOffset.UtcNow);
+        var issued = league.IssueInvite(new IssueInvite(request.InviteId, memberId, user.Subject()), clock.GetUtcNow());
         if (issued is not null)
         {
             stream.AppendOne(issued);

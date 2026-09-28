@@ -46,6 +46,26 @@ public class AttestingAPaymentTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task A_payment_and_the_answer_kept_for_its_retry_are_stamped_by_the_API_clock()
+    {
+        var hogs = await HollandHogsSeason.Open(Api);
+        var key = Guid.NewGuid().ToString();
+        var today = new DateTimeOffset(2026, 9, 14, 12, 30, 0, TimeSpan.Zero);
+
+        using (Api.Clock.Set(today))
+        {
+            (await Attest(hogs.Sam, hogs, hogs.Sams, new AttestPaymentRequest(Guid.NewGuid(), 50m, PaymentRail.Cash, null, OpenedVersion), key))
+                .StatusCode.ShouldBe(HttpStatusCode.Created);
+        }
+
+        await using var session = Store.QuerySession(hogs.LeagueId.ToString());
+        var events = await session.Events.FetchStreamAsync(hogs.AccountOf(hogs.Sams));
+        events.Select(e => e.Data).OfType<PaymentAttested>().Single().AttestedAt.ShouldBe(today);
+        (await session.LoadAsync<IdempotencyRecord>(IdempotencyRecord.IdFor(hogs.Sam, key))).ShouldNotBeNull()
+            .RecordedAt.ShouldBe(today);
+    }
+
+    [Fact]
     public async Task Cash_needs_no_reference()
     {
         var hogs = await HollandHogsSeason.Open(Api);

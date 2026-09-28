@@ -68,6 +68,7 @@ public static class ClaimEndpoint
         Guid inviteId,
         ClaimsPrincipal user,
         IQuerySession session,
+        TimeProvider clock,
         CancellationToken cancellation)
     {
         var league = await session.Events.AggregateStreamAsync<League>(leagueId, token: cancellation);
@@ -85,7 +86,7 @@ public static class ClaimEndpoint
         {
             league.ClaimMember(
                 new ClaimMember(member.MemberId, invite.InviteId, subject, member.SleeperDisplayName ?? member.TeamName),
-                DateTimeOffset.UtcNow);
+                clock.GetUtcNow());
         }
         catch (DomainException refused)
         {
@@ -123,6 +124,7 @@ public static class ClaimEndpoint
         ClaimMemberRequest request,
         ClaimsPrincipal user,
         IDocumentStore store,
+        TimeProvider clock,
         CancellationToken cancellation)
     {
         // Committed explicitly below, so a league changed since it was read is a 409 rather than a 500.
@@ -157,7 +159,7 @@ public static class ClaimEndpoint
         }
 
         var subject = user.Subject();
-        var now = DateTimeOffset.UtcNow;
+        var now = clock.GetUtcNow();
 
         MemberClaimed? claimed;
         try

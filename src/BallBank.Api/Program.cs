@@ -20,6 +20,10 @@ builder.AddServiceDefaults();
 
 builder.Services.AddOpenApi();
 
+// The one clock: every event stamp, idempotency record and time-based decision reads "now" from it,
+// so a test host can swap in a clock it sets.
+builder.Services.AddSingleton(TimeProvider.System);
+
 // The web app is served from a different origin (static export on its own host).
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
 builder.Services.AddCors(options => options.AddDefaultPolicy(policy =>

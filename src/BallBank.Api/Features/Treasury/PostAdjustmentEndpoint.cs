@@ -32,6 +32,7 @@ public static class PostAdjustmentEndpoint
         IdempotentRequest idempotency,
         ClaimsPrincipal user,
         IDocumentStore store,
+        TimeProvider clock,
         CancellationToken cancellation)
     {
         if (request.Version is not { } expectedVersion)
@@ -62,7 +63,7 @@ public static class PostAdjustmentEndpoint
 
         var posted = account.PostAdjustment(
             new PostAdjustment(accountId, request.AdjustmentId, request.Amount, request.Reason ?? string.Empty, request.Refund, treasurer.MemberId),
-            DateTimeOffset.UtcNow);
+            clock.GetUtcNow());
 
         // Already recorded: a double submission adds nothing, whatever version it carries. A retry of this
         // very request that committed after the middleware looked answers as it did then.

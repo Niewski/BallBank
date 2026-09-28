@@ -26,6 +26,7 @@ public static class RevokeClaimEndpoint
         RevokeClaimRequest request,
         ClaimsPrincipal user,
         IDocumentStore store,
+        TimeProvider clock,
         CancellationToken cancellation)
     {
         // Committed explicitly below, so a league changed since it was read is a 409 rather than a 500.
@@ -60,7 +61,7 @@ public static class RevokeClaimEndpoint
         // The league decides whether this subject still holds the member: already revoked, never
         // claimed, or claimed since by someone else are all a null no-op, a 204.
         // Refusing to revoke the only treasurer's claim is a DomainException: a 409 carrying its message.
-        var revoked = league.RevokeClaim(new RevokeClaim(memberId, subject, user.Subject(), request.Reason), DateTimeOffset.UtcNow);
+        var revoked = league.RevokeClaim(new RevokeClaim(memberId, subject, user.Subject(), request.Reason), clock.GetUtcNow());
         if (revoked is null)
         {
             return Results.NoContent();

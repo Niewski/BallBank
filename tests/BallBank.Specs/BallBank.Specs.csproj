@@ -33,6 +33,7 @@
   <ItemGroup>
     <Compile Include="..\BallBank.Integration.Tests\Http\BallBankApi.cs" Link="Support\Shared\BallBankApi.cs" />
     <Compile Include="..\BallBank.Integration.Tests\Http\Telemetry.cs" Link="Support\Shared\Telemetry.cs" />
+    <Compile Include="..\BallBank.Integration.Tests\Http\TestClock.cs" Link="Support\Shared\TestClock.cs" />
     <Compile Include="..\BallBank.Integration.Tests\Sleeper\FakeSleeper.cs" Link="Support\Shared\FakeSleeper.cs" />
     <None Include="..\BallBank.Integration.Tests\Sleeper\Fixtures\*.json" Link="Sleeper\Fixtures\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>

@@ -58,9 +58,12 @@ public class ClaimingAMemberTests(PostgresFixture postgres)
     public async Task An_expired_invite_is_gone()
     {
         var hogs = await HollandHogs.Invited(this);
-        var expired = await IssuedLongAgo(hogs);
 
-        var response = await Claim(NewSubject(), hogs, new ClaimMemberRequest(expired, "Priya", "priya@example.com"));
+        HttpResponseMessage response;
+        using (Api.Clock.Advance(TimeSpan.FromDays(15)))
+        {
+            response = await Claim(NewSubject(), hogs, new ClaimMemberRequest(hogs.InviteId, "Priya", "priya@example.com"));
+        }
 
         response.StatusCode.ShouldBe(HttpStatusCode.Gone);
         (await response.Content.ReadFromJsonAsync<ProblemDetails>()).ShouldNotBeNull()
@@ -223,17 +226,6 @@ public class ClaimingAMemberTests(PostgresFixture postgres)
     private async Task<InviteToClaim> Open(string subject, HollandHogs hogs, Guid inviteId) =>
         (await Api.CreateClientFor(subject).GetFromJsonAsync<InviteToClaim>($"/leagues/{hogs.LeagueId}/invites/{inviteId}"))
             .ShouldNotBeNull();
-
-    // BallBank's clock cannot be moved, so the invite is written as if Jacob had issued it 15 days ago.
-    private async Task<Guid> IssuedLongAgo(HollandHogs hogs)
-    {
-        var inviteId = Guid.NewGuid();
-        var issuedAt = DateTimeOffset.UtcNow.AddDays(-15);
-        await using var session = Store.LightweightSession(hogs.LeagueId.ToString());
-        session.Events.Append(hogs.LeagueId, new InviteIssued(inviteId, hogs.Priyas, hogs.Jacob, issuedAt + League.InviteLifetime, issuedAt));
-        await session.SaveChangesAsync();
-        return inviteId;
-    }
 
     private async Task<League> LeagueAsync(HollandHogs hogs)
     {

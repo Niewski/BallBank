@@ -31,7 +31,7 @@ public static class Idempotency
 /// commits through <see cref="CommitAsync"/>, which stores the answer in the same transaction as the
 /// events, so an answer is kept only if the command committed.
 /// </summary>
-public sealed class IdempotentRequest(string recordId, string fingerprint, JsonSerializerOptions json)
+public sealed class IdempotentRequest(string recordId, string fingerprint, JsonSerializerOptions json, TimeProvider clock)
 {
     /// <summary>
     /// Commits <paramref name="session"/> with the answer stored alongside, and returns the answer. If
@@ -52,7 +52,7 @@ public sealed class IdempotentRequest(string recordId, string fingerprint, JsonS
             Fingerprint = fingerprint,
             Status = status,
             Body = JsonSerializer.Serialize(body, body.GetType(), json),
-            RecordedAt = DateTimeOffset.UtcNow,
+            RecordedAt = clock.GetUtcNow(),
         };
         session.Insert(record);
 

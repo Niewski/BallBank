@@ -23,6 +23,7 @@ public static class IdempotencyMiddleware
         ClaimsPrincipal user,
         IDocumentStore store,
         IOptions<JsonOptions> json,
+        TimeProvider clock,
         CancellationToken cancellation)
     {
         var key = context.Request.Headers[Idempotency.Header].ToString();
@@ -37,7 +38,8 @@ public static class IdempotencyMiddleware
         var request = new IdempotentRequest(
             IdempotencyRecord.IdFor(user.Subject(), key),
             await FingerprintAsync(context.Request, cancellation),
-            json.Value.SerializerOptions);
+            json.Value.SerializerOptions,
+            clock);
 
         await using var session = LeagueTenant.Of(context) is { } league ? store.QuerySession(league) : store.QuerySession();
         return await request.ReplayAsync(session, cancellation) is { } replay

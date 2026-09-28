@@ -24,6 +24,7 @@ public static class TreasurerEndpoint
         AppointTreasurerRequest request,
         ClaimsPrincipal user,
         IDocumentStore store,
+        TimeProvider clock,
         CancellationToken cancellation)
     {
         // Committed explicitly below, so a league changed since it was read is a 409 rather than a 500.
@@ -47,7 +48,7 @@ public static class TreasurerEndpoint
         }
 
         // An unclaimed member is a DomainException: a 409 carrying its message.
-        var appointed = league.AppointTreasurer(new AppointTreasurer(member.MemberId, user.Subject()), DateTimeOffset.UtcNow);
+        var appointed = league.AppointTreasurer(new AppointTreasurer(member.MemberId, user.Subject()), clock.GetUtcNow());
         if (appointed is null)
         {
             return Results.NoContent();
