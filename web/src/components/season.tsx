@@ -100,12 +100,20 @@ export function Season({
           Dues {formatMoney(open.duesAmount)}, due {formatDueDate(open.dueDate)}
         </p>
         {youAreTreasurer && (
-          <Link
-            href={`/confirmations?league=${encodeURIComponent(leagueId)}&season=${encodeURIComponent(open.label)}`}
-            className="mt-2 inline-block underline decoration-zinc-400 underline-offset-4"
-          >
-            Confirmation queue
-          </Link>
+          <p className="mt-2 flex gap-4">
+            <Link
+              href={`/confirmations?league=${encodeURIComponent(leagueId)}&season=${encodeURIComponent(open.label)}`}
+              className="underline decoration-zinc-400 underline-offset-4"
+            >
+              Confirmation queue
+            </Link>
+            <Link
+              href={`/dashboard?league=${encodeURIComponent(leagueId)}&season=${encodeURIComponent(open.label)}`}
+              className="underline decoration-zinc-400 underline-offset-4"
+            >
+              Dashboard
+            </Link>
+          </p>
         )}
       </div>
       <Ledger

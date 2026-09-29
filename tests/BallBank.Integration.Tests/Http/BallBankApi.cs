@@ -4,6 +4,7 @@ using System.Security.Cryptography;
 using BallBank.Api.Integrations.Sleeper;
 using BallBank.Domain;
 using BallBank.Integration.Tests.Sleeper;
+using JasperFx.CommandLine;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -33,6 +34,10 @@ public sealed class BallBankApi(string connectionString) : WebApplicationFactory
     /// <summary>A route that throws a <see cref="DomainException"/>, for testing how refusals are reported.</summary>
     public const string RefusingPath = "/test/refuse";
     public const string RefusalMessage = "That member is already claimed.";
+
+    // Program hands over to the JasperFx commands, which only start the host it built when told to;
+    // a factory that never sees the host start has no server to serve requests.
+    static BallBankApi() => JasperFxEnvironment.AutoStartHost = true;
 
     private readonly SecurityKey _signingKey = NewSigningKey();
 

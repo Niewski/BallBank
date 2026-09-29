@@ -51,7 +51,9 @@ public static class Extensions
             {
                 metrics.AddAspNetCoreInstrumentation()
                     .AddHttpClientInstrumentation()
-                    .AddRuntimeInstrumentation();
+                    .AddRuntimeInstrumentation()
+                    // Our own instruments, e.g. how far the projection daemon trails the events.
+                    .AddMeter("BallBank.*");
             })
             .WithTracing(tracing =>
             {

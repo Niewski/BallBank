@@ -126,6 +126,38 @@ public sealed class InMemoryLeagueDriver : ILeagueDriver
 
     public Task<decimal> Pot() => Task.FromResult(_accounts.Values.Sum(account => account.InThePot));
 
+    public DateOnly Today => DateOnly.FromDateTime(Now.UtcDateTime);
+
+    /// <summary>
+    /// What the dashboard adds up to, read off the accounts as they stand. As with <see cref="PostAdjustment"/>,
+    /// who is a treasurer is the league's to say, so the driver stands in for the endpoint that answers <c>403</c>.
+    /// </summary>
+    public Task<DashboardReading> ReadDashboard(string? readBy = null)
+    {
+        if (readBy is not null)
+        {
+            throw new NotAllowedException(readBy);
+        }
+
+        var accounts = _accounts.Values.ToList();
+        var delinquents = _accounts
+            .Select(a => (Member: a.Key, Account: a.Value, DaysOverdue: Delinquency.DaysOverdue(a.Value.Balance, EarliestDueDate(a.Value), Today)))
+            .Where(owing => owing.DaysOverdue is not null)
+            .OrderByDescending(owing => owing.DaysOverdue)
+            .ThenByDescending(owing => owing.Account.Balance)
+            .Select(owing => new DelinquentReading(owing.Member, owing.Account.Balance, owing.DaysOverdue!.Value))
+            .ToList();
+
+        return Task.FromResult(new DashboardReading(
+            Assessed: accounts.Sum(a => a.Assessed),
+            Confirmed: accounts.Sum(a => a.Confirmed),
+            Refunded: accounts.Sum(a => a.Refunded),
+            Pot: accounts.Sum(a => a.InThePot),
+            Outstanding: accounts.Where(a => a.Balance > 0).Sum(a => a.Balance),
+            Owed: -accounts.Where(a => a.Balance < 0).Sum(a => a.Balance),
+            Delinquents: delinquents));
+    }
+
     public Task<IReadOnlyList<object>> AccountHistory(string member) =>
         Task.FromResult<IReadOnlyList<object>>(_accountHistories[Account(member).Id]);
 
@@ -149,6 +181,9 @@ public sealed class InMemoryLeagueDriver : ILeagueDriver
         _accounts[member] = account;
         return account;
     }
+
+    private DateOnly? EarliestDueDate(MemberAccount account) =>
+        _accountHistories[account.Id].OfType<DuesAssessed>().Select(assessed => (DateOnly?)assessed.DueDate).Min();
 
     private AttestPayment LatestAttestation(string member) =>
         _latestAttestation.TryGetValue(member, out var command)
