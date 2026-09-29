@@ -56,10 +56,14 @@ messages for reminders. Design points:
   handles the keywords, the API records the resulting state). Discord goes to a league channel the
   treasurer configures.
 - **Preferences.** Each member chooses channels and quiet hours. The same event is never sent twice
-  on the same channel (dedupe key: member + event id + channel).
-- **Delivery through the outbox.** A notification is a message committed with the event that caused
-  it; retries with backoff; poison messages to the dead-letter queue; delivery status recorded from
-  Twilio's status callback.
+  on the same channel (dedupe key: channel + recipient + kind + cause, the id of the `Notification`
+  document).
+- **Delivery through the outbox.** Marten forwards a Treasury event to its Wolverine handler in the
+  transaction that commits it; the handler records a `Notification` and a `SendNotification` message on
+  a durable local queue, in that same transaction. Retries with backoff; poison messages to the
+  dead-letter queue; delivery status recorded from Twilio's status callback. Built so far (M3):
+  Discord announcements of a season opening and of confirmed payments, configured per league by its
+  treasurers ([domain.md](domain.md#notifications), [ADR-0008](adr/0008-buy-auth-abstract-flags-free-notifications.md)).
 - **Cost.** Discord is free. SMS is the one paid line item: a toll-free number is about $2.15/month
   plus roughly a cent per message including carrier fees; toll-free verification is required for
   US traffic and takes a few business days. A twelve-member league sending a handful of reminders

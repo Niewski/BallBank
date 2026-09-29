@@ -4,6 +4,7 @@ import { useAuth0 } from "@auth0/auth0-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { DiscordSettings } from "@/components/discord-settings";
 import { apiBaseUrl } from "@/lib/config";
 import { formatAgo, formatDueDate } from "@/lib/dates";
 import { formatMoney } from "@/lib/money";
@@ -287,6 +288,8 @@ function SeasonDashboardView({
           </table>
         </div>
       )}
+
+      <DiscordSettings leagueId={leagueId} />
     </section>
   );
 }

@@ -29,6 +29,11 @@ public sealed class MemberStatement
         Confirmed: Lines.Where(l => l is { Kind: StatementLineKind.Attestation, Status: AttestationStatus.Confirmed }).Sum(l => l.Amount),
         Adjusted: Lines.Where(l => l.Kind == StatementLineKind.Adjustment).Sum(l => l.Amount));
 
+    /// <summary>What this account has put in the pot: its confirmed payments, less what was refunded to it (as <see cref="LeaguePot.Pot"/> adds it up).</summary>
+    public decimal InThePot() =>
+        Totals().Confirmed
+        - Lines.Where(l => l is { Kind: StatementLineKind.Adjustment, Refund: true }).Sum(l => l.Amount);
+
     /// <summary>How many attestations wait for a treasurer to confirm or reject them.</summary>
     public int PendingAttestations() =>
         Lines.Count(l => l is { Kind: StatementLineKind.Attestation, Status: AttestationStatus.Pending });

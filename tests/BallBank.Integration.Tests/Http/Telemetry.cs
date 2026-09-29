@@ -58,6 +58,8 @@ public sealed class CapturedLogs : ILoggerProvider, ISupportExternalScope
     private readonly ConcurrentQueue<CapturedLog> _entries = new();
     private IExternalScopeProvider _scopes = new LoggerExternalScopeProvider();
 
+    public IEnumerable<CapturedLog> All => _entries;
+
     public IEnumerable<CapturedLog> UnderTrace(ActivityTraceId traceId) =>
         _entries.Where(e => e.TraceId == traceId.ToString());
 

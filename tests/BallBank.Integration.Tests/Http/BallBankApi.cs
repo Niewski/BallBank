@@ -1,10 +1,13 @@
 using System.Net.Http.Headers;
 using System.Security.Claims;
 using System.Security.Cryptography;
+using BallBank.Api.Integrations.Discord;
 using BallBank.Api.Integrations.Sleeper;
 using BallBank.Domain;
+using BallBank.Integration.Tests.Discord;
 using BallBank.Integration.Tests.Sleeper;
 using JasperFx.CommandLine;
+using Marten;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -43,6 +46,12 @@ public sealed class BallBankApi(string connectionString) : WebApplicationFactory
 
     /// <summary>What the API's Sleeper client talks to instead of Sleeper.</summary>
     public FakeSleeper Sleeper { get; } = new();
+
+    /// <summary>What the API's Discord channel talks to instead of Discord.</summary>
+    public FakeDiscord Discord { get; } = new();
+
+    /// <summary>Makes the commit of a league's notifications fail, for a test that needs to see them roll back.</summary>
+    public NotificationCommitFailure NotificationCommits { get; } = new();
 
     /// <summary>Every log entry the API writes, whatever the configured log levels.</summary>
     public CapturedLogs Logs { get; } = new();
@@ -86,6 +95,13 @@ public sealed class BallBankApi(string connectionString) : WebApplicationFactory
         builder.UseSetting("Auth0:Domain", Domain);
         builder.UseSetting("Auth0:Audience", Audience);
 
+        // Webhooks are only accepted on Discord's own hosts; the fake's is not one of them, so say so.
+        builder.UseSetting("Notifications:DiscordHosts:0", FakeDiscord.Host);
+
+        // A send that keeps failing is retried a few times and then dead-lettered: in milliseconds, not minutes.
+        builder.UseSetting("Notifications:RetryDelays:0", "00:00:00.050");
+        builder.UseSetting("Notifications:RetryDelays:1", "00:00:00.050");
+
         builder.ConfigureLogging(logging => logging
             .AddProvider(Logs)
             .AddFilter<CapturedLogs>(category: null, LogLevel.Trace));
@@ -103,7 +119,10 @@ public sealed class BallBankApi(string connectionString) : WebApplicationFactory
             // Tokens are minted and checked against the wall clock, so moving this one leaves sign-in alone.
             services.AddSingleton<TimeProvider>(Clock);
 
+            services.ConfigureMarten(options => options.Listeners.Add(NotificationCommits));
+
             services.AddHttpClient<SleeperClient>().ConfigurePrimaryHttpMessageHandler(Sleeper.Handler);
+            services.AddHttpClient<DiscordWebhookChannel>().ConfigurePrimaryHttpMessageHandler(Discord.Handler);
 
             // The standard resilience handler as configured, but giving up on a failing Sleeper in
             // seconds rather than half a minute. One API serves every test, so the circuit breaker

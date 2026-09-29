@@ -63,7 +63,11 @@ public static class Extensions
                         options.Filter = context =>
                             !context.Request.Path.StartsWithSegments(HealthEndpointPath)
                             && !context.Request.Path.StartsWithSegments(AlivenessEndpointPath))
-                    .AddHttpClientInstrumentation();
+                    .AddHttpClientInstrumentation(options =>
+                        // A webhook URL is a secret carried in its path (url.full would record it).
+                        // Discord's calls are traced by the channel's own span instead.
+                        options.FilterHttpRequestMessage = request =>
+                            request.RequestUri?.AbsolutePath.StartsWith("/api/webhooks/", StringComparison.Ordinal) != true);
             });
 
         builder.AddOpenTelemetryExporters();
