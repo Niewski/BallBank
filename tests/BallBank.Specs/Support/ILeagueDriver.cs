@@ -53,12 +53,34 @@ public interface ILeagueDriver
     /// <summary>What the members paid in, less what was refunded.</summary>
     Task<decimal> Pot();
 
+    /// <summary>The date the league keeps: the "today" that dues are overdue against.</summary>
+    DateOnly Today { get; }
+
+    /// <summary>
+    /// The open season's dashboard as its treasurer reads it, once it reflects everything done so far;
+    /// or as <paramref name="readBy"/>, who is no treasurer, tries to.
+    /// </summary>
+    Task<DashboardReading> ReadDashboard(string? readBy = null);
+
     /// <summary>Every event of the member's account, oldest first.</summary>
     Task<IReadOnlyList<object>> AccountHistory(string member);
 
     /// <summary>Every event of the league's seasons and accounts, oldest first.</summary>
     Task<IReadOnlyList<object>> History();
 }
+
+/// <summary>What the treasurer reads on the dashboard of a season, delinquents most overdue first.</summary>
+public sealed record DashboardReading(
+    decimal Assessed,
+    decimal Confirmed,
+    decimal Refunded,
+    decimal Pot,
+    decimal Outstanding,
+    decimal Owed,
+    IReadOnlyList<DelinquentReading> Delinquents);
+
+/// <summary>A member who still owes after the dues were due.</summary>
+public sealed record DelinquentReading(string Member, decimal Balance, int DaysOverdue);
 
 /// <summary>Someone tried a command only a treasurer may issue.</summary>
 public sealed class NotAllowedException(string member) : Exception($"{member} is not allowed to.")

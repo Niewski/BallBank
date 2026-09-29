@@ -10,6 +10,7 @@ using BallBank.Domain;
 using BallBank.Domain.Treasury;
 using BallBank.Integration.Tests.Sleeper;
 using Marten;
+using Marten.Events;
 
 namespace BallBank.Specs.Support;
 
@@ -140,6 +141,27 @@ public sealed class HttpLeagueDriver : ILeagueDriver
         return pot;
     }
 
+    /// <summary>The UTC date of the API's clock, which is what the dashboard counts days overdue from.</summary>
+    public DateOnly Today => DateOnly.FromDateTime(Host.Clock.GetUtcNow().UtcDateTime);
+
+    /// <summary>The dashboard is built by the projection daemon after the commands, so waits for it to catch up first.</summary>
+    public async Task<DashboardReading> ReadDashboard(string? readBy = null)
+    {
+        await Host.Store.WaitForNonStaleProjectionDataAsync(TimeSpan.FromSeconds(30));
+
+        var dashboard = await Get<Dashboard>(readBy ?? Treasurer, $"/leagues/{_leagueId}/seasons/{Season}/dashboard");
+        var names = _memberIds.ToDictionary(m => m.Value, m => m.Key);
+
+        return new DashboardReading(
+            dashboard.Figures.Assessed,
+            dashboard.Figures.Confirmed,
+            dashboard.Figures.Refunded,
+            dashboard.Figures.Pot,
+            dashboard.Figures.Outstanding,
+            dashboard.Figures.Owed,
+            dashboard.Delinquents.Select(d => new DelinquentReading(names[d.MemberId], d.Balance, d.DaysOverdue)).ToList());
+    }
+
     public async Task<IReadOnlyList<object>> AccountHistory(string member)
     {
         await using var session = Host.Store.QuerySession(_leagueId.ToString());
@@ -261,6 +283,11 @@ public sealed class HttpLeagueDriver : ILeagueDriver
     {
         using var client = Host.ClientFor(Subject(person));
         using var response = await client.GetAsync(path);
+        if (response.StatusCode == HttpStatusCode.Forbidden)
+        {
+            throw new NotAllowedException(person);
+        }
+
         response.EnsureSuccessStatusCode();
         return (await response.Content.ReadFromJsonAsync<T>(Json))!;
     }

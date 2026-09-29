@@ -93,7 +93,8 @@ Check, Other. BallBank never moves money itself. Not: "method", "provider", "pro
 payment (Venmo note, Zelle confirmation, check number). Required for every rail but Cash.
 
 **Balance** — Derived: assessed − confirmed ± adjustments − payouts. Never stored. Positive means
-the member owes the pot. Not: "amount due", "outstanding" (that is the league-wide total).
+the member owes the pot. Not: "amount due", "outstanding" (that is the league-wide total of the
+positive balances; the total of the negative ones, what the pot owes back, is "owed").
 
 **Pot** — The sum of confirmed payments across a season's accounts, less refunds. What payouts are
 drawn from. Other adjustments move no money, so they leave the pot alone. Not: "prize pool", "bank".
@@ -119,6 +120,16 @@ many of their attestations are pending. Every member of the league sees it; only
 the account's own member, sees the statement behind a line. Not: "books" (the league keeps its books
 *in* BallBank; the ledger is one season's view of them), "leaderboard", "outstanding" (that is a
 number).
+
+**Dashboard** — A treasurer's summary of one season: the pot, what members still owe (outstanding),
+what the pot owes members (owed), the attestations still pending, and the delinquents. Only
+treasurers see it. It trails the events by a moment and says when it was last updated ("as of").
+A projection, rebuildable from events. Not: "report", "overview", "summary".
+
+**Delinquent** — A member whose balance is still above zero after the earliest due date of what
+they were assessed. The days overdue count from that date; on the due date itself nobody is
+delinquent yet. Not: "late" or "overdue" as a label for the member (those describe how far past
+the date they are), "outstanding" (that is the league-wide total).
 
 **History** — The event stream itself, with who and when on every entry. The audit trail is not a
 separate thing. Not: "log", "audit table".

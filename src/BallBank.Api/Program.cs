@@ -2,7 +2,9 @@ using BallBank.Api;
 using BallBank.Api.Features.Membership;
 using BallBank.Api.Features.Treasury;
 using BallBank.Api.Integrations.Sleeper;
+using JasperFx;
 using JasperFx.Events;
+using JasperFx.Events.Daemon;
 using JasperFx.Events.Projections;
 using JasperFx.MultiTenancy;
 using Marten;
@@ -96,6 +98,9 @@ builder.Services.AddMarten(options =>
         options.Projections.Add(new SeasonListingProjection(), ProjectionLifecycle.Inline);
         options.Projections.Add(new MemberStatementProjection(), ProjectionLifecycle.Inline);
 
+        // The treasurer's dashboard trails the events by a moment, built by the projection daemon (ADR-0006).
+        options.Projections.Add(new LeaguePotProjection(), ProjectionLifecycle.Async);
+
         // Who caused what: correlation/causation ids and headers (e.g. the acting user) on every event.
         options.Events.MetadataConfig.CausationIdEnabled = true;
         options.Events.MetadataConfig.CorrelationIdEnabled = true;
@@ -103,7 +108,10 @@ builder.Services.AddMarten(options =>
     })
     .UseLightweightSessions()
     .ApplyAllDatabaseChangesOnStartup()
-    .IntegrateWithWolverine();
+    .IntegrateWithWolverine()
+
+    // One node runs the daemon, for now (ADR-0007), like Wolverine's durability below.
+    .AddAsyncDaemon(DaemonMode.Solo);
 
 // Wolverine: command handlers, HTTP endpoints, transactional outbox, scheduling.
 builder.Host.UseWolverine(options =>
@@ -148,7 +156,9 @@ app.MapWolverineEndpoints(options =>
     options.UseIdempotency();
 });
 
-await app.RunAsync();
+// The JasperFx commands (`projections rebuild`, ...) are served by this host, so the deployed image
+// is the one that rebuilds a projection (docs/runbook.md). With no command, this runs the API.
+return await app.RunJasperFxCommands(args);
 
 // Lets integration tests host the API with WebApplicationFactory<Program>.
 public partial class Program
