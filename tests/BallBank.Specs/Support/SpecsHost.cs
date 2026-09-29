@@ -33,6 +33,12 @@ public sealed class SpecsHost
 
     public FakeSleeper Sleeper => _api.Sleeper;
 
+    /// <summary>
+    /// The API's clock. Features run in parallel against this one API, so a scenario that sets it
+    /// moves "now" for every scenario running beside it.
+    /// </summary>
+    public TestClock Clock => _api.Clock;
+
     /// <summary>Holds commits back when a scenario needs two requests to race.</summary>
     public CommitGate Commits { get; } = new();
 

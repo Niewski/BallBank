@@ -34,6 +34,7 @@ public static class AssessEndpoint
         IdempotentRequest idempotency,
         ClaimsPrincipal user,
         IDocumentStore store,
+        TimeProvider clock,
         CancellationToken cancellation)
     {
         await using var session = store.LightweightSession(leagueId.ToString());
@@ -67,7 +68,7 @@ public static class AssessEndpoint
 
         session.SetHeader(EventHeaders.Subject, user.Subject());
 
-        var now = DateTimeOffset.UtcNow;
+        var now = clock.GetUtcNow();
         var touched = new List<AssessedAccount>();
         foreach (var memberId in memberIds)
         {

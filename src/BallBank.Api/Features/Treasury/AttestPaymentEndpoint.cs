@@ -36,6 +36,7 @@ public static class AttestPaymentEndpoint
         IdempotentRequest idempotency,
         ClaimsPrincipal user,
         IDocumentStore store,
+        TimeProvider clock,
         CancellationToken cancellation)
     {
         if (request.Version is not { } expectedVersion)
@@ -65,7 +66,7 @@ public static class AttestPaymentEndpoint
 
         var attested = account.Attest(
             new AttestPayment(accountId, request.AttestationId, request.Amount, request.Rail, request.Reference, caller.MemberId),
-            DateTimeOffset.UtcNow);
+            clock.GetUtcNow());
 
         // Already recorded: a double submission adds nothing, whatever version it carries. A retry of this
         // very request that committed after the middleware looked answers as it did then.

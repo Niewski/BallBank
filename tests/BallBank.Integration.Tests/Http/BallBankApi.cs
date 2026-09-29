@@ -42,6 +42,9 @@ public sealed class BallBankApi(string connectionString) : WebApplicationFactory
     /// <summary>Every log entry the API writes, whatever the configured log levels.</summary>
     public CapturedLogs Logs { get; } = new();
 
+    /// <summary>The API's clock: the wall clock until a test sets it.</summary>
+    public TestClock Clock { get; } = new();
+
     public HttpClient CreateClientFor(string subject)
     {
         var client = CreateClient();
@@ -91,6 +94,9 @@ public sealed class BallBankApi(string connectionString) : WebApplicationFactory
                     Issuer = Issuer,
                     SigningKeys = { _signingKey },
                 });
+
+            // Tokens are minted and checked against the wall clock, so moving this one leaves sign-in alone.
+            services.AddSingleton<TimeProvider>(Clock);
 
             services.AddHttpClient<SleeperClient>().ConfigurePrimaryHttpMessageHandler(Sleeper.Handler);
 

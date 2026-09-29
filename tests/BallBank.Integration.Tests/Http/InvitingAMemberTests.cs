@@ -34,6 +34,24 @@ public class InvitingAMemberTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task An_invite_is_issued_and_expires_by_the_API_clock()
+    {
+        var hogs = await HollandHogs.Import(this);
+        var inviteId = Guid.NewGuid();
+        var today = new DateTimeOffset(2026, 8, 1, 18, 0, 0, TimeSpan.Zero);
+
+        using (Api.Clock.Set(today))
+        {
+            (await Invite(hogs.Jacob, hogs, hogs.Priyas, new IssueInviteRequest(inviteId))).StatusCode.ShouldBe(HttpStatusCode.Created);
+        }
+
+        await using var session = Store.QuerySession(hogs.LeagueId.ToString());
+        var issued = (await session.Events.FetchStreamAsync(hogs.LeagueId)).Select(e => e.Data).OfType<InviteIssued>().Single();
+        issued.IssuedAt.ShouldBe(today);
+        issued.ExpiresAt.ShouldBe(today + League.InviteLifetime);
+    }
+
+    [Fact]
     public async Task An_invite_without_an_id_is_a_bad_request()
     {
         // The client names the invite, so a retried request is recognised rather than issuing another.

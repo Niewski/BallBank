@@ -28,6 +28,7 @@ public static class OpenSeasonEndpoint
         IdempotentRequest idempotency,
         ClaimsPrincipal user,
         IDocumentStore store,
+        TimeProvider clock,
         CancellationToken cancellation)
     {
         // Committed explicitly below, so a season opened since this was read collides rather than duplicates.
@@ -53,7 +54,7 @@ public static class OpenSeasonEndpoint
         var seasonId = SeasonIds.SeasonId(leagueId, label);
         var stream = await session.Events.FetchForWriting<Season>(seasonId, cancellation);
 
-        var now = DateTimeOffset.UtcNow;
+        var now = clock.GetUtcNow();
         var opened = Season.Open(
             new OpenSeason(seasonId, leagueId, label, request.DuesAmount, request.DueDate, treasurer.MemberId),
             stream.Aggregate,

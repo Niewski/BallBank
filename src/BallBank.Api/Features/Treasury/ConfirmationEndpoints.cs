@@ -33,9 +33,10 @@ public static class ConfirmationEndpoints
         IdempotentRequest idempotency,
         ClaimsPrincipal user,
         IDocumentStore store,
+        TimeProvider clock,
         CancellationToken cancellation) =>
         Settle(
-            leagueId, accountId, request.Version, idempotency, user, store, cancellation,
+            leagueId, accountId, request.Version, idempotency, user, store, clock, cancellation,
             (account, treasurer, now) => account.Confirm(new ConfirmPayment(accountId, attestationId, treasurer), now));
 
     /// <summary>
@@ -52,9 +53,10 @@ public static class ConfirmationEndpoints
         IdempotentRequest idempotency,
         ClaimsPrincipal user,
         IDocumentStore store,
+        TimeProvider clock,
         CancellationToken cancellation) =>
         Settle(
-            leagueId, accountId, request.Version, idempotency, user, store, cancellation,
+            leagueId, accountId, request.Version, idempotency, user, store, clock, cancellation,
             (account, treasurer, now) => account.Reject(new RejectPayment(accountId, attestationId, treasurer, request.Reason ?? string.Empty), now));
 
     // Confirming and rejecting differ only in what the account decides.
@@ -65,6 +67,7 @@ public static class ConfirmationEndpoints
         IdempotentRequest idempotency,
         ClaimsPrincipal user,
         IDocumentStore store,
+        TimeProvider clock,
         CancellationToken cancellation,
         Func<MemberAccount, Guid, DateTimeOffset, object?> decide)
     {
@@ -94,7 +97,7 @@ public static class ConfirmationEndpoints
                 detail: $"Only a treasurer of {league.Name} can confirm or reject a payment.");
         }
 
-        var settled = decide(account, treasurer.MemberId, DateTimeOffset.UtcNow);
+        var settled = decide(account, treasurer.MemberId, clock.GetUtcNow());
 
         // Already settled this way: a second click adds nothing, whatever version it carries. A retry of
         // this very request that committed after the middleware looked answers as it did then.

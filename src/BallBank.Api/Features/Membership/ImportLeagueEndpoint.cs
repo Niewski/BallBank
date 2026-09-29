@@ -42,6 +42,7 @@ public static class ImportLeagueEndpoint
         ClaimsPrincipal user,
         IDocumentStore store,
         SleeperClient sleeper,
+        TimeProvider clock,
         CancellationToken cancellation)
     {
         // The session is opened on the canonical form of the league id, so the tenant never depends on
@@ -51,8 +52,8 @@ public static class ImportLeagueEndpoint
 
         var stream = await session.Events.FetchForWriting<League>(leagueId, cancellation);
         return stream.Aggregate is null
-            ? await ImportFirst(leagueId, request, user.Subject(), session, sleeper, cancellation)
-            : await ImportAgain(stream, request.SleeperLeagueId?.Trim(), user.Subject(), session, sleeper, cancellation);
+            ? await ImportFirst(leagueId, request, user.Subject(), session, sleeper, clock, cancellation)
+            : await ImportAgain(stream, request.SleeperLeagueId?.Trim(), user.Subject(), session, sleeper, clock, cancellation);
     }
 
     /// <summary>
@@ -65,6 +66,7 @@ public static class ImportLeagueEndpoint
         string subject,
         IDocumentSession session,
         SleeperClient sleeper,
+        TimeProvider clock,
         CancellationToken cancellation)
     {
         if (string.IsNullOrWhiteSpace(request.SleeperLeagueId)
@@ -102,7 +104,7 @@ public static class ImportLeagueEndpoint
         }
 
         var backing = await session.LoadAsync<SleeperLeagueIndex>(snapshot.SleeperLeagueId, cancellation);
-        var now = DateTimeOffset.UtcNow;
+        var now = clock.GetUtcNow();
         var snapshotId = Guid.NewGuid();
 
         var events = League.Import(
@@ -156,6 +158,7 @@ public static class ImportLeagueEndpoint
         string subject,
         IDocumentSession session,
         SleeperClient sleeper,
+        TimeProvider clock,
         CancellationToken cancellation)
     {
         var league = stream.Aggregate!;
@@ -191,7 +194,7 @@ public static class ImportLeagueEndpoint
         }
 
         var snapshot = responses.ToSnapshot();
-        var now = DateTimeOffset.UtcNow;
+        var now = clock.GetUtcNow();
 
         var events = league.ImportAgain(
             new ImportLeagueAgain(
