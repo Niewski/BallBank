@@ -1,4 +1,4 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 using System.Diagnostics.Metrics;
 using System.Text.Json;
 using BallBank.Api;
@@ -96,6 +96,16 @@ public class LeaguePotTests(PostgresFixture postgres)
         // The runbook's order: stop the daemon, rebuild, start it again.
         var daemon = Api.Services.GetRequiredService<IProjectionCoordinator>().DaemonForMainDatabase();
         await daemon.StopAllAsync();
+
+        // A rebuild that did nothing would leave a document behind; this one has to make it again.
+        await using (var session = Store.LightweightSession(hogs.LeagueId.ToString()))
+        {
+            session.Delete<LeaguePot>(SeasonIds.SeasonId(hogs.LeagueId, "2026"));
+            await session.SaveChangesAsync();
+        }
+
+        (await PotOf(hogs)).ShouldBeNull();
+
         await daemon.RebuildProjectionAsync<LeaguePotProjection>(CancellationToken.None);
         await daemon.StartAllAsync();
         await desk.Settled();

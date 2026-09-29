@@ -8,7 +8,7 @@ public static class Delinquency
 {
     /// <summary>
     /// The whole days since the earliest due date, or <c>null</c> when the account is not delinquent:
-    /// it owes nothing, has nothing assessed, or nothing is late yet (the due date itself is on time).
+    /// it owes nothing, has nothing assessed, or the earliest due date has not passed (the due date itself has not).
     /// </summary>
     public static int? DaysOverdue(decimal balance, DateOnly? earliestDueDate, DateOnly today)
     {

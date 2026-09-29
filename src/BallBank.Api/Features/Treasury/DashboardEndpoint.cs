@@ -64,18 +64,18 @@ public static class DashboardEndpoint
 
         var delinquents = pot.Accounts
             .Select(account => (Account: account, DaysOverdue: Delinquency.DaysOverdue(account.Balance, account.EarliestDueDate, today)))
-            .Where(late => late.DaysOverdue is not null && members.ContainsKey(late.Account.MemberId))
-            .Select(late =>
+            .Where(owing => owing.DaysOverdue is not null && members.ContainsKey(owing.Account.MemberId))
+            .Select(owing =>
             {
-                var member = members[late.Account.MemberId];
+                var member = members[owing.Account.MemberId];
                 return new Delinquent(
-                    late.Account.AccountId,
+                    owing.Account.AccountId,
                     member.MemberId,
                     member.TeamName,
                     MemberNames.DisplayName(member),
-                    late.Account.Balance,
-                    late.Account.EarliestDueDate!.Value,
-                    late.DaysOverdue!.Value);
+                    owing.Account.Balance,
+                    owing.Account.EarliestDueDate!.Value,
+                    owing.DaysOverdue!.Value);
             })
             .OrderByDescending(d => d.DaysOverdue)
             .ThenByDescending(d => d.Balance)

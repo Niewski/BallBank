@@ -121,7 +121,7 @@ the account's own member, sees the statement behind a line. Not: "books" (the le
 *in* BallBank; the ledger is one season's view of them), "leaderboard", "outstanding" (that is a
 number).
 
-**Dashboard** — A treasurer's summary of one season: the pot, what members still owe (outstanding),
+**Dashboard** — A treasurer's view of one season's totals: the pot, what members still owe (outstanding),
 what the pot owes members (owed), the attestations still pending, and the delinquents. Only
 treasurers see it. It trails the events by a moment and says when it was last updated ("as of").
 A projection, rebuildable from events. Not: "report", "overview", "summary".

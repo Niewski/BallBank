@@ -43,7 +43,7 @@ type DashboardState =
   | { kind: "error"; message: string };
 
 // The treasurer's dashboard for a season: what the accounts add up to and who
-// is late. It is built a moment after the events, so it says how current it is.
+// is delinquent. It is built a moment after the events, so it says how current it is.
 export function Dashboard() {
   const { isLoading, isAuthenticated, loginWithRedirect } = useAuth0();
   const params = useSearchParams();
@@ -196,7 +196,7 @@ function SeasonDashboardView({
         <p role="status">
           {asOf
             ? `Updated ${formatAgo(asOf, now)}`
-            : "Nothing has been recorded for this season yet."}
+            : "The dashboard has not been built yet. Refresh in a moment."}
         </p>
         <button
           type="button"
@@ -254,31 +254,31 @@ function SeasonDashboardView({
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
-              {delinquents.map((late) => (
-                <tr key={late.accountId}>
+              {delinquents.map((delinquent) => (
+                <tr key={delinquent.accountId}>
                   <th
                     scope="row"
                     className="p-3 font-medium text-zinc-950 dark:text-zinc-50"
                   >
                     <Link
-                      href={`/statement?league=${encodeURIComponent(leagueId)}&account=${encodeURIComponent(late.accountId)}`}
+                      href={`/statement?league=${encodeURIComponent(leagueId)}&account=${encodeURIComponent(delinquent.accountId)}`}
                       className="underline decoration-zinc-400 underline-offset-4"
                     >
-                      {late.teamName}
+                      {delinquent.teamName}
                     </Link>
-                    {late.displayName && (
+                    {delinquent.displayName && (
                       <span className="ml-2 font-normal text-zinc-500">
-                        {late.displayName}
+                        {delinquent.displayName}
                       </span>
                     )}
                   </th>
                   <td className="p-3 text-zinc-700 dark:text-zinc-300">
-                    {formatMoney(late.balance)}
+                    {formatMoney(delinquent.balance)}
                   </td>
                   <td className="p-3 text-zinc-700 dark:text-zinc-300">
-                    {late.daysOverdue}
+                    {delinquent.daysOverdue}
                     <span className="ml-2 text-xs text-zinc-500">
-                      due {formatDueDate(late.earliestDueDate)}
+                      due {formatDueDate(delinquent.earliestDueDate)}
                     </span>
                   </td>
                 </tr>

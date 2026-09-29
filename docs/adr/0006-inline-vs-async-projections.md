@@ -16,9 +16,10 @@ is async, run by Marten's projection daemon, and its lag is measured and publish
 
 As built (M3):
 
-- **The daemon** runs inside the API in Marten's `Solo` mode: one node, which is all there is for now
-  ([ADR-0007](0007-scheduled-work-under-scale-to-zero.md)). The integration tests host the same API,
-  so they run the same daemon.
+- **The daemon** runs inside the API in Marten's `Solo` mode: one node runs it, as one node runs
+  Wolverine's durability agent for now ([ADR-0007](0007-scheduled-work-under-scale-to-zero.md)).
+  Its progress is recorded in the database, so it carries on from there whenever the app starts. The
+  integration tests host the same API, so they run the same daemon.
 - **`LeaguePot`** is one document per season, keyed by the season id, built from every
   `MemberAccount` stream of that season. A grouper sends each account event to its season by reading
   the account's opening event within the tenant. The document keeps sums per account and computes

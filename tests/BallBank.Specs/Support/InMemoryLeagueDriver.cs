@@ -142,10 +142,10 @@ public sealed class InMemoryLeagueDriver : ILeagueDriver
         var accounts = _accounts.Values.ToList();
         var delinquents = _accounts
             .Select(a => (Member: a.Key, Account: a.Value, DaysOverdue: Delinquency.DaysOverdue(a.Value.Balance, EarliestDueDate(a.Value), Today)))
-            .Where(late => late.DaysOverdue is not null)
-            .OrderByDescending(late => late.DaysOverdue)
-            .ThenByDescending(late => late.Account.Balance)
-            .Select(late => new DelinquentReading(late.Member, late.Account.Balance, late.DaysOverdue!.Value))
+            .Where(owing => owing.DaysOverdue is not null)
+            .OrderByDescending(owing => owing.DaysOverdue)
+            .ThenByDescending(owing => owing.Account.Balance)
+            .Select(owing => new DelinquentReading(owing.Member, owing.Account.Balance, owing.DaysOverdue!.Value))
             .ToList();
 
         return Task.FromResult(new DashboardReading(
