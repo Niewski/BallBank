@@ -109,33 +109,33 @@ namespace BallBank.Specs.Features
         {
 #line 5
   #line hidden
-            global::Reqnroll.Table table3 = new global::Reqnroll.Table(new string[] {
+            global::Reqnroll.Table table10 = new global::Reqnroll.Table(new string[] {
                         "roster",
                         "owner",
                         "team name",
                         "commissioner"});
-            table3.AddRow(new string[] {
+            table10.AddRow(new string[] {
                         "1",
                         "Jacob",
                         "Hog Wild",
                         "yes"});
-            table3.AddRow(new string[] {
+            table10.AddRow(new string[] {
                         "2",
                         "Sam",
                         "Sam\'s Slammers",
                         "no"});
-            table3.AddRow(new string[] {
+            table10.AddRow(new string[] {
                         "3",
                         "Priya",
                         "",
                         "no"});
-            table3.AddRow(new string[] {
+            table10.AddRow(new string[] {
                         "4",
                         "",
                         "",
                         "no"});
 #line 6
-    await testRunner.GivenAsync("the Sleeper league \"Holland Hogs\" for the 2026 season with these teams:", ((string)(null)), table3, "Given ");
+    await testRunner.GivenAsync("the Sleeper league \"Holland Hogs\" for the 2026 season with these teams:", ((string)(null)), table10, "Given ");
 #line hidden
         }
         
@@ -233,33 +233,33 @@ namespace BallBank.Specs.Features
 #line 19
     await testRunner.WhenAsync("Jacob imports the league", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
 #line hidden
-                global::Reqnroll.Table table4 = new global::Reqnroll.Table(new string[] {
+                global::Reqnroll.Table table11 = new global::Reqnroll.Table(new string[] {
                             "team name",
                             "owner on Sleeper",
                             "claimed",
                             "suggested treasurer"});
-                table4.AddRow(new string[] {
+                table11.AddRow(new string[] {
                             "Hog Wild",
                             "Jacob",
                             "yes",
                             "yes"});
-                table4.AddRow(new string[] {
+                table11.AddRow(new string[] {
                             "Sam\'s Slammers",
                             "Sam",
                             "no",
                             "no"});
-                table4.AddRow(new string[] {
+                table11.AddRow(new string[] {
                             "Priya",
                             "Priya",
                             "no",
                             "no"});
-                table4.AddRow(new string[] {
+                table11.AddRow(new string[] {
                             "Team 4",
                             "",
                             "no",
                             "no"});
 #line 20
-    await testRunner.ThenAsync("the league has these members:", ((string)(null)), table4, "Then ");
+    await testRunner.ThenAsync("the league has these members:", ((string)(null)), table11, "Then ");
 #line hidden
             }
             await this.ScenarioCleanupAsync();
@@ -369,33 +369,33 @@ namespace BallBank.Specs.Features
 #line 39
     await testRunner.ThenAsync("no members are added", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
 #line hidden
-                global::Reqnroll.Table table5 = new global::Reqnroll.Table(new string[] {
+                global::Reqnroll.Table table12 = new global::Reqnroll.Table(new string[] {
                             "team name",
                             "owner on Sleeper",
                             "claimed",
                             "suggested treasurer"});
-                table5.AddRow(new string[] {
+                table12.AddRow(new string[] {
                             "Hog Wild",
                             "Jacob",
                             "yes",
                             "yes"});
-                table5.AddRow(new string[] {
+                table12.AddRow(new string[] {
                             "Sam\'s Slammers",
                             "Sam",
                             "no",
                             "no"});
-                table5.AddRow(new string[] {
+                table12.AddRow(new string[] {
                             "Priya",
                             "Priya",
                             "no",
                             "no"});
-                table5.AddRow(new string[] {
+                table12.AddRow(new string[] {
                             "Team 4",
                             "",
                             "no",
                             "no"});
 #line 40
-    await testRunner.AndAsync("the league has these members:", ((string)(null)), table5, "And ");
+    await testRunner.AndAsync("the league has these members:", ((string)(null)), table12, "And ");
 #line hidden
             }
             await this.ScenarioCleanupAsync();
@@ -428,54 +428,54 @@ namespace BallBank.Specs.Features
 #line 48
     await testRunner.GivenAsync("Jacob has imported the league", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
 #line hidden
-                global::Reqnroll.Table table6 = new global::Reqnroll.Table(new string[] {
+                global::Reqnroll.Table table13 = new global::Reqnroll.Table(new string[] {
                             "roster",
                             "owner",
                             "team name",
                             "commissioner"});
-                table6.AddRow(new string[] {
+                table13.AddRow(new string[] {
                             "5",
                             "Dana",
                             "Dana\'s Dynasty",
                             "no"});
 #line 49
-    await testRunner.AndAsync("this team has since joined the Sleeper league:", ((string)(null)), table6, "And ");
+    await testRunner.AndAsync("this team has since joined the Sleeper league:", ((string)(null)), table13, "And ");
 #line hidden
 #line 52
     await testRunner.WhenAsync("Jacob imports the league again", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
 #line hidden
-                global::Reqnroll.Table table7 = new global::Reqnroll.Table(new string[] {
+                global::Reqnroll.Table table14 = new global::Reqnroll.Table(new string[] {
                             "team name",
                             "owner on Sleeper",
                             "claimed",
                             "suggested treasurer"});
-                table7.AddRow(new string[] {
+                table14.AddRow(new string[] {
                             "Hog Wild",
                             "Jacob",
                             "yes",
                             "yes"});
-                table7.AddRow(new string[] {
+                table14.AddRow(new string[] {
                             "Sam\'s Slammers",
                             "Sam",
                             "no",
                             "no"});
-                table7.AddRow(new string[] {
+                table14.AddRow(new string[] {
                             "Priya",
                             "Priya",
                             "no",
                             "no"});
-                table7.AddRow(new string[] {
+                table14.AddRow(new string[] {
                             "Team 4",
                             "",
                             "no",
                             "no"});
-                table7.AddRow(new string[] {
+                table14.AddRow(new string[] {
                             "Dana\'s Dynasty",
                             "Dana",
                             "no",
                             "no"});
 #line 53
-    await testRunner.ThenAsync("the league has these members:", ((string)(null)), table7, "Then ");
+    await testRunner.ThenAsync("the league has these members:", ((string)(null)), table14, "Then ");
 #line hidden
 #line 60
     await testRunner.AndAsync("the members from the first import keep their ids", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");

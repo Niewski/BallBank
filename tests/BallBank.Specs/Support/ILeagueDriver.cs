@@ -62,6 +62,18 @@ public interface ILeagueDriver
     /// </summary>
     Task<DashboardReading> ReadDashboard(string? readBy = null);
 
+    /// <summary>
+    /// The treasurer connects the league's Discord channel by its webhook, and says whether confirmed payments
+    /// are announced there. Discord is greeted at once.
+    /// </summary>
+    Task ConnectDiscord(bool announcePayments);
+
+    /// <summary>
+    /// Everything Discord has been told, oldest first, once the league has delivered all it is going to
+    /// (delivery follows the command that caused it, not the answer to it).
+    /// </summary>
+    Task<IReadOnlyList<string>> PostedToDiscord();
+
     /// <summary>Every event of the member's account, oldest first.</summary>
     Task<IReadOnlyList<object>> AccountHistory(string member);
 

@@ -23,6 +23,8 @@ public sealed class PostgresFixture : IAsyncLifetime
 
     public DocumentStore Store { get; private set; } = default!;
 
+    public string ConnectionString => _container.GetConnectionString();
+
     /// <summary>The API hosted in memory over this database; started on first use.</summary>
     public BallBankApi Api => _api ??= new BallBankApi(_container.GetConnectionString());
 

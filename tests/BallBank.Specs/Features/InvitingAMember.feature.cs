@@ -109,28 +109,28 @@ namespace BallBank.Specs.Features
         {
 #line 5
   #line hidden
-            global::Reqnroll.Table table8 = new global::Reqnroll.Table(new string[] {
+            global::Reqnroll.Table table15 = new global::Reqnroll.Table(new string[] {
                         "roster",
                         "owner",
                         "team name",
                         "commissioner"});
-            table8.AddRow(new string[] {
+            table15.AddRow(new string[] {
                         "1",
                         "Jacob",
                         "Hog Wild",
                         "yes"});
-            table8.AddRow(new string[] {
+            table15.AddRow(new string[] {
                         "2",
                         "Sam",
                         "Sam\'s Slammers",
                         "no"});
-            table8.AddRow(new string[] {
+            table15.AddRow(new string[] {
                         "3",
                         "Priya",
                         "",
                         "no"});
 #line 6
-    await testRunner.GivenAsync("the Sleeper league \"Holland Hogs\" for the 2026 season with these teams:", ((string)(null)), table8, "Given ");
+    await testRunner.GivenAsync("the Sleeper league \"Holland Hogs\" for the 2026 season with these teams:", ((string)(null)), table15, "Given ");
 #line hidden
 #line 11
     await testRunner.AndAsync("Jacob has imported the league", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
