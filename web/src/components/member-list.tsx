@@ -8,6 +8,7 @@ import { ImportAgain } from "@/components/import-again";
 import { Invite } from "@/components/invite";
 import { Revoke } from "@/components/revoke";
 import { Season } from "@/components/season";
+import { OptedIn, TextMe } from "@/components/text-me";
 import { apiBaseUrl } from "@/lib/config";
 import { problemMessage, unreachableMessage } from "@/lib/problem";
 
@@ -25,6 +26,8 @@ type Member = {
   roles: string[];
   // Only for a treasurer, and for the member themselves; null for anyone else.
   contact: Contact | null;
+  // Whether they may be texted: for a treasurer, and for the member themselves; null for anyone else.
+  textsOptedIn: boolean | null;
 };
 
 type LeagueMembers = {
@@ -94,6 +97,7 @@ export function MemberList({ leagueId }: { leagueId: string }) {
   const you = league.members.find((m) => m.memberId === league.yourMemberId);
   const youAreTreasurer = you?.roles.includes(treasurer) ?? false;
   const showsContacts = league.members.some((m) => m.contact !== null);
+  const showsTexts = league.members.some((m) => m.textsOptedIn !== null);
 
   return (
     <section className="flex flex-col gap-6">
@@ -139,6 +143,11 @@ export function MemberList({ leagueId }: { leagueId: string }) {
               {showsContacts && (
                 <th scope="col" className="p-3 font-medium">
                   Contact
+                </th>
+              )}
+              {showsTexts && (
+                <th scope="col" className="p-3 font-medium">
+                  Texts
                 </th>
               )}
             </tr>
@@ -239,6 +248,24 @@ export function MemberList({ leagueId }: { leagueId: string }) {
                         onSaved={() => setReads((n) => n + 1)}
                       />
                     )}
+                  </td>
+                )}
+                {showsTexts && (
+                  <td className="p-3 align-top">
+                    {member.textsOptedIn !== null &&
+                      (member.memberId === league.yourMemberId ? (
+                        // Consent is the member's alone: only on their own row.
+                        <TextMe
+                          leagueId={league.leagueId}
+                          memberId={member.memberId}
+                          teamName={member.teamName}
+                          phone={member.contact?.phone ?? null}
+                          optedIn={member.textsOptedIn}
+                          onSaved={() => setReads((n) => n + 1)}
+                        />
+                      ) : (
+                        <OptedIn optedIn={member.textsOptedIn} />
+                      ))}
                   </td>
                 )}
               </tr>

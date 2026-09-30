@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using BallBank.Api.Features.Notifications;
 using BallBank.Domain;
 using BallBank.Domain.Membership;
 using Marten;
@@ -70,6 +71,13 @@ public static class ContactDetailsEndpoint
         else
         {
             session.Store(MemberContact.Of(memberId, details));
+        }
+
+        // Consent was for the old number: a new one, or none, is not texted until the member opts in at it.
+        var preferences = await session.LoadAsync<NotificationPreferences>(memberId, cancellation);
+        if (preferences?.ConsentLapsesWhenNumberChangesTo(details.Phone) == true)
+        {
+            session.Store(preferences.WithoutConsent());
         }
 
         return Results.NoContent();

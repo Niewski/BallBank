@@ -11,7 +11,7 @@ not before.
 | **Membership** | Leagues, members, identities, claims, invites, roles, the Sleeper import | `src/BallBank.Domain/Membership`, `src/BallBank.Api/Features/Membership` |
 | **Treasury** | Assessments, attestations, confirmations, adjustments, payouts, season close | `src/BallBank.Domain/Treasury`, `src/BallBank.Api/Features/Treasury` |
 | **Payment Rails** | How a payment is said to have moved; adapters that verify or demo it | `src/BallBank.Api/Integrations` (planned) |
-| **Notifications** | What BallBank tells a league's channels: the season opening and confirmed payments over Discord; reminders, digests and SMS to come | `src/BallBank.Domain/Notifications`, `src/BallBank.Api/Features/Notifications`, `src/BallBank.Api/Integrations/Discord` |
+| **Notifications** | What BallBank tells a league's channels, and what a member agreed to be told: the season opening and confirmed payments over Discord; a member's consent and quiet hours for text messages; reminders, digests and sending SMS to come | `src/BallBank.Domain/Notifications`, `src/BallBank.Api/Features/Notifications`, `src/BallBank.Api/Integrations/Discord` |
 
 ## Glossary
 
@@ -49,6 +49,19 @@ treasurer's claim is refused. Not: "unclaim", "remove", "kick".
 to the member within a league, so a treasurer can record a phone number for a member who has not
 claimed yet and text them their invite. A person in two leagues has contact details in each.
 Not: "profile", "settings".
+
+**Consent** — A member's agreement to be texted, given by them alone (never by a treasurer), at one
+specific number, and recorded with when they gave it. It belongs to the number: a different number
+has no consent until the member opts in at it, and consent goes with the claim it was given under.
+A member *may be texted* while consent stands at the number on record and that number has not
+opted out. An **opt-out** is a number's, not a member's: the STOP a number replied with, which binds
+every league it is in and outranks consent. A member turning texts off in the app withdraws consent,
+which is not an opt-out. Not: "subscription", "opt-in flag", "permission".
+
+**Quiet hours** — The hours a member asks not to be texted, by their own clock: a start hour, an end
+hour and an IANA time zone, nine at night to nine in the morning Eastern until they choose others.
+A message that falls inside them is held until they end, not dropped. Not: "do not disturb",
+"snooze".
 
 **Treasurer** — A member who keeps the books for a league: assesses dues, confirms and rejects
 payments, posts adjustments, declares standings, closes the season. A role BallBank assigns to a

@@ -1,5 +1,7 @@
 using System.Security.Claims;
+using BallBank.Api.Features.Notifications;
 using BallBank.Domain.Membership;
+using BallBank.Domain.Notifications;
 using Marten;
 using Microsoft.AspNetCore.Authorization;
 using Wolverine.Http;
@@ -25,6 +27,10 @@ public sealed record LeagueMembers(
 /// How to reach the member, for a treasurer and for the member themselves, who may also change it;
 /// <c>null</c> for anyone else. Fields with nothing recorded are <c>null</c>.
 /// </param>
+/// <param name="TextsOptedIn">
+/// Whether the member may be texted: consent at the number on record, not opted out. Shown to a treasurer
+/// and to the member themselves; <c>null</c> for anyone else.
+/// </param>
 public sealed record LeagueMemberEntry(
     Guid MemberId,
     string TeamName,
@@ -34,14 +40,16 @@ public sealed record LeagueMemberEntry(
     string? HeldBySubject,
     bool SuggestedTreasurer,
     IReadOnlyList<string> Roles,
-    ContactDetails? Contact);
+    ContactDetails? Contact,
+    bool? TextsOptedIn);
 
 public static class MemberListEndpoint
 {
     /// <summary>Every member of the league, for any of its members, in team name order.</summary>
     [Authorize(Policy = Policies.LeagueMember)]
     [WolverineGet("/leagues/{leagueId}/members")]
-    public static async Task<IResult> Get(Guid leagueId, ClaimsPrincipal user, IQuerySession session, CancellationToken cancellation)
+    public static async Task<IResult> Get(
+        Guid leagueId, ClaimsPrincipal user, IQuerySession session, IDocumentStore store, CancellationToken cancellation)
     {
         var league = await session.Events.AggregateStreamAsync<League>(leagueId, token: cancellation);
         if (league is null)
@@ -51,6 +59,7 @@ public static class MemberListEndpoint
 
         var caller = league.MemberHeldBy(user.Subject());
         var contacts = await ContactsVisibleTo(caller, session, cancellation);
+        var textsOptedIn = await TextsOptedInVisibleTo(caller, contacts, league, session, store, cancellation);
         var isTreasurer = caller is { IsTreasurer: true };
 
         return Results.Ok(new LeagueMembers(
@@ -69,8 +78,53 @@ public static class MemberListEndpoint
                     isTreasurer ? m.HeldBy : null,
                     m.SuggestedTreasurer,
                     Roles.Of(m),
-                    contacts(m.MemberId)))
+                    contacts(m.MemberId),
+                    textsOptedIn(m.MemberId)))
                 .ToArray()));
+    }
+
+    /// <summary>
+    /// Whether each member may be texted, for a treasurer's view of every member and a member's view of
+    /// themselves, nobody's for anyone else. The number on record is the one consent must have been given for.
+    /// </summary>
+    private static async Task<Func<Guid, bool?>> TextsOptedInVisibleTo(
+        Member? caller,
+        Func<Guid, ContactDetails?> contacts,
+        League league,
+        IQuerySession session,
+        IDocumentStore store,
+        CancellationToken cancellation)
+    {
+        if (caller is null)
+        {
+            return _ => null;
+        }
+
+        var consents = new Dictionary<Guid, SmsConsent?>();
+        var visible = new HashSet<Guid>();
+        if (caller.IsTreasurer)
+        {
+            visible.UnionWith(league.Members.Select(m => m.MemberId));
+            foreach (var preferences in await session.Query<NotificationPreferences>().ToListAsync(cancellation))
+            {
+                consents[preferences.Id] = preferences.ToConsent();
+            }
+        }
+        else
+        {
+            visible.Add(caller.MemberId);
+            consents[caller.MemberId] = (await session.LoadAsync<NotificationPreferences>(caller.MemberId, cancellation))?.ToConsent();
+        }
+
+        var phones = visible.Select(id => contacts(id)?.Phone).OfType<string>();
+        var optedOut = await PhoneOptOuts.AmongAsync(store, phones, cancellation);
+
+        return memberId => visible.Contains(memberId)
+            ? SmsConsent.PermitsTexting(
+                consents.GetValueOrDefault(memberId),
+                contacts(memberId)?.Phone,
+                contacts(memberId)?.Phone is { } phone && optedOut.Contains(phone))
+            : null;
     }
 
     /// <summary>

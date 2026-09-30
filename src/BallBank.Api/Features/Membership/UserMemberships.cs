@@ -3,8 +3,8 @@ using BallBank.Domain.Membership;
 namespace BallBank.Api.Features.Membership;
 
 /// <summary>
-/// The leagues one identity is a member of, keyed by sign-in subject. One of the two cross-tenant
-/// documents (ADR-0011): it lives in the default tenant so "my leagues" and the membership gate need
+/// The leagues one identity is a member of, keyed by sign-in subject. A cross-tenant
+/// document (ADR-0011): it lives in the default tenant so "my leagues" and the membership gate need
 /// no cross-tenant scan. Derived from league events and written in the same transaction as them.
 /// </summary>
 public sealed class UserMemberships

@@ -93,6 +93,7 @@ builder.Services.AddMarten(options =>
         // The sanctioned cross-tenant documents (ADR-0011) live in the default tenant.
         options.Schema.For<UserMemberships>().SingleTenanted();
         options.Schema.For<SleeperLeagueIndex>().SingleTenanted();
+        options.Schema.For<PhoneOptOut>().SingleTenanted();
 
         // Aggregates rebuilt from their streams on read (see MemberAccountProjection for why explicit).
         options.Projections.Add(new MemberAccountProjection(), ProjectionLifecycle.Live);

@@ -81,6 +81,7 @@ One projection is async on purpose: it exercises the projection daemon and gives
 
 Two tenant-scoped Marten documents, in the API (`Features/Notifications`); the words a notification
 says are in the package-free `BallBank.Domain.Notifications` (`NotificationTexts`, with domain tests).
+What a member has agreed to be texted is a third document, `NotificationPreferences`, below.
 
 | Document | Keyed by | Holds |
 |---|---|---|
@@ -106,6 +107,35 @@ local queue `notifications`. Sending marks the notification `Sent`. A send that 
 schedule (`Notifications:RetryDelays`, by default 5 s, 30 s and 5 min) and then dead-lettered; the
 notification stays `Pending`, and the confirmation that caused it was never held up
 ([runbook](runbook.md#replay-a-dead-lettered-message)).
+
+### `NotificationPreferences` — one per member, tenant-scoped
+
+What a member has said about being texted, kept beside their `MemberContact`
+([ADR-0012](adr/0012-contact-details-are-a-document-not-events.md)): the same reasons hold. It is
+replaced whole by `PUT …/members/{memberId}/notifications` (`204`), with no `Idempotency-Key` or
+version, and read by `GET` (a treasurer, or the member themselves).
+
+- **Consent** — the number (E.164) the member opted in at, and when. Consent belongs to the number:
+  saving contact details with a different number clears it, and consent at one number is not consent
+  at another. Only the member gives it (`403` to a treasurer acting for them), and only for a number
+  on record (`409` with none). Opting in again at the same number keeps the original time. Revoking
+  a claim deletes the document, quiet hours too: they were the revoked person's, and whoever claims
+  the member next chooses their own.
+- **Quiet hours** — a start hour, an end hour and an IANA time zone, `21` to `9` in
+  `America/New_York` until the member chooses others. The window may cross midnight. A message that
+  falls inside it is held until it ends, not dropped: `QuietHours.HeldUntil(instant)` answers when,
+  reading the hours on the member's own clock across a change to daylight saving time (a wall-clock
+  hour that does not exist that day begins at the first instant that does; one that happens twice is
+  the earlier). Bad hours or an unknown zone are `400`.
+- **May be texted** — `SmsConsent.PermitsTexting(consent, phone, numberOptedOut)`: consent at the number
+  now on record, and that number has not replied STOP. The reading and the members list
+  (`textsOptedIn`, for a treasurer and for the member themselves) both answer it, so a client never
+  repeats the rule.
+
+`PhoneOptOut` is the STOP a number replied with, keyed by the number and shared by every league it
+appears in, so it lives in the default tenant ([ADR-0011](adr/0011-cross-tenant-documents.md)). The
+notification preferences only *read* it; recording a STOP (and a START) arrives with the Twilio
+webhook.
 
 ## Idempotency and concurrency
 

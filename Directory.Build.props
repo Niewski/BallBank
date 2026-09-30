@@ -12,7 +12,9 @@
     <Deterministic>true</Deterministic>
     <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
-    <InvariantGlobalization>true</InvariantGlobalization>
+    <!-- Windows finds IANA time zone ids (quiet hours are kept as America/New_York) through ICU, which invariant
+         mode switches off; Linux reads /usr/share/zoneinfo and needs no ICU. -->
+    <InvariantGlobalization Condition="'$(OS)' != 'Windows_NT'">true</InvariantGlobalization>
     <Authors>Jacob Wisniewski</Authors>
     <Product>BallBank</Product>
     <RepositoryUrl>https://github.com/Niewski/BallBank</RepositoryUrl>

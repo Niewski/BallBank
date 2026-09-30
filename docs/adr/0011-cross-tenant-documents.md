@@ -1,24 +1,28 @@
-# ADR-0011: Two sanctioned cross-tenant documents (amends ADR-0004)
+# ADR-0011: Three sanctioned cross-tenant documents (amends ADR-0004)
 
 - **Status:** Accepted
-- **Date:** 2026-09-24
+- **Date:** 2026-09-24 (amended 2026-09-29 for `PhoneOptOut`)
 
 ## Context
 
 ADR-0004 makes every event and document tenant-scoped by league and requires cross-tenant access to
-be explicit and audited. Three lookups cannot be answered inside one tenant: "my leagues" for a
-signed-in identity, the membership check that gates every `/leagues/{leagueId}` request, and the
-guard that one Sleeper league backs only one BallBank league.
+be explicit and audited. Four lookups cannot be answered inside one tenant: "my leagues" for a
+signed-in identity, the membership check that gates every `/leagues/{leagueId}` request, the
+guard that one Sleeper league backs only one BallBank league, and whether a phone number has
+replied STOP, which a text message carries no league to say and which binds every league the
+number is in.
 
 ## Decision
 
-Two documents are exempt from `AllDocumentsAreMultiTenanted()` and live in the default tenant:
+Three documents are exempt from `AllDocumentsAreMultiTenanted()` and live in the default tenant:
 
 - `UserMemberships`, keyed by sign-in subject: the leagues the identity is a member of, with the
   member id and roles in each. Written in the same transaction as the claim, appointment or
   revocation event that changes it.
 - `SleeperLeagueIndex`, keyed by Sleeper league id: the BallBank league it backs. Written in the
   same transaction as `LeagueImported`.
+- `PhoneOptOut`, keyed by the number in E.164: that it replied STOP, and when. Read by every league
+  that asks whether a number may be texted; written by the Twilio webhook, which knows only the number.
 
 Authorization reads `UserMemberships` as its fast gate; the league stream remains the source of
 truth and re-checks the role on every treasurer command.
@@ -33,5 +37,7 @@ truth and re-checks the role on every treasurer command.
 
 ## Consequences
 
-Any new cross-tenant document must be added to this ADR. Both documents are derived from events and
-can be rebuilt; they are never the only record of a membership.
+Any new cross-tenant document must be added to this ADR. `UserMemberships` and `SleeperLeagueIndex`
+are derived from events and can be rebuilt; they are never the only record of a membership.
+`PhoneOptOut` is not derived from anything in the league: it is the only record that a number said
+STOP, so it is kept, never rebuilt, and holds nothing but the number and the time.
