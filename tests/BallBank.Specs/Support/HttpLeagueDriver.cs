@@ -10,6 +10,7 @@ using BallBank.Api.Features.Treasury;
 using BallBank.Domain;
 using BallBank.Domain.Notifications;
 using BallBank.Domain.Treasury;
+using BallBank.Integration.Tests.Discord;
 using BallBank.Integration.Tests.Sleeper;
 using Marten;
 using Marten.Events;
@@ -40,6 +41,7 @@ public sealed class HttpLeagueDriver : ILeagueDriver
 
     private SpecsHost? _host;
     private string? _season;
+    private FakeDiscord.Webhook? _webhook;
 
     public Guid TreasurerId => MemberId(Treasurer);
 
@@ -76,6 +78,7 @@ public sealed class HttpLeagueDriver : ILeagueDriver
     {
         await Send(Treasurer, HttpMethod.Post, $"/leagues/{_leagueId}/seasons", new OpenSeasonRequest(label, duesAmount, dueDate));
         _season = label;
+        await LetDiscordBeTold();
     }
 
     /// <summary>The member's team joins on Sleeper, and the treasurer imports the league again. Nobody claims it yet.</summary>
@@ -108,8 +111,11 @@ public sealed class HttpLeagueDriver : ILeagueDriver
         await Send(member, HttpMethod.Post, $"/leagues/{_leagueId}/accounts/{AccountId(member)}/attestations", request);
     }
 
-    public async Task ConfirmLatest(string member) =>
+    public async Task ConfirmLatest(string member)
+    {
         await Send(Treasurer, HttpMethod.Post, ConfirmationPath(member), new ConfirmPaymentRequest((await Statement(member)).Version));
+        await LetDiscordBeTold();
+    }
 
     public async Task RejectLatest(string member, string reason) =>
         await Send(
@@ -197,6 +203,25 @@ public sealed class HttpLeagueDriver : ILeagueDriver
         return new TextingReading(reading.Consent, reading.QuietHours, reading.OptedIn);
     }
 
+    /// <summary>A webhook of the fake Discord, which posts a hello through it before answering.</summary>
+    public async Task ConnectDiscord(bool announcePayments)
+    {
+        _webhook = Host.Discord.NewWebhook();
+        await Send(
+            Treasurer,
+            HttpMethod.Put,
+            $"/leagues/{_leagueId}/notifications/discord",
+            new DiscordSettingsRequest(_webhook.Url, announcePayments, PostDigest: false));
+    }
+
+    public async Task<IReadOnlyList<string>> PostedToDiscord()
+    {
+        var webhook = _webhook ?? throw new InvalidOperationException("Connect Discord first.");
+
+        await Host.Delivered();
+        return webhook.Posted.Select(message => message.Content).ToList();
+    }
+
     public async Task<IReadOnlyList<object>> AccountHistory(string member)
     {
         await using var session = Host.Store.QuerySession(_leagueId.ToString());
@@ -235,6 +260,16 @@ public sealed class HttpLeagueDriver : ILeagueDriver
 
     /// <summary>The account's version now.</summary>
     public async Task<int> Version(string member) => (await Statement(member)).Version;
+
+    // An announcement reads the league's figures when it is handled, after the command was answered, so
+    // the next command waits for it: what a channel is told is then what the league held at that step.
+    private async Task LetDiscordBeTold()
+    {
+        if (_webhook is not null)
+        {
+            await Host.Delivered();
+        }
+    }
 
     private string Season => _season ?? throw new InvalidOperationException("No season is open yet.");
 

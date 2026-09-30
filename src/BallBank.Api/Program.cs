@@ -2,6 +2,7 @@ using BallBank.Api;
 using BallBank.Api.Features.Membership;
 using BallBank.Api.Features.Notifications;
 using BallBank.Api.Features.Treasury;
+using BallBank.Api.Integrations.Discord;
 using BallBank.Api.Integrations.Sleeper;
 using JasperFx;
 using JasperFx.Events;
@@ -13,6 +14,7 @@ using Marten.Events;
 using Marten.Storage;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Wolverine;
+using Wolverine.ErrorHandling;
 using Wolverine.Http;
 using Wolverine.Marten;
 
@@ -73,6 +75,10 @@ builder.Services.AddExceptionHandler<RefusalHandler>();
 builder.Services.AddSleeper();
 builder.Services.AddExceptionHandler<SleeperUnavailableHandler>();
 
+// Discord, where a league is told things (ADR-0008). Its webhook URL is a secret and is kept out of logs and traces.
+builder.Services.Configure<NotificationOptions>(builder.Configuration.GetSection(NotificationOptions.Section));
+builder.Services.AddDiscord();
+
 // Marten: event store + documents on PostgreSQL. Tenant = league (ADR-0004).
 builder.Services.AddMarten(options =>
     {
@@ -110,7 +116,10 @@ builder.Services.AddMarten(options =>
     })
     .UseLightweightSessions()
     .ApplyAllDatabaseChangesOnStartup()
-    .IntegrateWithWolverine()
+    .IntegrateWithWolverine(integration =>
+        // Every committed event is handed to Wolverine by the transaction that commits it, so
+        // announcements are decided from what was recorded, never from what an endpoint remembers to say.
+        integration.UseFastEventForwarding = true)
 
     // One node runs the daemon, for now (ADR-0007), like Wolverine's durability below.
     .AddAsyncDaemon(DaemonMode.Solo);
@@ -126,7 +135,19 @@ builder.Host.UseWolverine(options =>
 
     // Typed HTTP clients are built by the HTTP client factory, which Wolverine's code generation cannot inline.
     options.CodeGeneration.AlwaysUseServiceLocationFor<SleeperClient>();
+    options.CodeGeneration.AlwaysUseServiceLocationFor<DiscordWebhookChannel>();
+    options.CodeGeneration.AlwaysUseServiceLocationFor<INotificationChannel>();
+    options.CodeGeneration.AlwaysUseServiceLocationFor<NotificationChannels>();
+
+    // Sends are messages of their own, on a durable queue, so a channel that is down delays a notification
+    // and nothing else (ADR-0008): retried on a schedule, then dead-lettered (docs/runbook.md).
+    options.PublishMessage<SendNotification>().ToLocalQueue(SendNotificationHandler.Queue);
+    options.OnException<NotificationDeliveryException>()
+        .ScheduleRetry(builder.Configuration.GetSection(NotificationOptions.Section).Get<NotificationOptions>()?.Delays
+            ?? NotificationOptions.DefaultRetryDelays)
+        .Then.MoveToErrorQueue();
 });
+builder.Services.AddTransient<NotificationChannels>();
 builder.Services.AddWolverineHttp();
 
 var app = builder.Build();

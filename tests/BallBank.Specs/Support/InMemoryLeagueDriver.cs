@@ -13,6 +13,15 @@ public sealed class InMemoryLeagueDriver : ILeagueDriver
 {
     private static readonly DateTimeOffset Now = new(2026, 9, 24, 12, 0, 0, TimeSpan.Zero);
 
+    // The league and teams the HTTP driver imports from the Sleeper fixtures, so both drivers read the same words.
+    private const string LeagueName = "Holland Hogs";
+
+    private static readonly Dictionary<string, string> TeamNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["Jacob"] = "Hog Wild",
+        ["Sam"] = "Sam's Slammers",
+    };
+
     private readonly Dictionary<string, Guid> _memberIds = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, MemberAccount> _accounts = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<Guid, List<object>> _accountHistories = new();
@@ -22,8 +31,12 @@ public sealed class InMemoryLeagueDriver : ILeagueDriver
     private readonly Dictionary<string, ContactDetails> _contacts = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, SmsConsent> _consents = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, QuietHours> _quietHours = new(StringComparer.OrdinalIgnoreCase);
+    private readonly List<string> _postedToDiscord = [];
 
     private readonly Guid _leagueId = Guid.NewGuid();
+
+    private bool _discordConnected;
+    private bool _announcePayments;
 
     public Guid TreasurerId { get; } = Guid.NewGuid();
 
@@ -54,6 +67,7 @@ public sealed class InMemoryLeagueDriver : ILeagueDriver
 
         _seasons[seasonId] = opened;
         _history.Add(opened);
+        Announce(NotificationTexts.SeasonOpened(LeagueName, opened.Label, opened.DuesAmount, opened.DueDate));
 
         var assessmentId = SeasonIds.DuesAssessmentId(seasonId);
         foreach (var name in _memberIds.Keys)
@@ -98,7 +112,15 @@ public sealed class InMemoryLeagueDriver : ILeagueDriver
     public Task ConfirmLatest(string member)
     {
         var account = Account(member);
-        Record(account, account.Confirm(new ConfirmPayment(account.Id, LatestAttestation(member).AttestationId, TreasurerId), Now));
+        var attestation = LatestAttestation(member);
+        var confirmed = account.Confirm(new ConfirmPayment(account.Id, attestation.AttestationId, TreasurerId), Now);
+        Record(account, confirmed);
+
+        if (confirmed is not null && _announcePayments)
+        {
+            Announce(NotificationTexts.PaymentConfirmed(TeamNames.GetValueOrDefault(member, member), attestation.Amount, _accounts.Values.Sum(a => a.InThePot)));
+        }
+
         return Task.CompletedTask;
     }
 
@@ -220,10 +242,30 @@ public sealed class InMemoryLeagueDriver : ILeagueDriver
             SmsConsent.PermitsTexting(consent, phone, numberOptedOut: false)));
     }
 
+    /// <summary>The hello, as the endpoint posts it.</summary>
+    public Task ConnectDiscord(bool announcePayments)
+    {
+        _discordConnected = true;
+        _announcePayments = announcePayments;
+        Announce(NotificationTexts.Hello(LeagueName));
+        return Task.CompletedTask;
+    }
+
+    public Task<IReadOnlyList<string>> PostedToDiscord() => Task.FromResult<IReadOnlyList<string>>([.. _postedToDiscord]);
+
     public Task<IReadOnlyList<object>> AccountHistory(string member) =>
         Task.FromResult<IReadOnlyList<object>>(_accountHistories[Account(member).Id]);
 
     public Task<IReadOnlyList<object>> History() => Task.FromResult<IReadOnlyList<object>>(_history);
+
+    // What the announcement handlers would post through a connected channel, in the words of the domain.
+    private void Announce(string text)
+    {
+        if (_discordConnected)
+        {
+            _postedToDiscord.Add(text);
+        }
+    }
 
     private MemberAccount Account(string member) =>
         _accounts.TryGetValue(member, out var account)

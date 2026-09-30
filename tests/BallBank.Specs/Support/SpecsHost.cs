@@ -1,4 +1,5 @@
 using System.Net.Http.Headers;
+using BallBank.Integration.Tests.Discord;
 using BallBank.Integration.Tests.Http;
 using BallBank.Integration.Tests.Sleeper;
 using Marten;
@@ -6,6 +7,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Testcontainers.PostgreSql;
+using Wolverine.Runtime;
 
 namespace BallBank.Specs.Support;
 
@@ -32,6 +34,29 @@ public sealed class SpecsHost
     }
 
     public FakeSleeper Sleeper => _api.Sleeper;
+
+    public FakeDiscord Discord => _api.Discord;
+
+    /// <summary>
+    /// Waits until the API has nothing left waiting in its inbox: the events its stores forwarded, and the
+    /// messages those caused, are handled. Notifications are delivered after the command that caused them
+    /// has been answered, so a spec about what was said reads only after this.
+    /// </summary>
+    public async Task Delivered()
+    {
+        var runtime = _host.Services.GetRequiredService<IWolverineRuntime>();
+        var deadline = DateTimeOffset.UtcNow.AddSeconds(30);
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            var counts = await runtime.Storage.Admin.FetchCountsAsync();
+            if (counts.Incoming + counts.Scheduled == 0)
+            {
+                return;
+            }
+
+            await Task.Delay(25);
+        }
+    }
 
     /// <summary>
     /// The API's clock. Features run in parallel against this one API, so a scenario that sets it

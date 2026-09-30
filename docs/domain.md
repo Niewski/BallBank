@@ -77,7 +77,36 @@ serializer needs to round-trip them from storage.
 One projection is async on purpose: it exercises the projection daemon and gives a measurable
 **projection lag** under scale-to-zero ([ADR-0006](adr/0006-inline-vs-async-projections.md)).
 
-## Documents that are not events
+## Notifications
+
+Two tenant-scoped Marten documents, in the API (`Features/Notifications`); the words a notification
+says are in the package-free `BallBank.Domain.Notifications` (`NotificationTexts`, with domain tests).
+What a member has agreed to be texted is a third document, `NotificationPreferences`, below.
+
+| Document | Keyed by | Holds |
+|---|---|---|
+| `LeagueNotificationSettings` | the league id | The Discord webhook URL, `AnnouncePayments`, `PostDigest` (stored and toggled, but nothing posts the digest yet). Written straight by `PUT …/notifications/discord`, with no event ([ADR-0012](adr/0012-contact-details-are-a-document-not-events.md)); `DELETE` removes it, webhook and flags together, so it exists only while Discord is connected. The webhook is stored as it was accepted (a Discord host, path `/api/webhooks/{id}/{token}`) and is never returned: `GET` answers connected or not, the last four characters, and the flags. Treasurers only. |
+| `Notification` | its dedupe key, `{channel}/{league}/{kind}/{cause}` | `Kind`, `Channel`, the rendered `Text`, `Status` (`Pending`, `Sent`, `Dropped`), `CreatedAt`, `SentAt`. Inserting it claims the key, so an event handled twice inserts twice, the second insert fails, and nothing more is sent. |
+
+| Event handled | Told, when | Cause in the key |
+|---|---|---|
+| `SeasonOpened` | Discord is connected: the league's name, the season, the dues and when they are due. | the season id |
+| `PaymentConfirmed` | Discord is connected **and** `AnnouncePayments` is on: the payer's team name, the amount, and what the pot holds when the event is handled. | the attestation id |
+
+`PaymentAttested` and `PaymentRejected` are never announced. The pot in a payment's text is the
+accounts' figures at handling time, so a second confirmation handled first shows the larger pot.
+Connecting posts a hello through the webhook in the request itself; Discord refusing it is a `400` and
+nothing is saved.
+
+Marten forwards these two Treasury events to Wolverine in the transaction that commits them, but only
+for sessions opened through Wolverine's `OutboxedSessionFactory`: a plain `LightweightSession` with an
+enrolled outbox appends the events and forwards nothing. The endpoints that append them
+(`OpenSeasonEndpoint`, the confirmation endpoints) open their session that way. One handler hears each
+event, records the `Notification` and returns a `SendNotification` for it, which goes to the durable
+local queue `notifications`. Sending marks the notification `Sent`. A send that fails is retried on a
+schedule (`Notifications:RetryDelays`, by default 5 s, 30 s and 5 min) and then dead-lettered; the
+notification stays `Pending`, and the confirmation that caused it was never held up
+([runbook](runbook.md#replay-a-dead-lettered-message)).
 
 ### `NotificationPreferences` — one per member, tenant-scoped
 

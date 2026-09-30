@@ -39,7 +39,38 @@ Only `LeaguePot` has been rebuilt this way so far.
 
 ## Replay a dead-lettered message
 
-*(M3)* Inspect in the Wolverine dead-letter table, fix the cause, replay by id.
+A notification that Discord would not take is retried after 5 seconds, 30 seconds and 5 minutes
+(`Notifications:RetryDelays`) and then moved to the dead-letter queue. Nothing else is held up: the
+confirmation or season that caused it is committed and answered. The `Notification` document stays
+`Pending`, which is how you tell a notification that failed for good from one that is merely waiting.
+Written from making a fake Discord refuse, not yet from a real outage.
+
+1. **Find them.** Dead letters live in the `ballbank` schema, and the body is `bytea`:
+
+   ```sql
+   select id, message_type, exception_type, sent_at, replayable
+   from ballbank.wolverine_dead_letters
+   where message_type like '%SendNotification%'
+   order by sent_at;
+
+   select id, data ->> 'Text' as text, data ->> 'CreatedAt' as created_at
+   from ballbank.mt_doc_notification
+   where data ->> 'Status' = 'Pending';
+   ```
+
+   The webhook URL is never in a dead letter: the message names the league and the notification, and
+   the webhook is read from `LeagueNotificationSettings` when it is sent. `encode(body, 'escape')` shows
+   what a dead letter carried.
+2. **Fix the cause.** `Discord refused the webhook` in the exception means the channel or webhook was
+   deleted or mistyped: a treasurer connects Discord again (`PUT …/notifications/discord`). A league that
+   disconnected in the meantime is not posted to; its pending notifications are marked `Dropped` when
+   the send runs.
+3. **Replay.** Rows are dead-lettered with `replayable = false`. Setting it to `true` on the ones to send
+   again is Wolverine's way of asking for a replay: it moves them back to the inbox on a later
+   durability pass. That step has not been run here yet; the tests stop at the dead letter. What is
+   proven is that a send is safe to repeat: it finds the notification `Pending`, posts it and marks it
+   `Sent`, while one already `Sent` is skipped, so replaying twice tells the channel once.
+4. **Check.** The notification is `Sent`, and the row is gone from `wolverine_dead_letters`.
 
 ## Rotate a secret
 
