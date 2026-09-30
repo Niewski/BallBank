@@ -5,8 +5,10 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using BallBank.Api;
 using BallBank.Api.Features.Membership;
+using BallBank.Api.Features.Notifications;
 using BallBank.Api.Features.Treasury;
 using BallBank.Domain;
+using BallBank.Domain.Notifications;
 using BallBank.Domain.Treasury;
 using BallBank.Integration.Tests.Sleeper;
 using Marten;
@@ -162,6 +164,39 @@ public sealed class HttpLeagueDriver : ILeagueDriver
             dashboard.Delinquents.Select(d => new DelinquentReading(names[d.MemberId], d.Balance, d.DaysOverdue)).ToList());
     }
 
+    /// <summary>Every member has an email, as a claimed member needs one; the phone is what the specs vary.</summary>
+    public Task RecordContactDetails(string member, string? phone, string? recordedBy = null) =>
+        Send(
+            recordedBy ?? member,
+            HttpMethod.Put,
+            $"/leagues/{_leagueId}/members/{MemberId(member)}/contact",
+            new ContactDetailsRequest($"{member.ToLowerInvariant()}@example.com", phone));
+
+    public async Task OptInToTexts(string member, string? optedInBy = null)
+    {
+        var current = await Texting(member);
+        await SendPreferences(optedInBy ?? member, member, new NotificationPreferencesRequest(TextMe: true, current.QuietHours));
+    }
+
+    public async Task OptOutOfTexts(string member)
+    {
+        var current = await Texting(member);
+        await SendPreferences(member, member, new NotificationPreferencesRequest(TextMe: false, current.QuietHours));
+    }
+
+    public async Task SetQuietHours(string member, int startHour, int endHour, string timeZone)
+    {
+        var current = await Texting(member);
+        await SendPreferences(
+            member, member, new NotificationPreferencesRequest(TextMe: current.Consent is not null, new QuietHours(startHour, endHour, timeZone)));
+    }
+
+    public async Task<TextingReading> ReadTexting(string member)
+    {
+        var reading = await Texting(member);
+        return new TextingReading(reading.Consent, reading.QuietHours, reading.OptedIn);
+    }
+
     public async Task<IReadOnlyList<object>> AccountHistory(string member)
     {
         await using var session = Host.Store.QuerySession(_leagueId.ToString());
@@ -219,6 +254,13 @@ public sealed class HttpLeagueDriver : ILeagueDriver
     /// <summary>The account as the treasurer reads it.</summary>
     private Task<AccountStatement> Statement(string member) =>
         Get<AccountStatement>(Treasurer, $"/leagues/{_leagueId}/accounts/{AccountId(member)}");
+
+    /// <summary>What the member has said about being texted, as they read it.</summary>
+    private Task<NotificationPreferencesReading> Texting(string member) =>
+        Get<NotificationPreferencesReading>(member, $"/leagues/{_leagueId}/members/{MemberId(member)}/notifications");
+
+    private Task<Answer> SendPreferences(string person, string member, NotificationPreferencesRequest request) =>
+        Send(person, HttpMethod.Put, $"/leagues/{_leagueId}/members/{MemberId(member)}/notifications", request);
 
     private string Subject(string person)
     {

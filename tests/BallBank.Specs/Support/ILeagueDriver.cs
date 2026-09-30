@@ -1,4 +1,5 @@
 using BallBank.Domain;
+using BallBank.Domain.Notifications;
 using BallBank.Domain.Treasury;
 
 namespace BallBank.Specs.Support;
@@ -62,6 +63,27 @@ public interface ILeagueDriver
     /// </summary>
     Task<DashboardReading> ReadDashboard(string? readBy = null);
 
+    /// <summary>
+    /// The member (or the treasurer, as <paramref name="recordedBy"/>) records the phone number to reach
+    /// them at, as they wrote it; <c>null</c> records none.
+    /// </summary>
+    Task RecordContactDetails(string member, string? phone, string? recordedBy = null);
+
+    /// <summary>
+    /// The member opts in to being texted at the number on record, unless the member named
+    /// <paramref name="optedInBy"/>, who is not them, tries to for them.
+    /// </summary>
+    Task OptInToTexts(string member, string? optedInBy = null);
+
+    /// <summary>The member withdraws their consent to be texted.</summary>
+    Task OptOutOfTexts(string member);
+
+    /// <summary>The member keeps these hours quiet, on their own clock in this IANA time zone.</summary>
+    Task SetQuietHours(string member, int startHour, int endHour, string timeZone);
+
+    /// <summary>What the member has said about being texted, as they read it.</summary>
+    Task<TextingReading> ReadTexting(string member);
+
     /// <summary>Every event of the member's account, oldest first.</summary>
     Task<IReadOnlyList<object>> AccountHistory(string member);
 
@@ -81,6 +103,9 @@ public sealed record DashboardReading(
 
 /// <summary>A member who still owes after the dues were due.</summary>
 public sealed record DelinquentReading(string Member, decimal Balance, int DaysOverdue);
+
+/// <summary>Whether, and for which number, a member consented to texts; their quiet hours; and whether they may be texted now.</summary>
+public sealed record TextingReading(SmsConsent? Consent, QuietHours QuietHours, bool OptedIn);
 
 /// <summary>Someone tried a command only a treasurer may issue.</summary>
 public sealed class NotAllowedException(string member) : Exception($"{member} is not allowed to.")

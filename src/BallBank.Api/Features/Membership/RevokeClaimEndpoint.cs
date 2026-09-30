@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using BallBank.Api.Features.Notifications;
 using BallBank.Domain.Membership;
 using JasperFx;
 using Marten;
@@ -75,6 +76,9 @@ public static class RevokeClaimEndpoint
             ?? throw new InvalidOperationException("A claimed member's identity has no memberships.");
         memberships.RemoveLeague(leagueId);
         session.Store(memberships);
+
+        // Consent and quiet hours were the revoked person's: whoever claims the member next chooses their own.
+        session.Delete<NotificationPreferences>(memberId);
 
         try
         {

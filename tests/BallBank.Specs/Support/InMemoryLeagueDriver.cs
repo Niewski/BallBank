@@ -1,3 +1,5 @@
+using BallBank.Domain.Membership;
+using BallBank.Domain.Notifications;
 using BallBank.Domain.Treasury;
 
 namespace BallBank.Specs.Support;
@@ -17,6 +19,9 @@ public sealed class InMemoryLeagueDriver : ILeagueDriver
     private readonly Dictionary<string, AttestPayment> _latestAttestation = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<Guid, SeasonOpened> _seasons = new();
     private readonly List<object> _history = [];
+    private readonly Dictionary<string, ContactDetails> _contacts = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, SmsConsent> _consents = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, QuietHours> _quietHours = new(StringComparer.OrdinalIgnoreCase);
 
     private readonly Guid _leagueId = Guid.NewGuid();
 
@@ -158,6 +163,63 @@ public sealed class InMemoryLeagueDriver : ILeagueDriver
             Delinquents: delinquents));
     }
 
+    /// <summary>
+    /// What the API keeps in <c>MemberContact</c> and <c>NotificationPreferences</c>, replaced on every
+    /// change. A number that changes takes consent with it, as saving contact details does.
+    /// </summary>
+    public Task RecordContactDetails(string member, string? phone, string? recordedBy = null)
+    {
+        _ = MemberId(member);
+        var details = ContactDetails.From($"{member.ToLowerInvariant()}@example.com", phone, discordUsername: null);
+
+        _contacts[member] = details;
+        if (_consents.TryGetValue(member, out var consent) && consent.AfterNumberChangedTo(details.Phone) is null)
+        {
+            _consents.Remove(member);
+        }
+
+        return Task.CompletedTask;
+    }
+
+    /// <summary>Consent is the member's alone, so the driver stands in for the endpoint that answers <c>403</c> to anyone else.</summary>
+    public Task OptInToTexts(string member, string? optedInBy = null)
+    {
+        _ = MemberId(member);
+        if (optedInBy is not null)
+        {
+            throw new NotAllowedException(optedInBy);
+        }
+
+        _consents[member] = SmsConsent.Give(_contacts.GetValueOrDefault(member)?.Phone, _consents.GetValueOrDefault(member), Now);
+        return Task.CompletedTask;
+    }
+
+    public Task OptOutOfTexts(string member)
+    {
+        _ = MemberId(member);
+        _consents.Remove(member);
+        return Task.CompletedTask;
+    }
+
+    public Task SetQuietHours(string member, int startHour, int endHour, string timeZone)
+    {
+        _ = MemberId(member);
+        _quietHours[member] = QuietHours.Of(startHour, endHour, timeZone);
+        return Task.CompletedTask;
+    }
+
+    public Task<TextingReading> ReadTexting(string member)
+    {
+        _ = MemberId(member);
+        var consent = _consents.GetValueOrDefault(member);
+        var phone = _contacts.GetValueOrDefault(member)?.Phone;
+
+        return Task.FromResult(new TextingReading(
+            consent,
+            _quietHours.GetValueOrDefault(member) ?? QuietHours.Default,
+            SmsConsent.PermitsTexting(consent, phone, numberOptedOut: false)));
+    }
+
     public Task<IReadOnlyList<object>> AccountHistory(string member) =>
         Task.FromResult<IReadOnlyList<object>>(_accountHistories[Account(member).Id]);
 
@@ -168,11 +230,14 @@ public sealed class InMemoryLeagueDriver : ILeagueDriver
             ? account
             : throw new KeyNotFoundException($"No member named '{member}' has an account yet.");
 
-    private MemberAccount OpenAccount(string member, SeasonOpened season)
-    {
-        var memberId = _memberIds.TryGetValue(member, out var id)
+    private Guid MemberId(string member) =>
+        _memberIds.TryGetValue(member, out var id)
             ? id
             : throw new KeyNotFoundException($"No member named '{member}' in this league.");
+
+    private MemberAccount OpenAccount(string member, SeasonOpened season)
+    {
+        var memberId = MemberId(member);
 
         var opened = MemberAccount.Open(new OpenAccount(SeasonIds.AccountId(season.SeasonId, memberId), _leagueId, season.Label, memberId), Now);
         var account = MemberAccount.Replay(opened);
