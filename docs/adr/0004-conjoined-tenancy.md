@@ -12,7 +12,9 @@ blast radius of a bug must be contained, at a cost of roughly zero.
 
 Marten conjoined tenancy: `tenant_id` on every event and document row; sessions opened per tenant.
 The tenant is derived server-side from the route (`/leagues/{leagueId}/…`) after authorisation
-confirms membership — never from the request body. Row-level security as defence in depth.
+confirms membership — never from the request body. Row-level security as defence in depth. The one
+route-less case is a signed Twilio callback, which names its league in the query string BallBank wrote
+and Twilio's signature covers ([ADR-0005](0005-idempotency-and-concurrency.md)).
 Database-per-tenant remains available as a higher isolation tier, confined to store configuration.
 
 ## Alternatives

@@ -39,13 +39,8 @@ public sealed partial class TextingMembersSteps(LeagueWorld world)
     // The league and the clock are the driver's, so quiet hours are put an hour either side of its "now" and
     // never depend on when the scenario happens to run.
     [Given(@"^it is (inside|outside) (\w+)'s quiet hours$")]
-    public Task GivenQuietHoursAroundNow(string where, string member)
-    {
-        var hour = League.Now.UtcDateTime.Hour;
-        return where == "inside"
-            ? League.SetQuietHours(member, (hour + 23) % 24, (hour + 2) % 24, "UTC")
-            : League.SetQuietHours(member, (hour + 12) % 24, (hour + 13) % 24, "UTC");
-    }
+    public Task GivenQuietHoursAroundNow(string where, string member) =>
+        League.KeepQuietHoursAroundNow(member, inside: where == "inside");
 
     [Then(@"^(\w+) was texted:$")]
     public async Task ThenTexted(string member, DataTable messages)

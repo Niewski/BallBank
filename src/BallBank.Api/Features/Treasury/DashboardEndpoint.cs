@@ -36,8 +36,8 @@ public sealed record Delinquent(
 
 /// <summary>How the last reminder for an account went.</summary>
 /// <param name="At">When it was sent; when it was decided, if it has not been.</param>
-/// <param name="Status">One of <see cref="NotificationStatus"/>: sent, held for the member's quiet hours, skipped for want of consent, or still pending.</param>
-/// <param name="Reason">Why it was skipped or held.</param>
+/// <param name="Status">One of <see cref="NotificationStatus"/>: sent (and, once Twilio has reported, delivered, undelivered or failed), held for the member's quiet hours, skipped for want of consent, or still pending.</param>
+/// <param name="Reason">Why it was skipped or held, or the error Twilio gave when it did not deliver it.</param>
 public sealed record LastReminder(DateTimeOffset At, string Status, string? Reason);
 
 /// <summary>The treasurer's dashboard for one season.</summary>

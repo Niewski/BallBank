@@ -112,8 +112,10 @@ the due-date reminders and releases held texts, then exits.
 - **Running it twice is safe.** A reminder is sent once per account, due date and stage, and a second
   execution, or one overlapping the first, finds that and does nothing.
 - **A reminder did not arrive.** On the dashboard, the delinquent's last reminder says whether it was
-  `Sent`, `Held` (their quiet hours; the tick sends it when they end), or `Skipped` (no consent at their
-  number, or the number opted out), and why. None at all means no tick has found them due yet.
+  `Sent` (and, once Twilio's status callback has come back, `Delivered`, or `Undelivered` or `Failed`
+  with Twilio's error), `Held` (their quiet hours; the tick sends it when they end), or `Skipped` (no
+  consent at their number, or the number opted out), and why. None at all means no tick has found them
+  due yet.
 
 ## Rotate a secret
 
@@ -129,6 +131,14 @@ and queues texts, but every send fails and is dead-lettered after its retries (s
 dead-lettered message"), so a rotated token that does not take shows as dead letters naming
 `SendNotification`, not as a failed command. After rotating, confirm with a text to a member who has
 opted in.
+
+Twilio's callbacks (`/webhooks/twilio/status` and `/webhooks/twilio/inbound`) are signed with the same
+auth token. The number's incoming-message webhook, in Twilio's console, must be
+`{Twilio:StatusCallbackBaseUrl}/webhooks/twilio/inbound`, and `Twilio:StatusCallbackBaseUrl` must be the
+exact address Twilio calls (scheme, host and any path prefix), because the signature covers the URL as
+Twilio saw it. If every callback is answered `403`, look for the warning "its Twilio signature did not
+match" in the API's logs: the cause is a base URL that differs from the public one, or a token that
+was rotated on one side only. Texts still go, but their status stays `Sent`, and a STOP is not recorded.
 
 ## Wake-up check before Sunday night
 

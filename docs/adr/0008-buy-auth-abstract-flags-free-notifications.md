@@ -56,9 +56,12 @@ cost is SMS.
   `POST /webhooks/twilio/status?league=&notification=`. It is faked at the HTTP message handler, like
   Discord and Sleeper. Its auth token and the member's number are never logged, traced or put in an
   exception. None of its settings are in the repository.
-- Not yet built: the status callback endpoint and STOP handling. The tick that sends held texts and
-  due-date reminders is built ([ADR-0007](0007-scheduled-work-under-scale-to-zero.md)). A send
-  that fails after its retries is dead-lettered without failing the command, as for Discord; a send
-  the tick makes is not, but stays pending for the next tick and fails the Job.
+- Twilio calls back on two signed endpoints, `/webhooks/twilio/status` (a text's delivery status, which
+  only moves forward) and `/webhooks/twilio/inbound` (STOP records, START deletes, a `PhoneOptOut`); see
+  [domain.md](../domain.md#twilios-callbacks) and [ADR-0005](0005-idempotency-and-concurrency.md).
+- The tick that sends held texts and due-date reminders is built
+  ([ADR-0007](0007-scheduled-work-under-scale-to-zero.md)). A send that fails after its retries is
+  dead-lettered without failing the command, as for Discord; a send the tick makes is not, but stays
+  pending for the next tick and fails the Job.
 - A resilience retry of Twilio's POST can send a text twice if the first was accepted but its answer was
   lost. Twilio has no idempotency key for messages, so this is accepted for now.

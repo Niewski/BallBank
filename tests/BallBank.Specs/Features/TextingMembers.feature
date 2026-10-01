@@ -195,3 +195,102 @@ Feature: Texting members
     Then Sam was texted:
       | message                                                                                       |
       | BallBank: Holland Hogs confirmed your $50.00 Venmo payment. Your statement: {Sam's statement} |
+
+  # Twilio calls back as the texts go and as members reply, so these run over HTTP, where a call can be signed.
+
+  @http
+  Scenario Outline: The treasurer can tell a text that arrived from one that did not, and from one still on its way
+    Given season dues of $50 due on 2026-10-01
+    And Sam has recorded the phone number "555 010 0050"
+    And Sam has opted in to texts
+    And it is outside Sam's quiet hours
+    When the treasurer assesses Sam $25 for "Trophy fund" due on 2026-11-01
+    Then Sam's text shows as sent
+    When Twilio reports Sam's text as "<reported>"
+    Then Sam's text shows as <shown>
+
+    Examples:
+      | reported    | shown       |
+      | queued      | sent        |
+      | sent        | sent        |
+      | delivered   | delivered   |
+      | undelivered | undelivered |
+      | failed      | failed      |
+
+  @http
+  Scenario: A report made twice records one status
+    Given season dues of $50 due on 2026-10-01
+    And Sam has recorded the phone number "555 010 0050"
+    And Sam has opted in to texts
+    And it is outside Sam's quiet hours
+    When the treasurer assesses Sam $25 for "Trophy fund" due on 2026-11-01
+    And Twilio reports Sam's text as "delivered"
+    And Twilio reports Sam's text as "delivered"
+    Then Twilio is answered that all is well
+    And Sam's text shows as delivered
+
+  @http
+  Scenario: A report that arrives late does not take a status back
+    Given season dues of $50 due on 2026-10-01
+    And Sam has recorded the phone number "555 010 0050"
+    And Sam has opted in to texts
+    And it is outside Sam's quiet hours
+    When the treasurer assesses Sam $25 for "Trophy fund" due on 2026-11-01
+    And Twilio reports Sam's text as "delivered"
+    And Twilio reports Sam's text as "sent"
+    Then Sam's text shows as delivered
+
+  @http
+  Scenario: A report that Twilio did not sign is refused and changes nothing
+    Given season dues of $50 due on 2026-10-01
+    And Sam has recorded the phone number "555 010 0050"
+    And Sam has opted in to texts
+    And it is outside Sam's quiet hours
+    When the treasurer assesses Sam $25 for "Trophy fund" due on 2026-11-01
+    And someone who is not Twilio reports Sam's text as "delivered"
+    Then the request is refused
+    And Sam's text shows as sent
+
+  @http
+  Scenario: STOP stops a number's texts in every league it is in, and START resumes them
+    Given season dues of $50 due on 2026-10-01
+    And Sam has recorded the phone number "555 010 0052"
+    And Sam has opted in to texts
+    And it is outside Sam's quiet hours
+    And Sam is also in a second league at that number, opted in and outside their quiet hours
+    When Sam replies "STOP"
+    Then Sam is opted out of texts
+    When the treasurer assesses Sam $25 for "Trophy fund" due on 2026-11-01
+    And the second league's treasurer assesses Sam $25 for "Trophy fund" due on 2026-11-01
+    Then Sam was not texted
+    And Sam was not texted in the second league
+    When Sam replies "START"
+    Then Sam is not opted out of texts
+    When the treasurer assesses Sam $10 for "Banquet" due on 2026-12-01
+    And the second league's treasurer assesses Sam $10 for "Banquet" due on 2026-12-01
+    Then Sam was texted:
+      | message                                                                                                       |
+      | BallBank: Holland Hogs assessed you $10.00 for Banquet, due Dec 1, 2026. Your statement: {Sam's statement} |
+    And Sam was texted once in the second league
+
+  @http
+  Scenario: Any other reply leaves a number's texts as they were
+    Given season dues of $50 due on 2026-10-01
+    And Sam has recorded the phone number "555 010 0053"
+    And Sam has opted in to texts
+    And it is outside Sam's quiet hours
+    When Sam replies "Thanks!"
+    And the treasurer assesses Sam $25 for "Trophy fund" due on 2026-11-01
+    Then Twilio is answered that all is well
+    And Sam is not opted out of texts
+    And Sam was texted:
+      | message                                                                                                        |
+      | BallBank: Holland Hogs assessed you $25.00 for Trophy fund, due Nov 1, 2026. Your statement: {Sam's statement} |
+
+  @http
+  Scenario: A STOP that Twilio did not sign stops nobody's texts
+    Given Sam has recorded the phone number "555 010 0054"
+    And Sam has opted in to texts
+    When someone who is not Twilio sends "STOP" from Sam's number
+    Then the request is refused
+    And Sam is not opted out of texts

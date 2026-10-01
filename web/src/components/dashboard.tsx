@@ -22,8 +22,9 @@ type DashboardFigures = {
 };
 
 // How the last due-date reminder for an account went: the notification's status
-// (Sent, Held, Skipped, Pending or Dropped) and, for the two that were not sent,
-// why. `at` is when it was sent, or when it was decided.
+// (Sent, Delivered, Undelivered, Failed, Held, Skipped, Pending or Dropped) and,
+// for the ones that were held, skipped or not delivered, why. `at` is when it was
+// sent, or when it was decided.
 type LastReminder = {
   at: string;
   status: string;
@@ -328,6 +329,18 @@ function ReminderStatus({
   switch (reminder.status) {
     case "Sent":
       return <>Texted {ago}</>;
+    case "Delivered":
+      return <>Delivered {ago}</>;
+    case "Undelivered":
+    case "Failed":
+      return (
+        <>
+          Not delivered
+          {reminder.reason && (
+            <span className="ml-2 text-xs text-zinc-500">{reminder.reason}</span>
+          )}
+        </>
+      );
     case "Held":
       return (
         <>

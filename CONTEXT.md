@@ -11,7 +11,7 @@ not before.
 | **Membership** | Leagues, members, identities, claims, invites, roles, the Sleeper import | `src/BallBank.Domain/Membership`, `src/BallBank.Api/Features/Membership` |
 | **Treasury** | Assessments, attestations, confirmations, adjustments, payouts, season close | `src/BallBank.Domain/Treasury`, `src/BallBank.Api/Features/Treasury` |
 | **Payment Rails** | How a payment is said to have moved; adapters that verify or demo it | `src/BallBank.Api/Integrations` (planned) |
-| **Notifications** | What BallBank tells a league's channels, and what a member agreed to be told: the season opening and confirmed payments over Discord; a member's consent and quiet hours for text messages, and the texts about their account and about attestations; the due-date reminders and the tick that sends them and releases held texts; digests, STOP handling and delivery status to come | `src/BallBank.Domain/Notifications`, `src/BallBank.Api/Features/Notifications`, `src/BallBank.Api/Integrations/Discord`, `src/BallBank.Api/Integrations/Twilio` |
+| **Notifications** | What BallBank tells a league's channels, and what a member agreed to be told: the season opening and confirmed payments over Discord; a member's consent and quiet hours for text messages, and the texts about their account and about attestations; what Twilio reports back (a text's delivery status, a member's STOP and START); the due-date reminders and the tick that sends them and releases held texts; digests to come | `src/BallBank.Domain/Notifications`, `src/BallBank.Api/Features/Notifications`, `src/BallBank.Api/Integrations/Discord`, `src/BallBank.Api/Integrations/Twilio` |
 
 ## Glossary
 
@@ -55,7 +55,8 @@ specific number, and recorded with when they gave it. It belongs to the number: 
 has no consent until the member opts in at it, and consent goes with the claim it was given under.
 A member *may be texted* while consent stands at the number on record and that number has not
 opted out. An **opt-out** is a number's, not a member's: the STOP a number replied with, which binds
-every league it is in and outranks consent. A member turning texts off in the app withdraws consent,
+every league it is in and outranks consent until the number replies START, after which consent
+decides again. A member turning texts off in the app withdraws consent,
 which is not an opt-out. Not: "subscription", "opt-in flag", "permission".
 
 **Quiet hours** — The hours a member asks not to be texted, by their own clock: a start hour, an end

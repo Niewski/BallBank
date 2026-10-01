@@ -69,8 +69,8 @@ As built:
   ADR-0008 already accepts of Twilio's retries.
 - **One summary line per league** at `Information`: sent, held, skipped and failed, scoped with the
   league's `tenant.id`. A league that throws is logged at `Error` and does not stop the others.
-- **The dashboard** shows each delinquent member's last reminder and how it went (sent, held,
-  skipped), so the treasurer sees who has been told.
+- **The dashboard** shows each delinquent member's last reminder and how it went (sent, then
+  delivered or not as Twilio reports it, held, skipped), so the treasurer sees who has been told.
 
 The weekly delinquency digest is not built; it will be one more thing the tick does.
 

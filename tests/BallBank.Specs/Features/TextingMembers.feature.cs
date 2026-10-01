@@ -119,7 +119,7 @@ namespace BallBank.Specs.Features
         
         private static global::Reqnroll.Formatters.RuntimeSupport.FeatureLevelCucumberMessages InitializeCucumberMessages()
         {
-            return new global::Reqnroll.Formatters.RuntimeSupport.FeatureLevelCucumberMessages("Features/TextingMembers.feature.ndjson", 25);
+            return new global::Reqnroll.Formatters.RuntimeSupport.FeatureLevelCucumberMessages("Features/TextingMembers.feature.ndjson", 36);
         }
         
         async global::System.Threading.Tasks.Task global::Xunit.IAsyncLifetime.InitializeAsync()
@@ -612,13 +612,13 @@ namespace BallBank.Specs.Features
 #line 77
     await testRunner.WhenAsync("the treasurer opens the \"2026\" season with dues of $50 due on 2026-10-01", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
 #line hidden
-                global::Reqnroll.Table table27 = new global::Reqnroll.Table(new string[] {
+                global::Reqnroll.Table table1 = new global::Reqnroll.Table(new string[] {
                             "message"});
-                table27.AddRow(new string[] {
+                table1.AddRow(new string[] {
                             "BallBank: Holland Hogs assessed you $50.00 for Season dues, due Oct 1, 2026. Your" +
                                 " statement: {Sam\'s statement}"});
 #line 78
-    await testRunner.ThenAsync("Sam was texted:", ((string)(null)), table27, "Then ");
+    await testRunner.ThenAsync("Sam was texted:", ((string)(null)), table1, "Then ");
 #line hidden
 #line 81
     await testRunner.AndAsync("Priya was not texted", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
@@ -666,13 +666,13 @@ namespace BallBank.Specs.Features
 #line 88
     await testRunner.WhenAsync("the treasurer assesses Sam $25 for \"Trophy fund\" due on 2026-11-01", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
 #line hidden
-                global::Reqnroll.Table table28 = new global::Reqnroll.Table(new string[] {
+                global::Reqnroll.Table table2 = new global::Reqnroll.Table(new string[] {
                             "message"});
-                table28.AddRow(new string[] {
+                table2.AddRow(new string[] {
                             "BallBank: Holland Hogs assessed you $25.00 for Trophy fund, due Nov 1, 2026. Your" +
                                 " statement: {Sam\'s statement}"});
 #line 89
-    await testRunner.ThenAsync("Sam was texted:", ((string)(null)), table28, "Then ");
+    await testRunner.ThenAsync("Sam was texted:", ((string)(null)), table2, "Then ");
 #line hidden
             }
             await this.ScenarioCleanupAsync();
@@ -717,13 +717,13 @@ namespace BallBank.Specs.Features
 #line 98
     await testRunner.WhenAsync("Sam attests a $50 Venmo payment with reference \"VN-1234\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
 #line hidden
-                global::Reqnroll.Table table29 = new global::Reqnroll.Table(new string[] {
+                global::Reqnroll.Table table3 = new global::Reqnroll.Table(new string[] {
                             "message"});
-                table29.AddRow(new string[] {
+                table3.AddRow(new string[] {
                             "BallBank: Sam says they paid $50.00 by Venmo (VN-1234) in Holland Hogs. Confirm o" +
                                 "r reject it: {Sam\'s statement}"});
 #line 99
-    await testRunner.ThenAsync("Jacob was texted:", ((string)(null)), table29, "Then ");
+    await testRunner.ThenAsync("Jacob was texted:", ((string)(null)), table3, "Then ");
 #line hidden
 #line 102
     await testRunner.AndAsync("Sam was not texted", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
@@ -774,13 +774,13 @@ namespace BallBank.Specs.Features
 #line 110
     await testRunner.AndAsync("the treasurer confirms Sam\'s payment", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
-                global::Reqnroll.Table table30 = new global::Reqnroll.Table(new string[] {
+                global::Reqnroll.Table table4 = new global::Reqnroll.Table(new string[] {
                             "message"});
-                table30.AddRow(new string[] {
+                table4.AddRow(new string[] {
                             "BallBank: Holland Hogs confirmed your $50.00 Venmo payment. Your statement: {Sam\'" +
                                 "s statement}"});
 #line 111
-    await testRunner.ThenAsync("Sam was texted:", ((string)(null)), table30, "Then ");
+    await testRunner.ThenAsync("Sam was texted:", ((string)(null)), table4, "Then ");
 #line hidden
             }
             await this.ScenarioCleanupAsync();
@@ -829,13 +829,13 @@ namespace BallBank.Specs.Features
     await testRunner.AndAsync("the treasurer rejects Sam\'s payment because \"No Zelle with that reference arrived" +
                         "\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
-                global::Reqnroll.Table table31 = new global::Reqnroll.Table(new string[] {
+                global::Reqnroll.Table table5 = new global::Reqnroll.Table(new string[] {
                             "message"});
-                table31.AddRow(new string[] {
+                table5.AddRow(new string[] {
                             "BallBank: Holland Hogs rejected your $50.00 Zelle payment: No Zelle with that ref" +
                                 "erence arrived. Your statement: {Sam\'s statement}"});
 #line 122
-    await testRunner.ThenAsync("Sam was texted:", ((string)(null)), table31, "Then ");
+    await testRunner.ThenAsync("Sam was texted:", ((string)(null)), table5, "Then ");
 #line hidden
             }
             await this.ScenarioCleanupAsync();
@@ -880,13 +880,13 @@ namespace BallBank.Specs.Features
 #line 131
     await testRunner.WhenAsync("the treasurer adjusts Sam\'s balance by -$5 because \"Waived: hosted the draft\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
 #line hidden
-                global::Reqnroll.Table table32 = new global::Reqnroll.Table(new string[] {
+                global::Reqnroll.Table table6 = new global::Reqnroll.Table(new string[] {
                             "message"});
-                table32.AddRow(new string[] {
+                table6.AddRow(new string[] {
                             "BallBank: Holland Hogs lowered your balance by $5.00: Waived: hosted the draft. Y" +
                                 "our statement: {Sam\'s statement}"});
 #line 132
-    await testRunner.ThenAsync("Sam was texted:", ((string)(null)), table32, "Then ");
+    await testRunner.ThenAsync("Sam was texted:", ((string)(null)), table6, "Then ");
 #line hidden
             }
             await this.ScenarioCleanupAsync();
@@ -1145,13 +1145,13 @@ namespace BallBank.Specs.Features
 #line 182
     await testRunner.WhenAsync("the tick runs 3 hours later", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
 #line hidden
-                global::Reqnroll.Table table33 = new global::Reqnroll.Table(new string[] {
+                global::Reqnroll.Table table7 = new global::Reqnroll.Table(new string[] {
                             "message"});
-                table33.AddRow(new string[] {
+                table7.AddRow(new string[] {
                             "BallBank: Holland Hogs confirmed your $50.00 Venmo payment. Your statement: {Sam\'" +
                                 "s statement}"});
 #line 183
-    await testRunner.ThenAsync("Sam was texted:", ((string)(null)), table33, "Then ");
+    await testRunner.ThenAsync("Sam was texted:", ((string)(null)), table7, "Then ");
 #line hidden
             }
             await this.ScenarioCleanupAsync();
@@ -1202,13 +1202,442 @@ namespace BallBank.Specs.Features
 #line 194
     await testRunner.AndAsync("the treasurer confirms Sam\'s payment", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
-                global::Reqnroll.Table table34 = new global::Reqnroll.Table(new string[] {
+                global::Reqnroll.Table table8 = new global::Reqnroll.Table(new string[] {
                             "message"});
-                table34.AddRow(new string[] {
+                table8.AddRow(new string[] {
                             "BallBank: Holland Hogs confirmed your $50.00 Venmo payment. Your statement: {Sam\'" +
                                 "s statement}"});
 #line 195
-    await testRunner.ThenAsync("Sam was texted:", ((string)(null)), table34, "Then ");
+    await testRunner.ThenAsync("Sam was texted:", ((string)(null)), table8, "Then ");
+#line hidden
+            }
+            await this.ScenarioCleanupAsync();
+        }
+        
+        [global::Xunit.SkippableTheoryAttribute(DisplayName="The treasurer can tell a text that arrived from one that did not, and from one st" +
+            "ill on its way")]
+        [global::Xunit.TraitAttribute("FeatureTitle", "Texting members")]
+        [global::Xunit.TraitAttribute("Description", "The treasurer can tell a text that arrived from one that did not, and from one st" +
+            "ill on its way")]
+        [global::Xunit.TraitAttribute("Category", "http")]
+        [global::Xunit.InlineDataAttribute("queued", "sent", "23", new string[0])]
+        [global::Xunit.InlineDataAttribute("sent", "sent", "24", new string[0])]
+        [global::Xunit.InlineDataAttribute("delivered", "delivered", "25", new string[0])]
+        [global::Xunit.InlineDataAttribute("undelivered", "undelivered", "26", new string[0])]
+        [global::Xunit.InlineDataAttribute("failed", "failed", "27", new string[0])]
+        public async global::System.Threading.Tasks.Task TheTreasurerCanTellATextThatArrivedFromOneThatDidNotAndFromOneStillOnItsWay(string reported, string shown, string @__pickleIndex, string[] exampleTags)
+        {
+            string[] @__tags = new string[] {
+                    "http"};
+            if ((exampleTags != null))
+            {
+                @__tags = System.Linq.Enumerable.ToArray(System.Linq.Enumerable.Concat(@__tags, exampleTags));
+            }
+            string[] tagsOfScenario = @__tags;
+            global::System.Collections.Specialized.OrderedDictionary argumentsOfScenario = new global::System.Collections.Specialized.OrderedDictionary();
+            argumentsOfScenario.Add("reported", reported);
+            argumentsOfScenario.Add("shown", shown);
+            string pickleIndex = @__pickleIndex;
+            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("The treasurer can tell a text that arrived from one that did not, and from one st" +
+                    "ill on its way", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
+            string[] tagsOfRule = ((string[])(null));
+            global::Reqnroll.RuleInfo ruleInfo = null;
+#line 202
+  this.ScenarioInitialize(scenarioInfo, ruleInfo);
+#line hidden
+            if ((global::Reqnroll.TagHelper.ContainsIgnoreTag(scenarioInfo.CombinedTags) || global::Reqnroll.TagHelper.ContainsIgnoreTag(featureTags)))
+            {
+                await testRunner.SkipScenarioAsync();
+            }
+            else
+            {
+                await this.ScenarioStartAsync();
+#line 9
+  await this.FeatureBackgroundAsync();
+#line hidden
+#line 203
+    await testRunner.GivenAsync("season dues of $50 due on 2026-10-01", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
+#line hidden
+#line 204
+    await testRunner.AndAsync("Sam has recorded the phone number \"555 010 0050\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+#line 205
+    await testRunner.AndAsync("Sam has opted in to texts", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+#line 206
+    await testRunner.AndAsync("it is outside Sam\'s quiet hours", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+#line 207
+    await testRunner.WhenAsync("the treasurer assesses Sam $25 for \"Trophy fund\" due on 2026-11-01", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
+#line hidden
+#line 208
+    await testRunner.ThenAsync("Sam\'s text shows as sent", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
+#line hidden
+#line 209
+    await testRunner.WhenAsync(string.Format("Twilio reports Sam\'s text as \"{0}\"", reported), ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
+#line hidden
+#line 210
+    await testRunner.ThenAsync(string.Format("Sam\'s text shows as {0}", shown), ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
+#line hidden
+            }
+            await this.ScenarioCleanupAsync();
+        }
+        
+        [global::Xunit.SkippableFactAttribute(DisplayName="A report made twice records one status")]
+        [global::Xunit.TraitAttribute("FeatureTitle", "Texting members")]
+        [global::Xunit.TraitAttribute("Description", "A report made twice records one status")]
+        [global::Xunit.TraitAttribute("Category", "http")]
+        public async global::System.Threading.Tasks.Task AReportMadeTwiceRecordsOneStatus()
+        {
+            string[] tagsOfScenario = new string[] {
+                    "http"};
+            global::System.Collections.Specialized.OrderedDictionary argumentsOfScenario = new global::System.Collections.Specialized.OrderedDictionary();
+            string pickleIndex = "28";
+            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("A report made twice records one status", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
+            string[] tagsOfRule = ((string[])(null));
+            global::Reqnroll.RuleInfo ruleInfo = null;
+#line 221
+  this.ScenarioInitialize(scenarioInfo, ruleInfo);
+#line hidden
+            if ((global::Reqnroll.TagHelper.ContainsIgnoreTag(scenarioInfo.CombinedTags) || global::Reqnroll.TagHelper.ContainsIgnoreTag(featureTags)))
+            {
+                await testRunner.SkipScenarioAsync();
+            }
+            else
+            {
+                await this.ScenarioStartAsync();
+#line 9
+  await this.FeatureBackgroundAsync();
+#line hidden
+#line 222
+    await testRunner.GivenAsync("season dues of $50 due on 2026-10-01", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
+#line hidden
+#line 223
+    await testRunner.AndAsync("Sam has recorded the phone number \"555 010 0050\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+#line 224
+    await testRunner.AndAsync("Sam has opted in to texts", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+#line 225
+    await testRunner.AndAsync("it is outside Sam\'s quiet hours", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+#line 226
+    await testRunner.WhenAsync("the treasurer assesses Sam $25 for \"Trophy fund\" due on 2026-11-01", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
+#line hidden
+#line 227
+    await testRunner.AndAsync("Twilio reports Sam\'s text as \"delivered\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+#line 228
+    await testRunner.AndAsync("Twilio reports Sam\'s text as \"delivered\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+#line 229
+    await testRunner.ThenAsync("Twilio is answered that all is well", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
+#line hidden
+#line 230
+    await testRunner.AndAsync("Sam\'s text shows as delivered", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+            }
+            await this.ScenarioCleanupAsync();
+        }
+        
+        [global::Xunit.SkippableFactAttribute(DisplayName="A report that arrives late does not take a status back")]
+        [global::Xunit.TraitAttribute("FeatureTitle", "Texting members")]
+        [global::Xunit.TraitAttribute("Description", "A report that arrives late does not take a status back")]
+        [global::Xunit.TraitAttribute("Category", "http")]
+        public async global::System.Threading.Tasks.Task AReportThatArrivesLateDoesNotTakeAStatusBack()
+        {
+            string[] tagsOfScenario = new string[] {
+                    "http"};
+            global::System.Collections.Specialized.OrderedDictionary argumentsOfScenario = new global::System.Collections.Specialized.OrderedDictionary();
+            string pickleIndex = "29";
+            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("A report that arrives late does not take a status back", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
+            string[] tagsOfRule = ((string[])(null));
+            global::Reqnroll.RuleInfo ruleInfo = null;
+#line 233
+  this.ScenarioInitialize(scenarioInfo, ruleInfo);
+#line hidden
+            if ((global::Reqnroll.TagHelper.ContainsIgnoreTag(scenarioInfo.CombinedTags) || global::Reqnroll.TagHelper.ContainsIgnoreTag(featureTags)))
+            {
+                await testRunner.SkipScenarioAsync();
+            }
+            else
+            {
+                await this.ScenarioStartAsync();
+#line 9
+  await this.FeatureBackgroundAsync();
+#line hidden
+#line 234
+    await testRunner.GivenAsync("season dues of $50 due on 2026-10-01", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
+#line hidden
+#line 235
+    await testRunner.AndAsync("Sam has recorded the phone number \"555 010 0050\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+#line 236
+    await testRunner.AndAsync("Sam has opted in to texts", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+#line 237
+    await testRunner.AndAsync("it is outside Sam\'s quiet hours", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+#line 238
+    await testRunner.WhenAsync("the treasurer assesses Sam $25 for \"Trophy fund\" due on 2026-11-01", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
+#line hidden
+#line 239
+    await testRunner.AndAsync("Twilio reports Sam\'s text as \"delivered\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+#line 240
+    await testRunner.AndAsync("Twilio reports Sam\'s text as \"sent\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+#line 241
+    await testRunner.ThenAsync("Sam\'s text shows as delivered", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
+#line hidden
+            }
+            await this.ScenarioCleanupAsync();
+        }
+        
+        [global::Xunit.SkippableFactAttribute(DisplayName="A report that Twilio did not sign is refused and changes nothing")]
+        [global::Xunit.TraitAttribute("FeatureTitle", "Texting members")]
+        [global::Xunit.TraitAttribute("Description", "A report that Twilio did not sign is refused and changes nothing")]
+        [global::Xunit.TraitAttribute("Category", "http")]
+        public async global::System.Threading.Tasks.Task AReportThatTwilioDidNotSignIsRefusedAndChangesNothing()
+        {
+            string[] tagsOfScenario = new string[] {
+                    "http"};
+            global::System.Collections.Specialized.OrderedDictionary argumentsOfScenario = new global::System.Collections.Specialized.OrderedDictionary();
+            string pickleIndex = "30";
+            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("A report that Twilio did not sign is refused and changes nothing", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
+            string[] tagsOfRule = ((string[])(null));
+            global::Reqnroll.RuleInfo ruleInfo = null;
+#line 244
+  this.ScenarioInitialize(scenarioInfo, ruleInfo);
+#line hidden
+            if ((global::Reqnroll.TagHelper.ContainsIgnoreTag(scenarioInfo.CombinedTags) || global::Reqnroll.TagHelper.ContainsIgnoreTag(featureTags)))
+            {
+                await testRunner.SkipScenarioAsync();
+            }
+            else
+            {
+                await this.ScenarioStartAsync();
+#line 9
+  await this.FeatureBackgroundAsync();
+#line hidden
+#line 245
+    await testRunner.GivenAsync("season dues of $50 due on 2026-10-01", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
+#line hidden
+#line 246
+    await testRunner.AndAsync("Sam has recorded the phone number \"555 010 0050\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+#line 247
+    await testRunner.AndAsync("Sam has opted in to texts", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+#line 248
+    await testRunner.AndAsync("it is outside Sam\'s quiet hours", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+#line 249
+    await testRunner.WhenAsync("the treasurer assesses Sam $25 for \"Trophy fund\" due on 2026-11-01", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
+#line hidden
+#line 250
+    await testRunner.AndAsync("someone who is not Twilio reports Sam\'s text as \"delivered\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+#line 251
+    await testRunner.ThenAsync("the request is refused", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
+#line hidden
+#line 252
+    await testRunner.AndAsync("Sam\'s text shows as sent", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+            }
+            await this.ScenarioCleanupAsync();
+        }
+        
+        [global::Xunit.SkippableFactAttribute(DisplayName="STOP stops a number\'s texts in every league it is in, and START resumes them")]
+        [global::Xunit.TraitAttribute("FeatureTitle", "Texting members")]
+        [global::Xunit.TraitAttribute("Description", "STOP stops a number\'s texts in every league it is in, and START resumes them")]
+        [global::Xunit.TraitAttribute("Category", "http")]
+        public async global::System.Threading.Tasks.Task STOPStopsANumbersTextsInEveryLeagueItIsInAndSTARTResumesThem()
+        {
+            string[] tagsOfScenario = new string[] {
+                    "http"};
+            global::System.Collections.Specialized.OrderedDictionary argumentsOfScenario = new global::System.Collections.Specialized.OrderedDictionary();
+            string pickleIndex = "31";
+            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("STOP stops a number\'s texts in every league it is in, and START resumes them", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
+            string[] tagsOfRule = ((string[])(null));
+            global::Reqnroll.RuleInfo ruleInfo = null;
+#line 255
+  this.ScenarioInitialize(scenarioInfo, ruleInfo);
+#line hidden
+            if ((global::Reqnroll.TagHelper.ContainsIgnoreTag(scenarioInfo.CombinedTags) || global::Reqnroll.TagHelper.ContainsIgnoreTag(featureTags)))
+            {
+                await testRunner.SkipScenarioAsync();
+            }
+            else
+            {
+                await this.ScenarioStartAsync();
+#line 9
+  await this.FeatureBackgroundAsync();
+#line hidden
+#line 256
+    await testRunner.GivenAsync("season dues of $50 due on 2026-10-01", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
+#line hidden
+#line 257
+    await testRunner.AndAsync("Sam has recorded the phone number \"555 010 0052\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+#line 258
+    await testRunner.AndAsync("Sam has opted in to texts", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+#line 259
+    await testRunner.AndAsync("it is outside Sam\'s quiet hours", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+#line 260
+    await testRunner.AndAsync("Sam is also in a second league at that number, opted in and outside their quiet h" +
+                        "ours", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+#line 261
+    await testRunner.WhenAsync("Sam replies \"STOP\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
+#line hidden
+#line 262
+    await testRunner.ThenAsync("Sam is opted out of texts", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
+#line hidden
+#line 263
+    await testRunner.WhenAsync("the treasurer assesses Sam $25 for \"Trophy fund\" due on 2026-11-01", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
+#line hidden
+#line 264
+    await testRunner.AndAsync("the second league\'s treasurer assesses Sam $25 for \"Trophy fund\" due on 2026-11-0" +
+                        "1", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+#line 265
+    await testRunner.ThenAsync("Sam was not texted", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
+#line hidden
+#line 266
+    await testRunner.AndAsync("Sam was not texted in the second league", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+#line 267
+    await testRunner.WhenAsync("Sam replies \"START\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
+#line hidden
+#line 268
+    await testRunner.ThenAsync("Sam is not opted out of texts", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
+#line hidden
+#line 269
+    await testRunner.WhenAsync("the treasurer assesses Sam $10 for \"Banquet\" due on 2026-12-01", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
+#line hidden
+#line 270
+    await testRunner.AndAsync("the second league\'s treasurer assesses Sam $10 for \"Banquet\" due on 2026-12-01", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+                global::Reqnroll.Table table9 = new global::Reqnroll.Table(new string[] {
+                            "message"});
+                table9.AddRow(new string[] {
+                            "BallBank: Holland Hogs assessed you $10.00 for Banquet, due Dec 1, 2026. Your sta" +
+                                "tement: {Sam\'s statement}"});
+#line 271
+    await testRunner.ThenAsync("Sam was texted:", ((string)(null)), table9, "Then ");
+#line hidden
+#line 274
+    await testRunner.AndAsync("Sam was texted once in the second league", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+            }
+            await this.ScenarioCleanupAsync();
+        }
+        
+        [global::Xunit.SkippableFactAttribute(DisplayName="Any other reply leaves a number\'s texts as they were")]
+        [global::Xunit.TraitAttribute("FeatureTitle", "Texting members")]
+        [global::Xunit.TraitAttribute("Description", "Any other reply leaves a number\'s texts as they were")]
+        [global::Xunit.TraitAttribute("Category", "http")]
+        public async global::System.Threading.Tasks.Task AnyOtherReplyLeavesANumbersTextsAsTheyWere()
+        {
+            string[] tagsOfScenario = new string[] {
+                    "http"};
+            global::System.Collections.Specialized.OrderedDictionary argumentsOfScenario = new global::System.Collections.Specialized.OrderedDictionary();
+            string pickleIndex = "32";
+            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("Any other reply leaves a number\'s texts as they were", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
+            string[] tagsOfRule = ((string[])(null));
+            global::Reqnroll.RuleInfo ruleInfo = null;
+#line 277
+  this.ScenarioInitialize(scenarioInfo, ruleInfo);
+#line hidden
+            if ((global::Reqnroll.TagHelper.ContainsIgnoreTag(scenarioInfo.CombinedTags) || global::Reqnroll.TagHelper.ContainsIgnoreTag(featureTags)))
+            {
+                await testRunner.SkipScenarioAsync();
+            }
+            else
+            {
+                await this.ScenarioStartAsync();
+#line 9
+  await this.FeatureBackgroundAsync();
+#line hidden
+#line 278
+    await testRunner.GivenAsync("season dues of $50 due on 2026-10-01", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
+#line hidden
+#line 279
+    await testRunner.AndAsync("Sam has recorded the phone number \"555 010 0053\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+#line 280
+    await testRunner.AndAsync("Sam has opted in to texts", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+#line 281
+    await testRunner.AndAsync("it is outside Sam\'s quiet hours", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+#line 282
+    await testRunner.WhenAsync("Sam replies \"Thanks!\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
+#line hidden
+#line 283
+    await testRunner.AndAsync("the treasurer assesses Sam $25 for \"Trophy fund\" due on 2026-11-01", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+#line 284
+    await testRunner.ThenAsync("Twilio is answered that all is well", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
+#line hidden
+#line 285
+    await testRunner.AndAsync("Sam is not opted out of texts", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+                global::Reqnroll.Table table10 = new global::Reqnroll.Table(new string[] {
+                            "message"});
+                table10.AddRow(new string[] {
+                            "BallBank: Holland Hogs assessed you $25.00 for Trophy fund, due Nov 1, 2026. Your" +
+                                " statement: {Sam\'s statement}"});
+#line 286
+    await testRunner.AndAsync("Sam was texted:", ((string)(null)), table10, "And ");
+#line hidden
+            }
+            await this.ScenarioCleanupAsync();
+        }
+        
+        [global::Xunit.SkippableFactAttribute(DisplayName="A STOP that Twilio did not sign stops nobody\'s texts")]
+        [global::Xunit.TraitAttribute("FeatureTitle", "Texting members")]
+        [global::Xunit.TraitAttribute("Description", "A STOP that Twilio did not sign stops nobody\'s texts")]
+        [global::Xunit.TraitAttribute("Category", "http")]
+        public async global::System.Threading.Tasks.Task ASTOPThatTwilioDidNotSignStopsNobodysTexts()
+        {
+            string[] tagsOfScenario = new string[] {
+                    "http"};
+            global::System.Collections.Specialized.OrderedDictionary argumentsOfScenario = new global::System.Collections.Specialized.OrderedDictionary();
+            string pickleIndex = "33";
+            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("A STOP that Twilio did not sign stops nobody\'s texts", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
+            string[] tagsOfRule = ((string[])(null));
+            global::Reqnroll.RuleInfo ruleInfo = null;
+#line 291
+  this.ScenarioInitialize(scenarioInfo, ruleInfo);
+#line hidden
+            if ((global::Reqnroll.TagHelper.ContainsIgnoreTag(scenarioInfo.CombinedTags) || global::Reqnroll.TagHelper.ContainsIgnoreTag(featureTags)))
+            {
+                await testRunner.SkipScenarioAsync();
+            }
+            else
+            {
+                await this.ScenarioStartAsync();
+#line 9
+  await this.FeatureBackgroundAsync();
+#line hidden
+#line 292
+    await testRunner.GivenAsync("Sam has recorded the phone number \"555 010 0054\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
+#line hidden
+#line 293
+    await testRunner.AndAsync("Sam has opted in to texts", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+#line 294
+    await testRunner.WhenAsync("someone who is not Twilio sends \"STOP\" from Sam\'s number", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
+#line hidden
+#line 295
+    await testRunner.ThenAsync("the request is refused", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
+#line hidden
+#line 296
+    await testRunner.AndAsync("Sam is not opted out of texts", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
             }
             await this.ScenarioCleanupAsync();

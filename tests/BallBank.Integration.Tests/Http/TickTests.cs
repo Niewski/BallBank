@@ -428,6 +428,33 @@ public class TickTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task A_reminder_Twilio_reports_delivered_shows_as_delivered_on_the_dashboard()
+    {
+        var hogs = await OpenSeasonAt(ThreeDaysBefore);
+        var desk = new TreasurersDesk(Api, hogs);
+        await OptInAt(ThreeDaysBefore, hogs);
+        using (Api.Clock.Set(ThreeDaysBefore))
+        {
+            await RunTick(hogs);
+        }
+
+        await using (var session = Store.LightweightSession(hogs.LeagueId.ToString()))
+        {
+            var reminder = await ReminderFor(hogs, hogs.Sams, ReminderStage.ThreeDaysBefore);
+            reminder.Settle(TextDelivery.Delivered, errorCode: null).ShouldBeTrue();
+            session.Store(reminder);
+            await session.SaveChangesAsync();
+        }
+
+        await desk.Settled();
+        using var _ = Api.Clock.Set(At(2026, 10, 11));
+        var dashboard = (await Api.CreateClientFor(hogs.Jacob).GetFromJsonAsync<Dashboard>($"/leagues/{hogs.LeagueId}/seasons/2026/dashboard")).ShouldNotBeNull();
+
+        dashboard.Delinquents.Single(d => d.MemberId == hogs.Sams).LastReminder
+            .ShouldBe(new LastReminder(ThreeDaysBefore, NotificationStatus.Delivered, Reason: null));
+    }
+
+    [Fact]
     public async Task A_delinquent_who_was_never_reminded_has_no_last_reminder()
     {
         var hogs = await OpenSeasonAt(ThreeDaysBefore);

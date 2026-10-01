@@ -1,7 +1,7 @@
 # ADR-0011: Three sanctioned cross-tenant documents (amends ADR-0004)
 
 - **Status:** Accepted
-- **Date:** 2026-09-24 (amended 2026-09-29 for `PhoneOptOut`)
+- **Date:** 2026-09-24 (amended 2026-09-29 for `PhoneOptOut`; its writer, the Twilio webhook, 2026-10-01)
 
 ## Context
 
@@ -22,7 +22,9 @@ Three documents are exempt from `AllDocumentsAreMultiTenanted()` and live in the
 - `SleeperLeagueIndex`, keyed by Sleeper league id: the BallBank league it backs. Written in the
   same transaction as `LeagueImported`.
 - `PhoneOptOut`, keyed by the number in E.164: that it replied STOP, and when. Read by every league
-  that asks whether a number may be texted; written by the Twilio webhook, which knows only the number.
+  that asks whether a number may be texted. Written by the Twilio inbound webhook
+  (`POST /webhooks/twilio/inbound`), which knows only the number: STOP creates it, keeping the first
+  time if there is one already, and START deletes it. A signed request is the only way either happens.
 
 Authorization reads `UserMemberships` as its fast gate; the league stream remains the source of
 truth and re-checks the role on every treasurer command.
@@ -40,4 +42,6 @@ truth and re-checks the role on every treasurer command.
 Any new cross-tenant document must be added to this ADR. `UserMemberships` and `SleeperLeagueIndex`
 are derived from events and can be rebuilt; they are never the only record of a membership.
 `PhoneOptOut` is not derived from anything in the league: it is the only record that a number said
-STOP, so it is kept, never rebuilt, and holds nothing but the number and the time.
+STOP, so it is kept, never rebuilt, and holds nothing but the number and the time. It is removed only
+by the number's own START; a member's consent in a league is a separate fact, so after START texts
+resume where consent is still on record, and nowhere else.

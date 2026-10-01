@@ -86,7 +86,7 @@ What a member has agreed to be texted is a third document, `NotificationPreferen
 | Document | Keyed by | Holds |
 |---|---|---|
 | `LeagueNotificationSettings` | the league id | The Discord webhook URL, `AnnouncePayments`, `PostDigest` (stored and toggled, but nothing posts the digest yet). Written straight by `PUT …/notifications/discord`, with no event ([ADR-0012](adr/0012-contact-details-are-a-document-not-events.md)); `DELETE` removes it, webhook and flags together, so it exists only while Discord is connected. The webhook is stored as it was accepted (a Discord host, path `/api/webhooks/{id}/{token}`) and is never returned: `GET` answers connected or not, the last four characters, and the flags. Treasurers only. |
-| `Notification` | its dedupe key, `{channel}/{recipient}/{kind}/{cause}` (the league is the recipient of a Discord post, a member of a text) | `Kind`, `Channel`, `MemberId` (for a text), `AccountId` (for a reminder), the rendered `Text`, `Status` (`Pending`, `Sent`, `Dropped`, `Skipped`, `Held`), `Reason` (why `Skipped`), `SendAfter` (when a `Held` one may go), `CreatedAt`, `SentAt`. Inserting it claims the key, so an event handled twice inserts twice, the second insert fails, and nothing more is sent. |
+| `Notification` | its dedupe key, `{channel}/{recipient}/{kind}/{cause}` (the league is the recipient of a Discord post, a member of a text) | `Kind`, `Channel`, `MemberId` (for a text), `AccountId` (for a reminder), the rendered `Text`, `Status` (`Pending`, `Sent`, `Dropped`, `Skipped`, `Held`, and for a text Twilio has reported on, `Delivered`, `Undelivered`, `Failed`), `Reason` (why `Skipped`, or the `Twilio error 30003` an `Undelivered` or `Failed` text came back with), `SendAfter` (when a `Held` one may go), `CreatedAt`, `SentAt`. Inserting it claims the key, so an event handled twice inserts twice, the second insert fails, and nothing more is sent. |
 
 | Event handled | Told, when | Cause in the key |
 |---|---|---|
@@ -155,10 +155,32 @@ could not be finished or any send was refused (`TickReport.Succeeded`). "Today" 
 `TwilioSmsChannel` is the second `INotificationChannel`: a typed `HttpClient` under the resilience
 handler and a rate limit in front of it, posting to Twilio's Messages API from the deployment's one
 toll-free number (`Twilio:FromNumber`), with `StatusCallback` set to
-`POST /webhooks/twilio/status?league=&notification=` on the API (`Twilio:StatusCallbackBaseUrl`); the
-endpoint that receives it, and so a text's delivery status, is not built yet. Neither the auth token
-nor a member's number is logged, traced or put in an exception. A machine without Twilio settings
-fails every send, which ends in the dead-letter queue like any other.
+`POST /webhooks/twilio/status?league=&notification=` on the API (`Twilio:StatusCallbackBaseUrl`).
+Neither the auth token nor a member's number is logged, traced or put in an exception. A machine
+without Twilio settings fails every send, which ends in the dead-letter queue like any other.
+
+### Twilio's callbacks
+
+Two endpoints outside any league route, anonymous but for Twilio's signature, and answered from the
+webhooks' own request budget, partitioned by remote address ([ADR-0013](adr/0013-every-league-has-its-own-request-budget.md)).
+Each recomputes `X-Twilio-Signature` (HMAC-SHA1 of the public URL, rebuilt from
+`Twilio:StatusCallbackBaseUrl`, and the sorted form fields, under `Twilio:AuthToken`) and answers `403`
+when it does not match, or when Twilio is not configured. Nothing is read from a refused request. Both
+are idempotent by what they record ([ADR-0005](adr/0005-idempotency-and-concurrency.md)).
+
+- `POST /webhooks/twilio/status?league=&notification=` — the `MessageStatus` of one text. The league and
+  the notification come from the query string BallBank wrote and Twilio signed, never from the form
+  (`404` for a notification that is not there). A status only moves forward: `queued`, `sending` and
+  `sent` change nothing; `delivered`, `undelivered` and `failed` (or `canceled`) settle a `Sent`
+  notification, with Twilio's `ErrorCode` kept in `Reason`; a settled notification is never changed, so a
+  report made twice, or late, records one state. `Delivered` is delivered, `Undelivered` and `Failed` are
+  the two ways it did not arrive, and `Sent` is still in flight.
+- `POST /webhooks/twilio/inbound` — a member's reply to the toll-free number. The body, trimmed and
+  whole, is read case-insensitively (`SmsReplies.Classify`, with domain tests): `STOP`, `STOPALL`,
+  `UNSUBSCRIBE`, `CANCEL`, `END` and `QUIT` record a `PhoneOptOut` for the sender's number, keeping the
+  first if there is one; `START`, `YES` and `UNSTOP` delete it. Anything else, or a sender that is not
+  an E.164 number, is ignored with `200`. After STOP a number is texted in no league; after START it is
+  texted again in each league where consent at that number is on record.
 
 ### `NotificationPreferences` — one per member, tenant-scoped
 
@@ -186,8 +208,8 @@ version, and read by `GET` (a treasurer, or the member themselves).
 
 `PhoneOptOut` is the STOP a number replied with, keyed by the number and shared by every league it
 appears in, so it lives in the default tenant ([ADR-0011](adr/0011-cross-tenant-documents.md)). The
-notification preferences only *read* it; recording a STOP (and a START) arrives with the Twilio
-webhook.
+notification preferences only *read* it; the inbound webhook above records a STOP and deletes it on a
+START.
 
 ## Idempotency and concurrency
 
@@ -197,7 +219,9 @@ webhook.
   is returned on a retry, and the same key for a different request is a `422`. The answer is an
   `IdempotencyRecord`, scoped to league and caller, written in the same transaction as the events.
   Opening a season is the first endpoint to require it; later mutating endpoints adopt it
-  ([ADR-0005](adr/0005-idempotency-and-concurrency.md)). Webhooks use the provider's event id as the key.
+  ([ADR-0005](adr/0005-idempotency-and-concurrency.md)). Twilio's webhooks carry no key of ours: they are
+  signed, and idempotent by what they record (a status only moves forward; STOP keeps the first
+  `PhoneOptOut`; START deletes it).
 - Commands carry the expected stream `Version`; a stale version is a `409` with the current version.
   Two treasurers confirming the same attestation at once produce exactly one `PaymentConfirmed`.
 - Events and outgoing messages are committed in one transaction (Wolverine's outbox on the Marten
