@@ -12,8 +12,8 @@ a local PostgreSQL holding a mixed season, after deleting the `LeaguePot` docume
 1. **Stop the daemon: stop the API.** Locally, stop `aspire run`; deployed, scale the app to zero
    replicas. The rebuild does not check for a running daemon (it ran beside a live one without a
    word), and a live daemon goes on applying new events to the documents being replayed.
-2. **Run the rebuild from the same image, with the same settings** (`ConnectionStrings__ballbank`, and
-   `Auth0__Domain` / `Auth0__Audience`, which the host insists on even here):
+2. **Run the rebuild from the same image, with the same settings** (`ConnectionStrings__ballbank`,
+   `Auth0__Domain` / `Auth0__Audience` and `Notifications__WebBaseUrl`, which the host insists on even here):
 
    ```
    dotnet BallBank.Api.dll projections rebuild -p LeaguePot
@@ -76,6 +76,16 @@ Written from making a fake Discord refuse, not yet from a real outage.
 
 *(M1)* Auth0 client secret, Neon connection string, Twilio auth token: update in Container Apps
 secrets, restart the revision, confirm `/health`.
+
+The API refuses to start without `Notifications__WebBaseUrl`, where the web app is served, which the
+links in a text point to. The Twilio settings are `Twilio:AccountSid`, `Twilio:AuthToken` (the one to rotate), `Twilio:FromNumber`
+(the deployment's one toll-free number) and `Twilio:StatusCallbackBaseUrl` (where Twilio reports delivery,
+the API's public address). Locally they are `dotnet user-secrets` on `BallBank.Api`; deployed they are
+platform settings (`Twilio__AuthToken` …), never the repo. A machine without them still decides, records
+and queues texts, but every send fails and is dead-lettered after its retries (see "Replay a
+dead-lettered message"), so a rotated token that does not take shows as dead letters naming
+`SendNotification`, not as a failed command. After rotating, confirm with a text to a member who has
+opted in.
 
 ## Wake-up check before Sunday night
 

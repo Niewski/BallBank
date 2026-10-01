@@ -5,12 +5,17 @@ public static class NotificationKinds
 {
     public const string SeasonOpened = "SeasonOpened";
     public const string PaymentConfirmed = "PaymentConfirmed";
+    public const string DuesAssessed = "DuesAssessed";
+    public const string PaymentAttested = "PaymentAttested";
+    public const string PaymentRejected = "PaymentRejected";
+    public const string AdjustmentPosted = "AdjustmentPosted";
 }
 
 /// <summary>Where a notification is delivered.</summary>
 public static class Channels
 {
     public const string Discord = "Discord";
+    public const string Sms = "Sms";
 }
 
 /// <summary>

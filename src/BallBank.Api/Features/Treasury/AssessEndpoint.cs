@@ -1,10 +1,12 @@
 using System.Security.Claims;
 using BallBank.Api.Features.Membership;
+using BallBank.Api.Features.Notifications;
 using BallBank.Domain.Membership;
 using BallBank.Domain.Treasury;
-using Marten;
 using Microsoft.AspNetCore.Authorization;
+using Wolverine;
 using Wolverine.Http;
+using Wolverine.Marten.Publishing;
 
 namespace BallBank.Api.Features.Treasury;
 
@@ -33,11 +35,12 @@ public static class AssessEndpoint
         AssessmentRequest request,
         IdempotentRequest idempotency,
         ClaimsPrincipal user,
-        IDocumentStore store,
+        OutboxedSessionFactory sessions,
+        IMessageContext messaging,
         TimeProvider clock,
         CancellationToken cancellation)
     {
-        await using var session = store.LightweightSession(leagueId.ToString());
+        await using var session = sessions.ForwardingSession(messaging, leagueId);
 
         var league = await session.Events.AggregateStreamAsync<League>(leagueId, token: cancellation);
         var seasonId = SeasonIds.SeasonId(leagueId, season);

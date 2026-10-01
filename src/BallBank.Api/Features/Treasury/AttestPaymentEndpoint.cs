@@ -1,11 +1,13 @@
 using System.Security.Claims;
 using System.Text.Json.Serialization;
 using BallBank.Api.Features.Membership;
+using BallBank.Api.Features.Notifications;
 using BallBank.Domain.Membership;
 using BallBank.Domain.Treasury;
-using Marten;
 using Microsoft.AspNetCore.Authorization;
+using Wolverine;
 using Wolverine.Http;
+using Wolverine.Marten.Publishing;
 
 namespace BallBank.Api.Features.Treasury;
 
@@ -35,7 +37,8 @@ public static class AttestPaymentEndpoint
         AttestPaymentRequest request,
         IdempotentRequest idempotency,
         ClaimsPrincipal user,
-        IDocumentStore store,
+        OutboxedSessionFactory sessions,
+        IMessageContext messaging,
         TimeProvider clock,
         CancellationToken cancellation)
     {
@@ -45,7 +48,7 @@ public static class AttestPaymentEndpoint
         }
 
         // Committed explicitly below, so an attestation recorded since this was read collides rather than interleaves.
-        await using var session = store.LightweightSession(leagueId.ToString());
+        await using var session = sessions.ForwardingSession(messaging, leagueId);
 
         var league = await session.Events.AggregateStreamAsync<League>(leagueId, token: cancellation);
         var stream = await session.Events.FetchForWriting<MemberAccount>(accountId, cancellation);

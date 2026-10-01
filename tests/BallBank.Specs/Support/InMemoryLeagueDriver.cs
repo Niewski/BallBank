@@ -1,13 +1,15 @@
 using BallBank.Domain.Membership;
 using BallBank.Domain.Notifications;
 using BallBank.Domain.Treasury;
+using BallBank.Integration.Tests.Http;
 
 namespace BallBank.Specs.Support;
 
 /// <summary>
 /// The league as aggregates in memory, deciding exactly as the endpoints would: members named ahead of
 /// any account, so opening a season is what creates their accounts; one history of every event. The
-/// default driver, needing neither Docker nor a database.
+/// default driver, needing neither Docker nor a database. As over HTTP, Jacob is the treasurer when he is
+/// a member.
 /// </summary>
 public sealed class InMemoryLeagueDriver : ILeagueDriver
 {
@@ -32,13 +34,17 @@ public sealed class InMemoryLeagueDriver : ILeagueDriver
     private readonly Dictionary<string, SmsConsent> _consents = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, QuietHours> _quietHours = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<string> _postedToDiscord = [];
+    private readonly Dictionary<string, List<string>> _texts = new(StringComparer.OrdinalIgnoreCase);
 
     private readonly Guid _leagueId = Guid.NewGuid();
+    private readonly Guid _anonymousTreasurerId = Guid.NewGuid();
 
     private bool _discordConnected;
     private bool _announcePayments;
 
-    public Guid TreasurerId { get; } = Guid.NewGuid();
+    public Guid TreasurerId => _memberIds.GetValueOrDefault("Jacob", _anonymousTreasurerId);
+
+    DateTimeOffset ILeagueDriver.Now => Now;
 
     public Task OpenLeague(IReadOnlyList<string> members)
     {
@@ -242,6 +248,15 @@ public sealed class InMemoryLeagueDriver : ILeagueDriver
             SmsConsent.PermitsTexting(consent, phone, numberOptedOut: false)));
     }
 
+    public Task<IReadOnlyList<string>> TextsSentTo(string member)
+    {
+        _ = MemberId(member);
+        return Task.FromResult<IReadOnlyList<string>>([.. _texts.GetValueOrDefault(member) ?? []]);
+    }
+
+    public Task<string> StatementLink(string member) =>
+        Task.FromResult(SmsTexts.StatementLink(BallBankApi.WebBaseUrl, _leagueId, Account(member).Id));
+
     /// <summary>The hello, as the endpoint posts it.</summary>
     public Task ConnectDiscord(bool announcePayments)
     {
@@ -307,5 +322,67 @@ public sealed class InMemoryLeagueDriver : ILeagueDriver
         account.Evolve(@event);
         _accountHistories[account.Id].Add(@event);
         _history.Add(@event);
+        TellOf(account, @event);
+    }
+
+    // Who the text handlers would tell of an account's event, in the words of the domain.
+    private void TellOf(MemberAccount account, object @event)
+    {
+        var member = NameOf(account.MemberId)!;
+        var link = SmsTexts.StatementLink(BallBankApi.WebBaseUrl, _leagueId, account.Id);
+
+        switch (@event)
+        {
+            case DuesAssessed assessed:
+                Text(member, SmsTexts.DuesAssessed(LeagueName, assessed.Amount, assessed.Memo, assessed.DueDate, link));
+                break;
+
+            case PaymentAttested attested when NameOf(TreasurerId) is { } treasurer && attested.AttestedBy != TreasurerId:
+                Text(treasurer, SmsTexts.PaymentAttested(
+                    LeagueName, member, attested.Amount, attested.Rail, attested.Reference, link));
+                break;
+
+            case PaymentConfirmed confirmed when confirmed.ConfirmedBy != account.MemberId:
+                var confirmedPayment = Attested(account, confirmed.AttestationId);
+                Text(member, SmsTexts.PaymentConfirmed(LeagueName, confirmedPayment.Amount, confirmedPayment.Rail, link));
+                break;
+
+            case PaymentRejected rejected when rejected.RejectedBy != account.MemberId:
+                var rejectedPayment = Attested(account, rejected.AttestationId);
+                Text(member, SmsTexts.PaymentRejected(LeagueName, rejectedPayment.Amount, rejectedPayment.Rail, rejected.Reason, link));
+                break;
+
+            case AdjustmentPosted posted when posted.PostedBy != account.MemberId:
+                Text(member, SmsTexts.AdjustmentPosted(LeagueName, posted.Amount, posted.Reason, posted.Refund, link));
+                break;
+        }
+    }
+
+    private PaymentAttested Attested(MemberAccount account, Guid attestationId) =>
+        _accountHistories[account.Id].OfType<PaymentAttested>().Single(attested => attested.AttestationId == attestationId);
+
+    private string? NameOf(Guid memberId) => _memberIds.FirstOrDefault(member => member.Value == memberId).Key;
+
+    // As the channel decides when a text is about to be sent: by what the member has said by then.
+    private void Text(string member, string text)
+    {
+        var delivery = SmsDelivery.Decide(
+            _consents.GetValueOrDefault(member),
+            _contacts.GetValueOrDefault(member)?.Phone,
+            numberOptedOut: false,
+            _quietHours.GetValueOrDefault(member) ?? QuietHours.Default,
+            Now);
+
+        if (delivery.Outcome != SmsOutcome.Send)
+        {
+            return;
+        }
+
+        if (!_texts.TryGetValue(member, out var sent))
+        {
+            _texts[member] = sent = [];
+        }
+
+        sent.Add(text);
     }
 }

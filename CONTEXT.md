@@ -11,7 +11,7 @@ not before.
 | **Membership** | Leagues, members, identities, claims, invites, roles, the Sleeper import | `src/BallBank.Domain/Membership`, `src/BallBank.Api/Features/Membership` |
 | **Treasury** | Assessments, attestations, confirmations, adjustments, payouts, season close | `src/BallBank.Domain/Treasury`, `src/BallBank.Api/Features/Treasury` |
 | **Payment Rails** | How a payment is said to have moved; adapters that verify or demo it | `src/BallBank.Api/Integrations` (planned) |
-| **Notifications** | What BallBank tells a league's channels, and what a member agreed to be told: the season opening and confirmed payments over Discord; a member's consent and quiet hours for text messages; reminders, digests and sending SMS to come | `src/BallBank.Domain/Notifications`, `src/BallBank.Api/Features/Notifications`, `src/BallBank.Api/Integrations/Discord` |
+| **Notifications** | What BallBank tells a league's channels, and what a member agreed to be told: the season opening and confirmed payments over Discord; a member's consent and quiet hours for text messages, and the texts about their account and about attestations; reminders, digests, STOP handling and delivery status to come | `src/BallBank.Domain/Notifications`, `src/BallBank.Api/Features/Notifications`, `src/BallBank.Api/Integrations/Discord`, `src/BallBank.Api/Integrations/Twilio` |
 
 ## Glossary
 
@@ -145,19 +145,23 @@ delinquent yet. Not: "late" or "overdue" as a label for the member (those descri
 the date they are), "outstanding" (that is the league-wide total).
 
 **Notification** — One thing BallBank decided to tell someone, because something happened: a season
-opened, a payment was confirmed. It is decided in reaction to a Treasury event and recorded with a dedupe
-key (channel, recipient, kind, cause), so the same cause is never told twice on the same channel, however many
-times its event is handled. It is delivered after the fact, so a channel that is down never holds up the
-books. *Pending* until its channel takes it, *sent* once it has, *dropped* if the league disconnected the
-channel first. What is said is worded in the domain and rendered once, when the event is handled.
-Attesting and rejecting a payment are never announced. Not: "alert", "message" (that is what Wolverine
-calls the thing that carries it), "event" (that is the fact that caused it).
+opened, a payment was confirmed, dues were assessed to a member. It is decided in reaction to a Treasury
+event and recorded with a dedupe key (channel, recipient, kind, cause), so the same cause is never told
+twice on the same channel, however many times its event is handled. It is delivered after the fact, so a
+channel that is down never holds up the books. *Pending* until its channel takes it, *sent* once it has,
+*dropped* if the league disconnected the channel first. A text is also *skipped* if, when it goes, the
+member has no consent at their number or the number opted out, and *held* if it falls in their quiet hours,
+until those end. What is said is worded in the domain and rendered once, when the event is handled.
+Attesting and rejecting a payment are never announced on Discord; by text, a rejection is told to the member
+and an attestation to the treasurers. Nobody is texted about what they did themselves. Not: "alert",
+"message" (that is what Wolverine calls the thing that carries it), "event" (that is the fact that caused it).
 
-**Channel** — Where a notification goes: Discord today, SMS to come. A league connects its Discord
-channel once, with a webhook the treasurer pastes in, and chooses what is announced there. The webhook is
-a secret, since whoever holds it can post to the channel, so no response repeats it whole: only whether
-it is connected and its last few characters. Disconnecting forgets it and everything waiting to be sent.
-Not: "integration", "webhook" (that is Discord's word for the address of one).
+**Channel** — Where a notification goes: Discord, or SMS to a member's own number. A league connects its
+Discord channel once, with a webhook the treasurer pastes in, and chooses what is announced there. The
+webhook is a secret, since whoever holds it can post to the channel, so no response repeats it whole: only
+whether it is connected and its last few characters. Disconnecting forgets it and everything waiting to be
+sent. Every text goes from the deployment's one toll-free number, and names BallBank and the league and
+links to the member's statement. Not: "integration", "webhook" (that is Discord's word for the address of one).
 
 **History** — The event stream itself, with who and when on every entry. The audit trail is not a
 separate thing. Not: "log", "audit table".

@@ -1,7 +1,10 @@
 Feature: Texting members
   A member chooses to be texted, at their own number, and when not to be. Consent is theirs alone:
   a treasurer cannot give it for them, and it belongs to the number, so a new number is not texted
-  until the member opts in at it. Nothing is sent yet; this is the record that someone asked.
+  until the member opts in at it. Opted in, a member is texted what happens on their own account (dues
+  assessed, a payment confirmed or rejected, an adjustment), and a treasurer is texted when a member says
+  they paid. Nobody is texted about what they did themselves, nor inside their quiet hours; those texts
+  wait until the hours end.
 
   Background:
     Given a league "Holland Hogs" with members Jacob, Sam, Priya
@@ -66,3 +69,115 @@ Feature: Texting members
     And Sam has opted in to texts
     When Sam sets their quiet hours from 22 to 7 in "America/Chicago"
     Then Sam is opted in to texts at "+15550100002"
+
+  Scenario: Opening a season texts each opted-in member their dues, and nobody else
+    Given Sam has recorded the phone number "555 010 0002"
+    And Sam has opted in to texts
+    And it is outside Sam's quiet hours
+    When the treasurer opens the "2026" season with dues of $50 due on 2026-10-01
+    Then Sam was texted:
+      | message                                                                                                        |
+      | BallBank: Holland Hogs assessed you $50.00 for Season dues, due Oct 1, 2026. Your statement: {Sam's statement} |
+    And Priya was not texted
+
+  Scenario: An assessment texts the member what it is for and when it is due
+    Given season dues of $50 due on 2026-10-01
+    And Sam has recorded the phone number "555 010 0002"
+    And Sam has opted in to texts
+    And it is outside Sam's quiet hours
+    When the treasurer assesses Sam $25 for "Trophy fund" due on 2026-11-01
+    Then Sam was texted:
+      | message                                                                                                        |
+      | BallBank: Holland Hogs assessed you $25.00 for Trophy fund, due Nov 1, 2026. Your statement: {Sam's statement} |
+
+  Scenario: A treasurer is texted when a member says they paid
+    Given season dues of $50 due on 2026-10-01
+    And Jacob has recorded the phone number "555 010 0001"
+    And Jacob has opted in to texts
+    And it is outside Jacob's quiet hours
+    When Sam attests a $50 Venmo payment with reference "VN-1234"
+    Then Jacob was texted:
+      | message                                                                                                         |
+      | BallBank: Sam says they paid $50.00 by Venmo (VN-1234) in Holland Hogs. Confirm or reject it: {Sam's statement} |
+    And Sam was not texted
+
+  Scenario: A member is texted when the treasurer confirms their payment
+    Given season dues of $50 due on 2026-10-01
+    And Sam has recorded the phone number "555 010 0002"
+    And Sam has opted in to texts
+    And it is outside Sam's quiet hours
+    When Sam attests a $50 Venmo payment with reference "VN-1234"
+    And the treasurer confirms Sam's payment
+    Then Sam was texted:
+      | message                                                                                       |
+      | BallBank: Holland Hogs confirmed your $50.00 Venmo payment. Your statement: {Sam's statement} |
+
+  Scenario: A rejection carries its reason
+    Given season dues of $50 due on 2026-10-01
+    And Sam has recorded the phone number "555 010 0002"
+    And Sam has opted in to texts
+    And it is outside Sam's quiet hours
+    When Sam attests a $50 Zelle payment with reference "ZL-0000"
+    And the treasurer rejects Sam's payment because "No Zelle with that reference arrived"
+    Then Sam was texted:
+      | message                                                                                                                            |
+      | BallBank: Holland Hogs rejected your $50.00 Zelle payment: No Zelle with that reference arrived. Your statement: {Sam's statement} |
+
+  Scenario: An adjustment carries its reason
+    Given season dues of $50 due on 2026-10-01
+    And Sam has recorded the phone number "555 010 0002"
+    And Sam has opted in to texts
+    And it is outside Sam's quiet hours
+    When the treasurer adjusts Sam's balance by -$5 because "Waived: hosted the draft"
+    Then Sam was texted:
+      | message                                                                                                           |
+      | BallBank: Holland Hogs lowered your balance by $5.00: Waived: hosted the draft. Your statement: {Sam's statement} |
+
+  Scenario: A treasurer is not texted about what they did themselves
+    Given season dues of $50 due on 2026-10-01
+    And Jacob has recorded the phone number "555 010 0001"
+    And Jacob has opted in to texts
+    And it is outside Jacob's quiet hours
+    When Jacob attests a $30 Cash payment
+    And the treasurer confirms Jacob's payment
+    And the treasurer adjusts Jacob's balance by -$5 because "Waived: hosted the draft"
+    Then Jacob was not texted
+
+  Scenario: A member who did not opt in is not texted
+    Given season dues of $50 due on 2026-10-01
+    And Sam has recorded the phone number "555 010 0002"
+    And it is outside Sam's quiet hours
+    When Sam attests a $50 Zelle payment with reference "ZL-0000"
+    And the treasurer rejects Sam's payment because "No Zelle with that reference arrived"
+    Then Sam was not texted
+
+  Scenario: A member who opts out is no longer texted
+    Given season dues of $50 due on 2026-10-01
+    And Sam has recorded the phone number "555 010 0002"
+    And Sam has opted in to texts
+    And it is outside Sam's quiet hours
+    When Sam attests a $50 Zelle payment with reference "ZL-0000"
+    And Sam opts out of texts
+    And the treasurer rejects Sam's payment because "No Zelle with that reference arrived"
+    Then Sam was not texted
+
+  Scenario: A member is not texted inside their quiet hours
+    Given season dues of $50 due on 2026-10-01
+    And Sam has recorded the phone number "555 010 0002"
+    And Sam has opted in to texts
+    And it is inside Sam's quiet hours
+    When Sam attests a $50 Zelle payment with reference "ZL-0000"
+    And the treasurer rejects Sam's payment because "No Zelle with that reference arrived"
+    Then Sam was not texted
+
+  Scenario: Confirming a payment twice texts the member once
+    Given season dues of $50 due on 2026-10-01
+    And Sam has recorded the phone number "555 010 0002"
+    And Sam has opted in to texts
+    And it is outside Sam's quiet hours
+    When Sam attests a $50 Venmo payment with reference "VN-1234"
+    And the treasurer confirms Sam's payment
+    And the treasurer confirms Sam's payment
+    Then Sam was texted:
+      | message                                                                                       |
+      | BallBank: Holland Hogs confirmed your $50.00 Venmo payment. Your statement: {Sam's statement} |

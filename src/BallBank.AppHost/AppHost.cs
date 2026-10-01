@@ -19,6 +19,9 @@ var api = builder.AddProject<Projects.BallBank_Api>("api")
     .WithEnvironment("Auth0__Audience", auth0Audience)
     .WithExternalHttpEndpoints();
 
+// Texts link to the web app below, on its fixed port. Twilio's settings are user-secrets, never here (docs/runbook.md).
+api.WithEnvironment("Notifications__WebBaseUrl", "http://localhost:3000");
+
 // Next.js dev server. Dependencies are installed automatically; PORT is injected by Aspire.
 // The API is reached over http locally so the browser does not need to trust the dev certificate.
 builder.AddJavaScriptApp("web", "../../web")

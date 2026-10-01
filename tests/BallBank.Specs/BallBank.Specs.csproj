@@ -37,6 +37,7 @@
     <Compile Include="..\BallBank.Integration.Tests\Http\NotificationCommitFailure.cs" Link="Support\Shared\NotificationCommitFailure.cs" />
     <Compile Include="..\BallBank.Integration.Tests\Sleeper\FakeSleeper.cs" Link="Support\Shared\FakeSleeper.cs" />
     <Compile Include="..\BallBank.Integration.Tests\Discord\FakeDiscord.cs" Link="Support\Shared\FakeDiscord.cs" />
+    <Compile Include="..\BallBank.Integration.Tests\Twilio\FakeTwilio.cs" Link="Support\Shared\FakeTwilio.cs" />
     <None Include="..\BallBank.Integration.Tests\Sleeper\Fixtures\*.json" Link="Sleeper\Fixtures\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 

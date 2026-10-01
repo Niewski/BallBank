@@ -94,7 +94,8 @@ public static class DiscordSettingsEndpoints
 
             try
             {
-                await channels.For(Channels.Discord).SendAsync(webhookUrl, NotificationTexts.Hello(league.Name), cancellation);
+                await channels.For(Channels.Discord).SendAsync(
+                    new OutgoingNotification(leagueId, "hello", webhookUrl, NotificationTexts.Hello(league.Name)), cancellation);
             }
             catch (NotificationDeliveryException)
             {
