@@ -1,4 +1,5 @@
 using System.Net.Http.Headers;
+using BallBank.Api.Features.Notifications;
 using BallBank.Integration.Tests.Discord;
 using BallBank.Integration.Tests.Http;
 using BallBank.Integration.Tests.Sleeper;
@@ -20,6 +21,7 @@ namespace BallBank.Specs.Support;
 public sealed class SpecsHost
 {
     private static readonly SemaphoreSlim Starting = new(1, 1);
+    private static readonly SemaphoreSlim Ticking = new(1, 1);
     private static SpecsHost? _shared;
 
     private readonly PostgreSqlContainer _database;
@@ -66,6 +68,30 @@ public sealed class SpecsHost
     /// moves "now" for every scenario running beside it.
     /// </summary>
     public TestClock Clock => _api.Clock;
+
+    /// <summary>
+    /// Runs the tick for one league as of <paramref name="asOf"/>, as the Job's command would, on a clock of its own: the
+    /// API's clock, which every scenario beside this one reads, does not move. One at a time, since a tick that finds another
+    /// running does nothing; and for the one league, so it texts no member of a scenario running beside this one.
+    /// </summary>
+    public async Task<TickSummary> RunTick(Guid leagueId, DateTimeOffset asOf)
+    {
+        var clock = new TestClock();
+        _ = clock.Set(asOf);
+        var tick = ActivatorUtilities.CreateInstance<Tick>(_host.Services, clock);
+
+        await Ticking.WaitAsync();
+        try
+        {
+            var report = await tick.RunAsync(leagueId);
+            return report.Leagues.SingleOrDefault()
+                ?? throw new InvalidOperationException($"The tick did not finish league {leagueId}: {report.LeaguesFailed} failed; see the API's log.");
+        }
+        finally
+        {
+            Ticking.Release();
+        }
+    }
 
     /// <summary>Holds commits back when a scenario needs two requests to race.</summary>
     public CommitGate Commits { get; } = new();

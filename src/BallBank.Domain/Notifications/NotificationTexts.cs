@@ -9,6 +9,7 @@ public static class NotificationKinds
     public const string PaymentAttested = "PaymentAttested";
     public const string PaymentRejected = "PaymentRejected";
     public const string AdjustmentPosted = "AdjustmentPosted";
+    public const string Reminder = "Reminder";
 }
 
 /// <summary>Where a notification is delivered.</summary>

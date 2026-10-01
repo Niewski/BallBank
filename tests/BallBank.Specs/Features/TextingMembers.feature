@@ -170,6 +170,20 @@ Feature: Texting members
     And the treasurer rejects Sam's payment because "No Zelle with that reference arrived"
     Then Sam was not texted
 
+  Scenario: A text held for a member's quiet hours arrives when they end
+    Given season dues of $50 due on 2026-10-01
+    And Sam has recorded the phone number "555 010 0002"
+    And Sam has opted in to texts
+    And it is inside Sam's quiet hours
+    When Sam attests a $50 Venmo payment with reference "VN-1234"
+    And the treasurer confirms Sam's payment
+    And the tick runs 1 hour later
+    Then Sam was not texted
+    When the tick runs 3 hours later
+    Then Sam was texted:
+      | message                                                                                       |
+      | BallBank: Holland Hogs confirmed your $50.00 Venmo payment. Your statement: {Sam's statement} |
+
   Scenario: Confirming a payment twice texts the member once
     Given season dues of $50 due on 2026-10-01
     And Sam has recorded the phone number "555 010 0002"

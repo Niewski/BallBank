@@ -11,7 +11,7 @@ not before.
 | **Membership** | Leagues, members, identities, claims, invites, roles, the Sleeper import | `src/BallBank.Domain/Membership`, `src/BallBank.Api/Features/Membership` |
 | **Treasury** | Assessments, attestations, confirmations, adjustments, payouts, season close | `src/BallBank.Domain/Treasury`, `src/BallBank.Api/Features/Treasury` |
 | **Payment Rails** | How a payment is said to have moved; adapters that verify or demo it | `src/BallBank.Api/Integrations` (planned) |
-| **Notifications** | What BallBank tells a league's channels, and what a member agreed to be told: the season opening and confirmed payments over Discord; a member's consent and quiet hours for text messages, and the texts about their account and about attestations; what Twilio reports back (a text's delivery status, a member's STOP and START); reminders and digests to come | `src/BallBank.Domain/Notifications`, `src/BallBank.Api/Features/Notifications`, `src/BallBank.Api/Integrations/Discord`, `src/BallBank.Api/Integrations/Twilio` |
+| **Notifications** | What BallBank tells a league's channels, and what a member agreed to be told: the season opening and confirmed payments over Discord; a member's consent and quiet hours for text messages, and the texts about their account and about attestations; what Twilio reports back (a text's delivery status, a member's STOP and START); the due-date reminders and the tick that sends them and releases held texts; digests to come | `src/BallBank.Domain/Notifications`, `src/BallBank.Api/Features/Notifications`, `src/BallBank.Api/Integrations/Discord`, `src/BallBank.Api/Integrations/Twilio` |
 
 ## Glossary
 
@@ -146,16 +146,31 @@ delinquent yet. Not: "late" or "overdue" as a label for the member (those descri
 the date they are), "outstanding" (that is the league-wide total).
 
 **Notification** — One thing BallBank decided to tell someone, because something happened: a season
-opened, a payment was confirmed, dues were assessed to a member. It is decided in reaction to a Treasury
-event and recorded with a dedupe key (channel, recipient, kind, cause), so the same cause is never told
-twice on the same channel, however many times its event is handled. It is delivered after the fact, so a
-channel that is down never holds up the books. *Pending* until its channel takes it, *sent* once it has,
+opened, a payment was confirmed, dues were assessed to a member, or a due date came near (a *reminder*,
+which the tick decides rather than an event). It is recorded with a dedupe key (channel, recipient, kind,
+cause), so the same cause is never told twice on the same channel, however many times its event is handled
+or the tick runs. It is delivered after the fact, so a channel that is down never holds up the books. *Pending* until its channel takes it, *sent* once it has,
 *dropped* if the league disconnected the channel first. A text is also *skipped* if, when it goes, the
 member has no consent at their number or the number opted out, and *held* if it falls in their quiet hours,
 until those end. What is said is worded in the domain and rendered once, when the event is handled.
 Attesting and rejecting a payment are never announced on Discord; by text, a rejection is told to the member
 and an attestation to the treasurers. Nobody is texted about what they did themselves. Not: "alert",
 "message" (that is what Wolverine calls the thing that carries it), "event" (that is the fact that caused it).
+
+**Reminder** — A text to a member who still owes, as their dues come due: three days before the earliest
+due date of what they were assessed, on the day, and every whole week they stay overdue. Those are its
+*stages*. A reminder is a notification whose cause is an account, a due date and a stage, so it is sent
+once, however often the tick runs. Only the latest stage reached is sent, so a member who was missed is
+told where they stand now and not each thing they missed. A member with nothing owing gets none, and a
+payment still waiting for the treasurer does not stop them, since only a confirmation moves the balance.
+It follows the same consent and quiet hours as any text, and one held for the quiet hours goes with what
+the member owes when it goes, or not at all if they have paid up by then. A reminder skipped for want of
+consent is not sent later; the member hears at the next stage. Not: "nudge", "dunning", "late notice".
+
+**Tick** — The scheduled work, done as of a time and then over: the reminders due and the held notifications
+whose quiet hours have ended, for the open season of every league. It runs hourly from the Job and does
+only what the books and the clock say is due, so one that did not run loses nothing, and one that runs
+twice does nothing the second time. Not: "cron", "job" (that is what runs it), "scheduler".
 
 **Channel** — Where a notification goes: Discord, or SMS to a member's own number. A league connects its
 Discord channel once, with a webhook the treasurer pastes in, and chooses what is announced there. The

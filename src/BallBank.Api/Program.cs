@@ -162,6 +162,9 @@ builder.Host.UseWolverine(options =>
         .Then.MoveToErrorQueue();
 });
 builder.Services.AddTransient<NotificationChannels>();
+
+// The scheduled work, run by the `tick` command (ADR-0007).
+builder.Services.AddTransient<Tick>();
 builder.Services.AddWolverineHttp();
 
 var app = builder.Build();
@@ -196,8 +199,9 @@ app.MapWolverineEndpoints(options =>
     options.UseIdempotency();
 });
 
-// The JasperFx commands (`projections rebuild`, ...) are served by this host, so the deployed image
-// is the one that rebuilds a projection (docs/runbook.md). With no command, this runs the API.
+// The JasperFx commands (`projections rebuild`, `tick`, ...) are served by this host, so the deployed image
+// is the one that rebuilds a projection and the one the scheduled Job runs (docs/runbook.md, ADR-0007).
+// With no command, this runs the API.
 return await app.RunJasperFxCommands(args);
 
 // Lets integration tests host the API with WebApplicationFactory<Program>.

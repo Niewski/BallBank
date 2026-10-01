@@ -61,6 +61,18 @@ public interface ILeagueDriver
     DateOnly Today { get; }
 
     /// <summary>
+    /// Runs the tick as of <paramref name="asOf"/>, once (ADR-0007): the reminders members who owe are due then, and the
+    /// texts held for quiet hours that have ended by then. It does not move the league's own <see cref="Now"/>.
+    /// </summary>
+    Task RunTick(DateTimeOffset asOf);
+
+    /// <summary>
+    /// How the dashboard says the last reminder to a delinquent member went: the status of the notification (Sent, Held,
+    /// Skipped); <c>null</c> when it shows none yet. Fails when the member is not a delinquent on the dashboard.
+    /// </summary>
+    Task<string?> LastReminder(string member);
+
+    /// <summary>
     /// The open season's dashboard as its treasurer reads it, once it reflects everything done so far;
     /// or as <paramref name="readBy"/>, who is no treasurer, tries to.
     /// </summary>

@@ -42,5 +42,21 @@ public static class SmsTexts
         return $"BallBank: {leagueName} {what}: {reason}. {Statement(statementLink)}";
     }
 
+    /// <param name="balance">What the member owes the pot.</param>
+    /// <param name="today">Worded against this, so a reminder sent a day late still tells the truth.</param>
+    public static string Reminder(string leagueName, decimal balance, DateOnly dueDate, DateOnly today, string statementLink)
+    {
+        var days = today.DayNumber - dueDate.DayNumber;
+        var when = days switch
+        {
+            < -1 => $"due in {-days} days on {Format.Date(dueDate)}",
+            -1 => $"due tomorrow, {Format.Date(dueDate)}",
+            0 => "due today",
+            1 => $"1 day overdue since {Format.Date(dueDate)}",
+            _ => $"{days} days overdue since {Format.Date(dueDate)}",
+        };
+        return $"BallBank: You owe {leagueName} {Format.Money(balance)}, {when}. {Statement(statementLink)}";
+    }
+
     private static string Statement(string link) => $"Your statement: {link}";
 }
