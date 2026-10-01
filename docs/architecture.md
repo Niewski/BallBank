@@ -10,7 +10,7 @@
    Twilio SMS      ◀── Notifications (opt-in only; delivery status webhook ──▶ API)
    Stripe test mode ── webhook ──▶ /webhooks/stripe   (demo rail only, never live)
    OpenTelemetry ──▶ Application Insights (or Grafana Cloud); locally the Aspire dashboard
-   Container Apps cron Job (same image) ──▶ due-date reminders, weekly delinquency digest
+   Container Apps cron Job (same image) ──▶ due-date reminders, weekly digest, purge of old records
 ```
 
 ## Components
@@ -67,7 +67,7 @@ messages for reminders. Design points:
   treasurers, and texts to opted-in members about their own account and to treasurers about
   attestations, checked for consent and quiet hours as they are sent, with Twilio's signed callbacks
   recording each text's delivery status and a member's STOP and START, and, from the tick, due-date
-  reminders and the release of held texts
+  reminders, the release of held texts and the weekly digest to a league's Discord
   ([domain.md](domain.md#notifications), [ADR-0008](adr/0008-buy-auth-abstract-flags-free-notifications.md)).
 - **Cost.** Discord is free. SMS is the one paid line item: a toll-free number is about $2.15/month
   plus roughly a cent per message including carrier fees; toll-free verification is required for
@@ -85,15 +85,18 @@ The API scales to zero between requests, so Wolverine's in-process scheduled mes
 something is awake. Reminders and digests therefore run from a Container Apps cron **Job** built
 from the same image (`dotnet BallBank.Api.dll tick`), hourly, which does what is due as of now from the
 books and exits; it does not call the API. Keeping one replica warm would cost more than the rest of the
-system combined ([ADR-0007](adr/0007-scheduled-work-under-scale-to-zero.md)). The weekly digest is not
-built yet.
+system combined ([ADR-0007](adr/0007-scheduled-work-under-scale-to-zero.md)). The same tick posts the
+weekly digest and purges the idempotency and notification records older than the retention age, so the
+free database tier does not fill with answers nobody will ask for again. A second Job, on Sunday at 18:00
+Eastern, asks the API for its version so the league's busiest hour does not begin with a cold start
+([runbook](runbook.md#the-jobs)).
 
 ## Hosting and cost
 
 | Component | Service | Notes |
 |---|---|---|
 | API | Azure Container Apps, consumption plan, `minReplicas: 0`, `maxReplicas: 1` | The monthly free grant (180,000 vCPU-s, 360,000 GiB-s, 2M requests) covers a league many times over. Cold start a few seconds; measured in [numbers.md](numbers.md). |
-| Scheduled work | Container Apps Job (cron) | Same consumption meter. |
+| Scheduled work | Container Apps Jobs (cron) | The hourly tick, and the Sunday wake-up that asks the API for its version. Same consumption meter. |
 | Database | Neon PostgreSQL, Free plan | 0.5 GB and 100 compute-hours per project; suspends after 5 minutes idle. A season of one league is a few hundred events. |
 | Web | Azure Static Web Apps, Free plan | Static export, custom domain, managed certificate. |
 | Images | GitHub Container Registry (public) | Avoids a paid registry. |

@@ -1,7 +1,7 @@
 # ADR-0005: Idempotency and optimistic concurrency
 
 - **Status:** Accepted
-- **Date:** 2026-09-24; layer two accepted 2026-09-26; layer three accepted 2026-09-26; webhooks named 2026-10-01
+- **Date:** 2026-09-24; layer two accepted 2026-09-26; layer three accepted 2026-09-26; webhooks named 2026-10-01; purging built 2026-10-01
 
 ## Context
 
@@ -39,7 +39,16 @@ Three layers that converge:
   includes a stream appended to since it was read (Marten's `ConcurrencyException`), which a bulk
   assessment meets because it carries no expected version: whoever did not commit gets a `409` and
   can assess again, since accounts already carrying the assessment skip it.
-- Records are kept. Purging old ones is an operational task (M3 runbook).
+- Records are purged by the tick (ADR-0007), not by a person: each hourly tick deletes, for each league
+  it visits (one with an open season), the league's `IdempotencyRecord`s written more than
+  `Retention:Days` ago (90 unless set; the setting refuses anything under 14), and the `Notification`
+  records with them, by the same age. It deletes inside that league's own session, so no league's records
+  are another's to delete, and the free database tier does not fill with answers nobody will ask for
+  again. A client retries within minutes, so an answer that old is one
+  no one asks for; if its key did come back, layer one would answer it, recording no second fact, in
+  place of the stored answer. The age is a floor for notifications as much as for answers: a
+  notification's id is its dedupe key, claimed until the record is purged, so a record must outlive the
+  week a digest is due in and the week a reminder's stage lasts.
 - The web client generates a fresh key per submission and reuses it when retrying that submission
   (`web/src/lib/idempotency.ts`).
 

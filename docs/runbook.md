@@ -92,17 +92,22 @@ Written from making a fake Discord refuse, not yet from a real outage.
 ([ADR-0007](adr/0007-scheduled-work-under-scale-to-zero.md))
 
 The Container Apps Job runs `dotnet BallBank.Api.dll tick` hourly, from the API's image, with the
-API's settings (the Neon connection string, the Twilio settings, `Notifications__WebBaseUrl`). It sends
-the due-date reminders and releases held texts, then exits.
+API's settings (the Neon connection string, the Twilio settings, `Notifications__WebBaseUrl`); "The Jobs"
+below defines it. For each league with an open season it sends the due-date reminders, releases held
+texts, posts the weekly digest to Discord if the league asked for it, and purges what is older than the
+retention age, then exits.
 
 - **What it logged.** One `Information` line per league, `Tick for league {LeagueId}, season {Season}:
-  sent {Sent}, held {Held}, skipped {Skipped}, failed {Failed}`, in the Job's logs with the league's
-  `tenant.id`. A league the tick could not finish is an `Error` line with the exception and makes the Job
-  exit non-zero (a failed execution); the other leagues were done regardless. `Another tick is running`
-  means a previous execution overran; this one did nothing, which is safe.
-- **`failed` above zero** is a send the channel refused (Twilio down, a rotated token that did not take).
-  It also makes the Job exit non-zero, so the execution shows as failed. Those texts stay `Pending`, and
-  the next hourly tick sends them again (after checking the member still owes), so there is nothing to
+  sent {Sent}, held {Held}, skipped {Skipped}, failed {Failed}, digests {Digests}, purged {n} idempotency
+  records and {n} notifications`, in the Job's logs with the league's `tenant.id`. `digests` is 1 on the
+  tick whose digest Discord took, and the two `purged` counts are what the purge deleted. A league the
+  tick could not finish is an `Error` line with the exception and makes the Job exit non-zero (a failed
+  execution); the other leagues were done regardless. `Another tick is running` means a previous
+  execution overran; this one did nothing, which is safe.
+- **`failed` above zero** is a send the channel refused (Twilio down, a rotated token that did not take, a
+  Discord webhook that was deleted). It also makes the Job exit non-zero, so the execution shows as
+  failed. Those messages stay `Pending`, and the next hourly tick sends them again (a reminder after
+  checking the member still owes, a digest while its week is still the one due), so there is nothing to
   replay: fix the cause and let the next execution run.
 - **The connection string** the Job uses must reach Postgres directly. The tick holds a session
   advisory lock for its run, which a transaction-pooled endpoint (a pooler in front of the database)
@@ -116,6 +121,39 @@ the due-date reminders and releases held texts, then exits.
   with Twilio's error), `Held` (their quiet hours; the tick sends it when they end), or `Skipped` (no
   consent at their number, or the number opted out), and why. None at all means no tick has found them
   due yet.
+- **The digest did not arrive.** The tick posts it once per league per ISO week, in the first tick at or
+  after Monday 09:00 Eastern, and only to a league with an open season that has connected Discord and
+  turned on "Post the weekly digest". A tick before that slot posts nothing; that is not a failure. A late
+  tick still posts it, any time up to Sunday night, and a week no tick found is not made up. The week's
+  `Notification` is keyed `Discord/{leagueId}/Digest/{year}-W{week}`:
+
+  ```sql
+  select tenant_id as league, id, data ->> 'Status' as status, data ->> 'Reason' as reason,
+         data ->> 'CreatedAt' as created_at
+  from ballbank.mt_doc_notification
+  where data ->> 'Kind' = 'Digest'
+  order by data ->> 'CreatedAt' desc;
+  ```
+
+  No row for the week: the league has not asked for it, disconnected Discord, has no open season, or
+  the slot has not come. `Sent`: Discord took it, so look at the channel and its webhook. `Pending`:
+  Discord refused it, and each hourly tick tries again until the week is over. `Skipped`, "The digest is no
+  longer due": the week ended, or the league turned the digest off or disconnected Discord (which forgets
+  the settings), before Discord took it. `Dropped` reads the same and is rare: the league disconnected
+  between the tick's check and its send.
+- **What the purge deletes.** Each tick, league by league, deletes the idempotency records (the answers
+  kept for retried requests, [ADR-0005](adr/0005-idempotency-and-concurrency.md)) and the notification
+  records (what was sent, held or skipped, and the keys that stop a reminder or a digest being sent twice)
+  written more than `Retention__Days` days ago: 90 unless set. Events, statements and settings are
+  not touched. The summary line says how many it deleted. It is what keeps the answers nobody will ask for
+  again from filling the free Neon plan's 0.5 GB. It visits the leagues the rest of the tick does, those
+  with an open season, so a league with none keeps its few records.
+- **`Retention__Days` has a floor of 14.** Deleting a notification frees its key, so a record has to outlive
+  the week a digest is due in and the week a reminder's stage lasts. The API refuses to start below the
+  floor (`Retention:Days must be at least 14.`). The Job does not start the host, so it finds out when it
+  first purges, after the league's reminders and digest have gone: that league is logged as one the tick
+  "did not finish" with the same message, nothing is deleted, and the Job exits non-zero. Set it back to
+  14 or more, or unset it.
 
 ## Rotate a secret
 
@@ -140,9 +178,62 @@ Twilio saw it. If every callback is answered `403`, look for the warning "its Tw
 match" in the API's logs: the cause is a base URL that differs from the public one, or a token that
 was rotated on one side only. Texts still go, but their status stays `Sent`, and a STOP is not recorded.
 
+## The Jobs
+
+([ADR-0007](adr/0007-scheduled-work-under-scale-to-zero.md), [ADR-0009](adr/0009-container-apps-and-neon.md))
+
+Two Container Apps Jobs run in the API's environment, on a cron schedule. **Neither exists yet**: nothing
+is deployed and the repo holds no infrastructure code, so this is the definition to create them from,
+not a record of having done it. Correct what differs the first time they are created.
+
+| | The tick | The Sunday wake-up |
+|---|---|---|
+| Does | the tick: reminders, held texts, the weekly digest, the purge | asks the API for its version, which starts it if it was stopped |
+| Trigger | Schedule, cron `0 * * * *` | Schedule, cron `0 22 * * 0` |
+| Image | the API's image, the tag the API runs | `curlimages/curl` |
+| Runs | `dotnet BallBank.Api.dll tick` | `curl --fail --silent --show-error --max-time 120 https://{the API's public address}/v1/version` |
+| Parallelism, completions | 1, 1 | 1, 1 |
+| Replica timeout, retries | 600 seconds, none: the next hour is the retry | 180 seconds, none |
+| Settings | the API's, below | none |
+
+- **Cron is in UTC**, whatever the league's clock says. Hourly is hourly anywhere. Sunday 18:00 Eastern is
+  22:00 UTC while daylight saving time is on and 23:00 UTC while it is not, so `0 22 * * 0` is on time in
+  summer and an hour early in winter, the safe side for a wake-up. Keeping it on time all year means
+  editing the cron when the clocks change (`0 23 * * 0` in winter).
+- **The tick's settings are the API's**: `ConnectionStrings__ballbank` (direct to Postgres, not through a
+  pooler, see above), `Auth0__Domain`, `Auth0__Audience`, `Notifications__WebBaseUrl` and the
+  `Twilio__…` settings (see "Rotate a secret"), as platform settings and secrets, never the repo's.
+  `Retention__Days` only to change the 90.
+- **The wake-up uses `/v1/version`** because it is the one address the API answers anonymously in every
+  environment. (`/health` and `/alive` exist only in Development.) The request reads no database itself,
+  but the API connects to Postgres as it starts (it applies its schema and starts its background workers),
+  so the ping most likely wakes Neon too. That is expected, not measured: see step 3 below.
+- **A Job's health is its execution history**: `Succeeded` or `Failed`, in the portal or from
+  `az containerapp job execution list`. `curl --fail` exits non-zero when the API does not answer, or
+  answers with an error, so a failed wake-up shows as a failed execution.
+
 ## Wake-up check before Sunday night
 
-*(M3)* The cron Job pings the API at 18:00 ET on Sundays so the first member does not eat the cold start.
+Sunday evening is the league's busiest hour, and the API stops after it has been asked for nothing for
+five minutes (the consumption plan's scale-down cooldown, 300 seconds unless it was changed). The wake-up
+Job asks at 18:00 Eastern, so the first member to open the app does not wait for the API to start. Written
+from the definition above, not from deployed Jobs.
+
+1. **Last Sunday's wake-up ran.** The wake-up's execution history has one at the cron's time that
+   `Succeeded`. A `Failed` one has curl's error in its log: the API did not answer within 120 seconds, or
+   answered with an error.
+2. **The tick has been running.** The tick's history has an execution within the last hour, and it
+   `Succeeded`. A `Failed` one is read as in "The tick, and when it fails".
+3. **The API answers after sleeping.** More than five minutes after the last request, `GET /v1/version`
+   answers `{"name":"BallBank","version":…}`; how long it takes is the cold start the wake-up spares a
+   member, Neon's wake included if the ping reaches it (record it in [numbers](numbers.md)).
+4. **The clocks changed since the cron was set?** It is in UTC, so the ping now lands an hour earlier or
+   later by the league's clock: see "Cron is in UTC" above.
+
+One ping covers the five minutes after it: a member who opens the app at 19:00 meets a sleeping API again.
+Holding it for the hour takes a ping inside every cooldown (for example `*/4 22 * * 0`, every four
+minutes of the 22:00 UTC hour), which keeps the API running for the hour: at most about 900 vCPU-seconds
+a Sunday at the smallest size, some 4,000 a month, of the 180,000 the free grant covers (ADR-0007).
 
 ## Incident notes
 

@@ -38,12 +38,14 @@ public sealed class InMemoryLeagueDriver : ILeagueDriver
     private readonly Dictionary<string, List<string>> _texts = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<Message> _notifications = [];
     private readonly HashSet<string> _reminded = [];
+    private readonly HashSet<string> _digested = [];
 
     private readonly Guid _leagueId = Guid.NewGuid();
     private readonly Guid _anonymousTreasurerId = Guid.NewGuid();
 
     private bool _discordConnected;
     private bool _announcePayments;
+    private bool _postDigest;
 
     public Guid TreasurerId => _memberIds.GetValueOrDefault("Jacob", _anonymousTreasurerId);
 
@@ -166,7 +168,8 @@ public sealed class InMemoryLeagueDriver : ILeagueDriver
 
     /// <summary>
     /// What the tick does (ADR-0007), decided by the same domain rules: first the held texts whose quiet hours
-    /// have ended, then, for each account, the reminder its stage calls for, once for each stage.
+    /// have ended, then the digest of the week due, if Discord wants one, then, for each account, the reminder its
+    /// stage calls for, once for each stage.
     /// </summary>
     public Task RunTick(DateTimeOffset asOf)
     {
@@ -174,6 +177,8 @@ public sealed class InMemoryLeagueDriver : ILeagueDriver
         {
             Decide(held, asOf);
         }
+
+        PostDigest(asOf);
 
         var today = DateOnly.FromDateTime(asOf.UtcDateTime);
         foreach (var (member, account) in _accounts)
@@ -300,11 +305,21 @@ public sealed class InMemoryLeagueDriver : ILeagueDriver
         Task.FromResult(SmsTexts.StatementLink(BallBankApi.WebBaseUrl, _leagueId, Account(member).Id));
 
     /// <summary>The hello, as the endpoint posts it.</summary>
-    public Task ConnectDiscord(bool announcePayments)
+    public Task ConnectDiscord(bool announcePayments, bool postDigest = false)
     {
         _discordConnected = true;
         _announcePayments = announcePayments;
+        _postDigest = postDigest;
         Announce(NotificationTexts.Hello(LeagueName));
+        return Task.CompletedTask;
+    }
+
+    /// <summary>As the endpoint does: the webhook and the flags are forgotten, and what was posted stays posted.</summary>
+    public Task DisconnectDiscord()
+    {
+        _discordConnected = false;
+        _announcePayments = false;
+        _postDigest = false;
         return Task.CompletedTask;
     }
 
@@ -322,6 +337,27 @@ public sealed class InMemoryLeagueDriver : ILeagueDriver
         {
             _postedToDiscord.Add(text);
         }
+    }
+
+    // The digest of the week due as of the tick, once however often the tick runs; the tick of a league with no season
+    // does nothing, as with every league that has no open season.
+    private void PostDigest(DateTimeOffset asOf)
+    {
+        if (!_discordConnected
+            || !_postDigest
+            || _seasons.Values.SingleOrDefault() is not { } season
+            || Digests.WeekDueAt(asOf) is not { } week
+            || !_digested.Add(Digests.Key(_leagueId, week)))
+        {
+            return;
+        }
+
+        Announce(NotificationTexts.Digest(
+            LeagueName,
+            season.Label,
+            _accounts.Select(account => new MemberBalance(TeamNames.GetValueOrDefault(account.Key, account.Key), account.Value.Balance)),
+            pot: _accounts.Values.Sum(account => account.InThePot),
+            attestationsPending: _accounts.Values.Sum(account => account.PendingAttestations.Count())));
     }
 
     private MemberAccount Account(string member) =>

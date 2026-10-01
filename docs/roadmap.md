@@ -39,7 +39,8 @@ Deploy target: API on Container Apps, web on Static Web Apps, so nothing lives o
 - `LeaguePot` async projection and the projection daemon.
 - Notifications: Discord webhook channel, Twilio SMS channel with opt-in, STOP handling, quiet
   hours and dedupe; delivery status callback.
-- Container Apps cron Job for due-date reminders and a weekly delinquency digest.
+- Container Apps cron Job for due-date reminders and a weekly digest, which also purges old records;
+  a Sunday wake-up Job ahead of the league's busiest hour.
 - Per-tenant rate limiting; k6 proof.
 - OpenTelemetry to Application Insights with `tenant.id` everywhere; first `numbers.md`.
 

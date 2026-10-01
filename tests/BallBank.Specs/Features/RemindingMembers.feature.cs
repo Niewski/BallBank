@@ -182,13 +182,13 @@ namespace BallBank.Specs.Features
 #line 15
     await testRunner.WhenAsync("the tick runs on 2026-09-28", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
 #line hidden
-                global::Reqnroll.Table table21 = new global::Reqnroll.Table(new string[] {
+                global::Reqnroll.Table table24 = new global::Reqnroll.Table(new string[] {
                             "message"});
-                table21.AddRow(new string[] {
+                table24.AddRow(new string[] {
                             "BallBank: You owe Holland Hogs $50.00, due in 3 days on Oct 1, 2026. Your stateme" +
                                 "nt: {Sam\'s statement}"});
 #line 16
-    await testRunner.ThenAsync("Sam was texted:", ((string)(null)), table21, "Then ");
+    await testRunner.ThenAsync("Sam was texted:", ((string)(null)), table24, "Then ");
 #line hidden
             }
             await this.ScenarioCleanupAsync();
@@ -230,13 +230,13 @@ namespace BallBank.Specs.Features
 #line 24
     await testRunner.WhenAsync("the tick runs on 2026-10-01", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
 #line hidden
-                global::Reqnroll.Table table22 = new global::Reqnroll.Table(new string[] {
+                global::Reqnroll.Table table25 = new global::Reqnroll.Table(new string[] {
                             "message"});
-                table22.AddRow(new string[] {
+                table25.AddRow(new string[] {
                             "BallBank: You owe Holland Hogs $50.00, due today. Your statement: {Sam\'s statemen" +
                                 "t}"});
 #line 25
-    await testRunner.ThenAsync("Sam was texted:", ((string)(null)), table22, "Then ");
+    await testRunner.ThenAsync("Sam was texted:", ((string)(null)), table25, "Then ");
 #line hidden
             }
             await this.ScenarioCleanupAsync();
@@ -284,19 +284,19 @@ namespace BallBank.Specs.Features
 #line 35
     await testRunner.AndAsync("the tick runs on 2026-10-15", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
-                global::Reqnroll.Table table23 = new global::Reqnroll.Table(new string[] {
+                global::Reqnroll.Table table26 = new global::Reqnroll.Table(new string[] {
                             "message"});
-                table23.AddRow(new string[] {
+                table26.AddRow(new string[] {
                             "BallBank: You owe Holland Hogs $50.00, due today. Your statement: {Sam\'s statemen" +
                                 "t}"});
-                table23.AddRow(new string[] {
+                table26.AddRow(new string[] {
                             "BallBank: You owe Holland Hogs $50.00, 7 days overdue since Oct 1, 2026. Your sta" +
                                 "tement: {Sam\'s statement}"});
-                table23.AddRow(new string[] {
+                table26.AddRow(new string[] {
                             "BallBank: You owe Holland Hogs $50.00, 14 days overdue since Oct 1, 2026. Your st" +
                                 "atement: {Sam\'s statement}"});
 #line 36
-    await testRunner.ThenAsync("Sam was texted:", ((string)(null)), table23, "Then ");
+    await testRunner.ThenAsync("Sam was texted:", ((string)(null)), table26, "Then ");
 #line hidden
             }
             await this.ScenarioCleanupAsync();
@@ -387,13 +387,13 @@ namespace BallBank.Specs.Features
 #line 55
     await testRunner.AndAsync("the tick runs on 2026-10-01 at 18:00", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
-                global::Reqnroll.Table table24 = new global::Reqnroll.Table(new string[] {
+                global::Reqnroll.Table table27 = new global::Reqnroll.Table(new string[] {
                             "message"});
-                table24.AddRow(new string[] {
+                table27.AddRow(new string[] {
                             "BallBank: You owe Holland Hogs $50.00, due today. Your statement: {Sam\'s statemen" +
                                 "t}"});
 #line 56
-    await testRunner.ThenAsync("Sam was texted:", ((string)(null)), table24, "Then ");
+    await testRunner.ThenAsync("Sam was texted:", ((string)(null)), table27, "Then ");
 #line hidden
             }
             await this.ScenarioCleanupAsync();
@@ -487,13 +487,13 @@ namespace BallBank.Specs.Features
 #line 74
     await testRunner.AndAsync("the tick runs on 2026-10-01", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
-                global::Reqnroll.Table table25 = new global::Reqnroll.Table(new string[] {
+                global::Reqnroll.Table table28 = new global::Reqnroll.Table(new string[] {
                             "message"});
-                table25.AddRow(new string[] {
+                table28.AddRow(new string[] {
                             "BallBank: You owe Holland Hogs $50.00, due today. Your statement: {Sam\'s statemen" +
                                 "t}"});
 #line 75
-    await testRunner.ThenAsync("Sam was texted:", ((string)(null)), table25, "Then ");
+    await testRunner.ThenAsync("Sam was texted:", ((string)(null)), table28, "Then ");
 #line hidden
             }
             await this.ScenarioCleanupAsync();
@@ -581,13 +581,13 @@ namespace BallBank.Specs.Features
 #line 91
     await testRunner.WhenAsync("the tick runs on 2026-10-01 at 14:00", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
 #line hidden
-                global::Reqnroll.Table table26 = new global::Reqnroll.Table(new string[] {
+                global::Reqnroll.Table table29 = new global::Reqnroll.Table(new string[] {
                             "message"});
-                table26.AddRow(new string[] {
+                table29.AddRow(new string[] {
                             "BallBank: You owe Holland Hogs $50.00, due today. Your statement: {Sam\'s statemen" +
                                 "t}"});
 #line 92
-    await testRunner.ThenAsync("Sam was texted:", ((string)(null)), table26, "Then ");
+    await testRunner.ThenAsync("Sam was texted:", ((string)(null)), table29, "Then ");
 #line hidden
             }
             await this.ScenarioCleanupAsync();

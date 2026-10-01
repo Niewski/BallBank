@@ -4,8 +4,8 @@ namespace BallBank.Api;
 /// The answer a mutating request got, kept so a retry with the same <see cref="Idempotency.Header"/>
 /// gets it again (ADR-0005). Tenant-scoped like every document, so the league is part of its identity;
 /// the id holds the caller's subject and their key. Written in the same session as the events the
-/// request recorded, so one exists only if the command committed. Kept for now; purging old records is
-/// an operational task.
+/// request recorded, so one exists only if the command committed. The tick purges the ones older than the
+/// retention age (<see cref="RetentionOptions"/>): nobody retries a request that long after.
 /// </summary>
 public sealed class IdempotencyRecord
 {

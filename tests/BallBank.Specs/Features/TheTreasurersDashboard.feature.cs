@@ -196,14 +196,14 @@ namespace BallBank.Specs.Features
 #line 19
     await testRunner.AndAsync("the treasurer adjusts Jacob\'s balance by -$5 because \"Waived: hosted the draft\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
-                global::Reqnroll.Table table30 = new global::Reqnroll.Table(new string[] {
+                global::Reqnroll.Table table40 = new global::Reqnroll.Table(new string[] {
                             "Assessed",
                             "Confirmed",
                             "Refunded",
                             "Pot",
                             "Outstanding",
                             "Owed"});
-                table30.AddRow(new string[] {
+                table40.AddRow(new string[] {
                             "$150",
                             "$90",
                             "$4",
@@ -211,7 +211,7 @@ namespace BallBank.Specs.Features
                             "$65",
                             "$6"});
 #line 20
-    await testRunner.ThenAsync("the dashboard shows", ((string)(null)), table30, "Then ");
+    await testRunner.ThenAsync("the dashboard shows", ((string)(null)), table40, "Then ");
 #line hidden
             }
             await this.ScenarioCleanupAsync();
@@ -256,20 +256,20 @@ namespace BallBank.Specs.Features
 #line 29
     await testRunner.AndAsync("the treasurer confirms Jacob\'s payment", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
-                global::Reqnroll.Table table31 = new global::Reqnroll.Table(new string[] {
+                global::Reqnroll.Table table41 = new global::Reqnroll.Table(new string[] {
                             "Member",
                             "Balance",
                             "Days overdue"});
-                table31.AddRow(new string[] {
+                table41.AddRow(new string[] {
                             "Priya",
                             "$50",
                             "10"});
-                table31.AddRow(new string[] {
+                table41.AddRow(new string[] {
                             "Jacob",
                             "$20",
                             "10"});
 #line 30
-    await testRunner.ThenAsync("the delinquents are", ((string)(null)), table31, "Then ");
+    await testRunner.ThenAsync("the delinquents are", ((string)(null)), table41, "Then ");
 #line hidden
             }
             await this.ScenarioCleanupAsync();

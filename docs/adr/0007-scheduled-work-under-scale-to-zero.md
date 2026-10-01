@@ -30,12 +30,16 @@ As built:
   hour is how late one can be; quiet hours are whole hours, so a held text goes out within an hour of
   them ending. A tick that did not run (an outage, a failed Job) loses nothing: the next one finds
   the same things due, because what is due is worked out from the books and the clock, not from
-  what was scheduled.
+  what was scheduled. The one other schedule is a second Job, Sunday 18:00 Eastern, that asks the API
+  for its version so the first member of the league's busiest hour does not wait for it to start. It
+  runs no tick and reads no database itself, but the API connects to Postgres as it starts, so the ping
+  most likely wakes Neon too, which is not yet measured (runbook, "The Jobs").
 - **What a tick does, for each league's open season** (the one opened last, as seasons cannot be
   closed yet): first it sends what was decided earlier and has not gone, which is every held
-  notification whose `SendAfter` has passed and every reminder a send left `Pending`; then, from the
-  `MemberStatement`s, it asks the domain (`Reminders.StageOn`) what stage each account with a balance
-  above zero has reached, and sends that stage's reminder to the member. "Today" is the UTC date, so a
+  notification whose `SendAfter` has passed and every reminder a send left `Pending`; then the week's
+  digest, if one is due (below); then, from the `MemberStatement`s, it asks the domain
+  (`Reminders.StageOn`) what stage each account with a balance above zero has reached, and sends that
+  stage's reminder to the member; and last it purges what is old (below). "Today" is the UTC date, so a
   member in the Americas can be told "due today" on the evening before, by their own clock; quiet hours,
   which are by the member's clock, mean such a text is usually held until the morning.
 - **A reminder goes with what is owed when it goes.** A reminder that was held, or refused and left
@@ -67,12 +71,30 @@ As built:
   again. It is not dead-lettered, as nothing carries it. A process that dies between the channel
   accepting a text and the tick recording it sends that text again on the next tick, the duplicate
   ADR-0008 already accepts of Twilio's retries.
-- **One summary line per league** at `Information`: sent, held, skipped and failed, scoped with the
-  league's `tenant.id`. A league that throws is logged at `Error` and does not stop the others.
+- **The weekly digest** is one more notification the tick makes, to a league that connected Discord and
+  turned the digest on (`LeagueNotificationSettings.PostDigest`): who still owes and how much, what the
+  pot holds, and how many attestations wait for the treasurer, worded by the domain
+  (`NotificationTexts.Digest`) from the same statements the reminders read. `Digests.WeekDueAt` says which
+  ISO week is due, by the Eastern calendar: none before Monday 09:00 Eastern, then that week until
+  Sunday night. Like a reminder it is keyed (`Discord/{league}/Digest/{year}-W{week}`) and inserted before
+  it is sent, so the first tick at or after the slot posts it, a second one that week finds the key and
+  does nothing, and a late tick posts it all the same. A week no tick found is not made up for. A digest
+  Discord refused stays `Pending` and is sent again, worded again from what is owed then, only while its
+  week is the one due and the league still wants it; otherwise it is *skipped* (`Digests.NoLongerDue`),
+  since a digest is the news of its week. A league that disconnected Discord is not posted one.
+- **The purge** ends each league's tick: it deletes the league's `IdempotencyRecord`s and `Notification`s
+  older than the retention age, whatever their status, inside that league's own session. The age is
+  `Retention:Days`, 90 unless set and refused below 14 ([ADR-0005](0005-idempotency-and-concurrency.md)),
+  because deleting a notification frees its dedupe key, and a key has to hold for a week at most (a digest's
+  week, a reminder's stage). It is last, so a purge that cannot run (the Job does not start the host, so a
+  bad age is only noticed when it is first read, here) fails the league after its messages have gone, not
+  before, and deletes nothing. Like the rest of the tick it visits only a league with an open season, so a
+  league with none keeps its few records; closing seasons will have to revisit that.
+- **One summary line per league** at `Information`: sent, held, skipped and failed, the digests posted (0
+  or 1), and how many idempotency records and notifications were purged, scoped with the league's
+  `tenant.id`. A league that throws is logged at `Error` and does not stop the others.
 - **The dashboard** shows each delinquent member's last reminder and how it went (sent, then
   delivered or not as Twilio reports it, held, skipped), so the treasurer sees who has been told.
-
-The weekly delinquency digest is not built; it will be one more thing the tick does.
 
 ## Alternatives
 
