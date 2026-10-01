@@ -7,7 +7,7 @@ Measured, not estimated. Filled in as each milestone lands; updated monthly whil
 | Cold start (Container Apps 0→1 + Neon wake) | — | — | First request after 15 min idle, p50 of 10 samples |
 | Warm p50 / p95, `POST …/attestations/{id}/confirm` | — | — | k6, 5 rps for 2 min |
 | `LeaguePot` projection lag | — | — | Time from an event being recorded to `LeaguePot` applying it (`ballbank.projection.lag`), p95 |
-| Rate limit proof | — | — | k6: 429s for one tenant while another tenant is unaffected |
+| Rate limit proof | — | — | k6: 429s for one tenant while another tenant is unaffected. By hand against the deployed API: `k6 run -e BASE_URL=… -e TOKEN=… -e NOISY_LEAGUE=… -e QUIET_LEAGUE=… k6/rate-limit.js` (settings in the script's header; [ADR-0013](adr/0013-every-league-has-its-own-request-budget.md)) |
 | Events written this season | — | — | `select count(*) from ballbank.mt_events` |
 | Availability (season) | — | — | External uptime monitor, 5 min interval |
 | Deploys / rollbacks | — | — | GitHub Actions history |

@@ -29,10 +29,11 @@ builder.Services.AddOpenApi();
 // so a test host can swap in a clock it sets.
 builder.Services.AddSingleton(TimeProvider.System);
 
-// The web app is served from a different origin (static export on its own host).
+// The web app is served from a different origin (static export on its own host). It reads Retry-After
+// off a refused request, so the browser is told it may.
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
 builder.Services.AddCors(options => options.AddDefaultPolicy(policy =>
-    policy.WithOrigins(allowedOrigins).AllowAnyHeader().AllowAnyMethod()));
+    policy.WithOrigins(allowedOrigins).AllowAnyHeader().AllowAnyMethod().WithExposedHeaders("Retry-After")));
 
 // Auth0 issues the tokens; the API only validates them (ADR-0008) and reads nothing but the subject.
 // Settings come from user-secrets locally (Auth0:Domain, Auth0:Audience) and platform settings when deployed.
@@ -70,6 +71,10 @@ builder.Services.AddLeaguePolicies();
 // A refused command (DomainException) is a 409 carrying its message; anything else stays a 500.
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<RefusalHandler>();
+
+// Every league has a request budget of its own, so one cannot slow another (ADR-0013).
+builder.Services.Configure<RateLimitOptions>(builder.Configuration.GetSection(RateLimitOptions.Section));
+builder.Services.AddRequestBudgets();
 
 // Sleeper, where leagues are imported from. A Sleeper failure is a 502 that says to try again.
 builder.Services.AddSleeper();
@@ -157,6 +162,9 @@ app.UseTenantTelemetry();
 app.UseExceptionHandler();
 app.UseCors();
 app.UseAuthentication();
+
+// After sign-in, so a signed-in caller can be told apart; before authorization, which reads the database.
+app.UseRateLimiter();
 app.UseAuthorization();
 
 if (app.Environment.IsDevelopment())

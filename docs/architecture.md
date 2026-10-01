@@ -35,7 +35,8 @@ are opened per tenant. The tenant is derived server-side from the route (`/leagu
 after authorisation confirms the caller is a member of that league — never from the request body.
 Row-level security is available as defence in depth. Per-tenant rate limiting uses ASP.NET Core's
 partitioned token bucket keyed by league (`429` + `Retry-After`); in-process while there is one
-replica, Redis when there are more. Every log line, trace and metric is tagged with `tenant.id`.
+replica, Redis when there are more ([ADR-0013](adr/0013-every-league-has-its-own-request-budget.md)).
+Every log line, trace and metric is tagged with `tenant.id`.
 Database-per-tenant is the "higher tier" option and is confined to store configuration
 ([ADR-0004](adr/0004-conjoined-tenancy.md)).
 

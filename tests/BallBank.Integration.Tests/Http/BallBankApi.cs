@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Net;
 using System.Net.Http.Headers;
 using System.Security.Claims;
 using System.Security.Cryptography;
@@ -26,9 +28,11 @@ namespace BallBank.Integration.Tests.Http;
 /// <summary>
 /// The API hosted in memory over the test database. Stands in for Auth0 with a signing key generated
 /// when the factory is created, so tokens are real JWTs checked by the real bearer handler and no
-/// Auth0 tenant is needed.
+/// Auth0 tenant is needed. The request budgets are raised, so tests running in parallel never spend one;
+/// a factory made with <see cref="RateLimitSettings.Lowered"/> keeps them small enough to spend in a test.
 /// </summary>
-public sealed class BallBankApi(string connectionString) : WebApplicationFactory<Program>
+public sealed class BallBankApi(string connectionString, IReadOnlyDictionary<string, string?>? limits = null)
+    : WebApplicationFactory<Program>
 {
     public const string Domain = "ballbank-test.invalid";
     public const string Issuer = $"https://{Domain}/";
@@ -37,6 +41,15 @@ public sealed class BallBankApi(string connectionString) : WebApplicationFactory
     /// <summary>A route that throws a <see cref="DomainException"/>, for testing how refusals are reported.</summary>
     public const string RefusingPath = "/test/refuse";
     public const string RefusalMessage = "That member is already claimed.";
+
+    /// <summary>A route under <c>/webhooks</c> that answers <c>204</c>, for testing how webhooks are budgeted.</summary>
+    public const string WebhookPath = "/webhooks/test";
+
+    /// <summary>The one origin the test host lets the web app call it from.</summary>
+    public const string WebOrigin = "https://web.ballbank.test";
+
+    /// <summary>Stands in for the address a request came from: a test host has no network to read it from.</summary>
+    public const string RemoteAddressHeader = "X-Test-Remote-Address";
 
     // Program hands over to the JasperFx commands, which only start the host it built when told to;
     // a factory that never sees the host start has no server to serve requests.
@@ -94,6 +107,7 @@ public sealed class BallBankApi(string connectionString) : WebApplicationFactory
         builder.UseSetting("ConnectionStrings:ballbank", connectionString);
         builder.UseSetting("Auth0:Domain", Domain);
         builder.UseSetting("Auth0:Audience", Audience);
+        builder.UseSetting("Cors:AllowedOrigins:0", WebOrigin);
 
         // Webhooks are only accepted on Discord's own hosts; the fake's is not one of them, so say so.
         builder.UseSetting("Notifications:DiscordHosts:0", FakeDiscord.Host);
@@ -101,6 +115,11 @@ public sealed class BallBankApi(string connectionString) : WebApplicationFactory
         // A send that keeps failing is retried a few times and then dead-lettered: in milliseconds, not minutes.
         builder.UseSetting("Notifications:RetryDelays:0", "00:00:00.050");
         builder.UseSetting("Notifications:RetryDelays:1", "00:00:00.050");
+
+        foreach (var (key, value) in limits ?? RateLimitSettings.Raised)
+        {
+            builder.UseSetting(key, value);
+        }
 
         builder.ConfigureLogging(logging => logging
             .AddProvider(Logs)
@@ -136,17 +155,65 @@ public sealed class BallBankApi(string connectionString) : WebApplicationFactory
                 options.CircuitBreaker.MinimumThroughput = int.MaxValue;
             });
 
-            services.AddSingleton<IStartupFilter>(new RefusingRoute());
+            services.AddSingleton<IStartupFilter>(new TestPipeline());
         });
     }
 
-    /// <summary>Appends <see cref="RefusingPath"/> behind the API's own pipeline, so the API's error handling applies.</summary>
-    private sealed class RefusingRoute : IStartupFilter
+    /// <summary>
+    /// Reads the address a request came from out of <see cref="RemoteAddressHeader"/> ahead of the API's own
+    /// pipeline, and appends <see cref="RefusingPath"/> and <see cref="WebhookPath"/> behind it, so the API's
+    /// error handling and request budgets apply to them.
+    /// </summary>
+    private sealed class TestPipeline : IStartupFilter
     {
         public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next) => app =>
         {
+            app.Use((context, forward) =>
+            {
+                if (IPAddress.TryParse(context.Request.Headers[RemoteAddressHeader], out var address))
+                {
+                    context.Connection.RemoteIpAddress = address;
+                }
+
+                return forward(context);
+            });
+
             next(app);
+
             app.Map(RefusingPath, refusing => refusing.Run(_ => throw new DomainException(RefusalMessage)));
+            app.Map(WebhookPath, webhook => webhook.Run(context =>
+            {
+                context.Response.StatusCode = StatusCodes.Status204NoContent;
+                return Task.CompletedTask;
+            }));
         };
+    }
+}
+
+/// <summary>The settings that give the API its request budgets (<c>RateLimits:…</c>), as a test host sets them.</summary>
+public static class RateLimitSettings
+{
+    private static readonly string[] Scopes = ["League", "Caller", "Webhook"];
+
+    /// <summary>Far more than any test spends.</summary>
+    public static readonly IReadOnlyDictionary<string, string?> Raised = Of(burst: 1_000_000, refill: 1_000_000, TimeSpan.FromSeconds(1));
+
+    /// <summary>
+    /// A budget of <paramref name="burst"/> requests for every league, caller and address, which does not come back
+    /// within a test: one token an hour.
+    /// </summary>
+    public static IReadOnlyDictionary<string, string?> Lowered(int burst) => Of(burst, refill: 1, TimeSpan.FromHours(1));
+
+    private static Dictionary<string, string?> Of(int burst, int refill, TimeSpan every)
+    {
+        var settings = new Dictionary<string, string?>();
+        foreach (var scope in Scopes)
+        {
+            settings[$"RateLimits:{scope}:Burst"] = burst.ToString(CultureInfo.InvariantCulture);
+            settings[$"RateLimits:{scope}:Refill"] = refill.ToString(CultureInfo.InvariantCulture);
+            settings[$"RateLimits:{scope}:Every"] = every.ToString("c", CultureInfo.InvariantCulture);
+        }
+
+        return settings;
     }
 }
