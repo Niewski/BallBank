@@ -87,6 +87,34 @@ Written from making a fake Discord refuse, not yet from a real outage.
 4. **Behind the ingress**, `ASPNETCORE_FORWARDEDHEADERS_ENABLED=true` has to be set, or every webhook
    shares one address and one budget.
 
+## The tick, and when it fails
+
+([ADR-0007](adr/0007-scheduled-work-under-scale-to-zero.md))
+
+The Container Apps Job runs `dotnet BallBank.Api.dll tick` hourly, from the API's image, with the
+API's settings (the Neon connection string, the Twilio settings, `Notifications__WebBaseUrl`). It sends
+the due-date reminders and releases held texts, then exits.
+
+- **What it logged.** One `Information` line per league, `Tick for league {LeagueId}, season {Season}:
+  sent {Sent}, held {Held}, skipped {Skipped}, failed {Failed}`, in the Job's logs with the league's
+  `tenant.id`. A league the tick could not finish is an `Error` line with the exception and makes the Job
+  exit non-zero (a failed execution); the other leagues were done regardless. `Another tick is running`
+  means a previous execution overran; this one did nothing, which is safe.
+- **`failed` above zero** is a send the channel refused (Twilio down, a rotated token that did not take).
+  It also makes the Job exit non-zero, so the execution shows as failed. Those texts stay `Pending`, and
+  the next hourly tick sends them again (after checking the member still owes), so there is nothing to
+  replay: fix the cause and let the next execution run.
+- **The connection string** the Job uses must reach Postgres directly. The tick holds a session
+  advisory lock for its run, which a transaction-pooled endpoint (a pooler in front of the database)
+  does not keep.
+- **A missed hour loses nothing.** What is due comes from the books and the clock, so the next execution
+  does it. To catch up by hand, start the Job (or run the command in a console on the revision) once.
+- **Running it twice is safe.** A reminder is sent once per account, due date and stage, and a second
+  execution, or one overlapping the first, finds that and does nothing.
+- **A reminder did not arrive.** On the dashboard, the delinquent's last reminder says whether it was
+  `Sent`, `Held` (their quiet hours; the tick sends it when they end), or `Skipped` (no consent at their
+  number, or the number opted out), and why. None at all means no tick has found them due yet.
+
 ## Rotate a secret
 
 *(M1)* Auth0 client secret, Neon connection string, Twilio auth token: update in Container Apps

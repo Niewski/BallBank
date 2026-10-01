@@ -88,6 +88,43 @@ public class SmsTextsTests
             .ShouldBe($"BallBank: Holland Hogs refunded you $10.00 out of the pot: Refund of the overpayment. Your statement: {Link}");
     }
 
+    private static readonly DateOnly DueDate = new(2026, 10, 1);
+
+    [Fact]
+    public void A_reminder_before_the_due_date_says_how_many_days_are_left()
+    {
+        SmsTexts.Reminder(League, 25m, DueDate, today: DueDate.AddDays(-3), Link)
+            .ShouldBe($"BallBank: You owe Holland Hogs $25.00, due in 3 days on Oct 1, 2026. Your statement: {Link}");
+    }
+
+    [Fact]
+    public void A_reminder_the_day_before_says_tomorrow()
+    {
+        SmsTexts.Reminder(League, 25m, DueDate, today: DueDate.AddDays(-1), Link)
+            .ShouldBe($"BallBank: You owe Holland Hogs $25.00, due tomorrow, Oct 1, 2026. Your statement: {Link}");
+    }
+
+    [Fact]
+    public void A_reminder_on_the_due_date_says_today()
+    {
+        SmsTexts.Reminder(League, 25m, DueDate, today: DueDate, Link)
+            .ShouldBe($"BallBank: You owe Holland Hogs $25.00, due today. Your statement: {Link}");
+    }
+
+    [Fact]
+    public void A_reminder_after_the_due_date_says_how_overdue_it_is()
+    {
+        SmsTexts.Reminder(League, 25m, DueDate, today: DueDate.AddDays(7), Link)
+            .ShouldBe($"BallBank: You owe Holland Hogs $25.00, 7 days overdue since Oct 1, 2026. Your statement: {Link}");
+    }
+
+    [Fact]
+    public void A_reminder_one_day_overdue_says_day_not_days()
+    {
+        SmsTexts.Reminder(League, 25m, DueDate, today: DueDate.AddDays(1), Link)
+            .ShouldBe($"BallBank: You owe Holland Hogs $25.00, 1 day overdue since Oct 1, 2026. Your statement: {Link}");
+    }
+
     [Fact]
     public void Every_text_names_BallBank_and_the_league_and_carries_the_link()
     {
@@ -98,6 +135,7 @@ public class SmsTextsTests
             SmsTexts.PaymentConfirmed(League, 50m, PaymentRail.Venmo, Link),
             SmsTexts.PaymentRejected(League, 20m, PaymentRail.Zelle, "Nothing arrived", Link),
             SmsTexts.AdjustmentPosted(League, -5m, "Waived", refund: false, Link),
+            SmsTexts.Reminder(League, 25m, DueDate, DueDate.AddDays(14), Link),
         ];
 
         foreach (var text in texts)

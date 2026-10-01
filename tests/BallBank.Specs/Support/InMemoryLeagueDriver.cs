@@ -1,3 +1,4 @@
+using BallBank.Api.Features.Notifications;
 using BallBank.Domain.Membership;
 using BallBank.Domain.Notifications;
 using BallBank.Domain.Treasury;
@@ -35,6 +36,8 @@ public sealed class InMemoryLeagueDriver : ILeagueDriver
     private readonly Dictionary<string, QuietHours> _quietHours = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<string> _postedToDiscord = [];
     private readonly Dictionary<string, List<string>> _texts = new(StringComparer.OrdinalIgnoreCase);
+    private readonly List<Message> _notifications = [];
+    private readonly HashSet<string> _reminded = [];
 
     private readonly Guid _leagueId = Guid.NewGuid();
     private readonly Guid _anonymousTreasurerId = Guid.NewGuid();
@@ -160,6 +163,45 @@ public sealed class InMemoryLeagueDriver : ILeagueDriver
     public Task<decimal> Pot() => Task.FromResult(_accounts.Values.Sum(account => account.InThePot));
 
     public DateOnly Today => DateOnly.FromDateTime(Now.UtcDateTime);
+
+    /// <summary>
+    /// What the tick does (ADR-0007), decided by the same domain rules: first the held texts whose quiet hours
+    /// have ended, then, for each account, the reminder its stage calls for, once for each stage.
+    /// </summary>
+    public Task RunTick(DateTimeOffset asOf)
+    {
+        foreach (var held in _notifications.Where(n => n.Status == NotificationStatus.Held && n.SendAfter <= asOf).ToList())
+        {
+            Decide(held, asOf);
+        }
+
+        var today = DateOnly.FromDateTime(asOf.UtcDateTime);
+        foreach (var (member, account) in _accounts)
+        {
+            var due = EarliestDueDate(account);
+            if (Reminders.StageOn(account.Balance, due, today) is not { } stage
+                || !_reminded.Add(Reminders.Key(Channels.Sms, account.MemberId, account.Id, due!.Value, stage)))
+            {
+                continue;
+            }
+
+            var link = SmsTexts.StatementLink(BallBankApi.WebBaseUrl, _leagueId, account.Id);
+            Deliver(new Message(member, SmsTexts.Reminder(LeagueName, account.Balance, due.Value, today, link), asOf, account.Id), asOf);
+        }
+
+        return Task.CompletedTask;
+    }
+
+    public Task<string?> LastReminder(string member)
+    {
+        var account = Account(member);
+        if (Delinquency.DaysOverdue(account.Balance, EarliestDueDate(account), Today) is null)
+        {
+            throw new InvalidOperationException($"{member} is not a delinquent on the dashboard.");
+        }
+
+        return Task.FromResult(_notifications.LastOrDefault(n => n.AccountId == account.Id)?.Status);
+    }
 
     /// <summary>
     /// What the dashboard adds up to, read off the accounts as they stand. As with <see cref="PostAdjustment"/>,
@@ -363,26 +405,64 @@ public sealed class InMemoryLeagueDriver : ILeagueDriver
 
     private string? NameOf(Guid memberId) => _memberIds.FirstOrDefault(member => member.Value == memberId).Key;
 
-    // As the channel decides when a text is about to be sent: by what the member has said by then.
-    private void Text(string member, string text)
+    private void Text(string member, string text) => Deliver(new Message(member, text, Now), Now);
+
+    // As the channel decides when a text is about to be sent: by what the member has said by then. One held for
+    // quiet hours stays held until a tick finds the hours ended.
+    private void Deliver(Message notification, DateTimeOffset at)
     {
+        _notifications.Add(notification);
+        Decide(notification, at);
+    }
+
+    private void Decide(Message notification, DateTimeOffset at)
+    {
+        var member = notification.Member;
         var delivery = SmsDelivery.Decide(
             _consents.GetValueOrDefault(member),
             _contacts.GetValueOrDefault(member)?.Phone,
             numberOptedOut: false,
             _quietHours.GetValueOrDefault(member) ?? QuietHours.Default,
-            Now);
+            at);
 
-        if (delivery.Outcome != SmsOutcome.Send)
+        notification.Reason = delivery.Reason;
+        notification.SendAfter = delivery.SendAfter;
+        switch (delivery.Outcome)
         {
-            return;
-        }
+            case SmsOutcome.Send:
+                notification.Status = NotificationStatus.Sent;
+                if (!_texts.TryGetValue(member, out var sent))
+                {
+                    _texts[member] = sent = [];
+                }
 
-        if (!_texts.TryGetValue(member, out var sent))
-        {
-            _texts[member] = sent = [];
-        }
+                sent.Add(notification.Text);
+                break;
 
-        sent.Add(text);
+            case SmsOutcome.Hold:
+                notification.Status = NotificationStatus.Held;
+                break;
+
+            default:
+                notification.Status = NotificationStatus.Skipped;
+                break;
+        }
+    }
+
+    private sealed class Message(string member, string text, DateTimeOffset createdAt, Guid? accountId = null)
+    {
+        public string Member { get; } = member;
+
+        public string Text { get; } = text;
+
+        public DateTimeOffset CreatedAt { get; } = createdAt;
+
+        public Guid? AccountId { get; } = accountId;
+
+        public string Status { get; set; } = NotificationStatus.Pending;
+
+        public string? Reason { get; set; }
+
+        public DateTimeOffset? SendAfter { get; set; }
     }
 }

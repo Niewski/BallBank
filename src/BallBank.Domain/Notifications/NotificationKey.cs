@@ -9,7 +9,11 @@ public static class NotificationKey
 {
     /// <param name="kind">What the cause was, one of <see cref="NotificationKinds"/>.</param>
     /// <param name="cause">The id of the fact the notification tells of: a season, an attestation.</param>
-    /// <param name="recipient">Who is told: today, a league's own channel, named by the league id.</param>
+    /// <param name="recipient">Who is told: a league's own channel, named by the league id, or a member.</param>
     public static string For(string kind, Guid cause, string channel, Guid recipient) =>
+        For(kind, cause.ToString(), channel, recipient);
+
+    /// <param name="cause">What the notification tells of, when no one fact has an id of its own: a reminder's account, due date and stage.</param>
+    public static string For(string kind, string cause, string channel, Guid recipient) =>
         $"{channel}/{recipient}/{kind}/{cause}";
 }

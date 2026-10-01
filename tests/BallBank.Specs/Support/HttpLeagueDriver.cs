@@ -168,12 +168,20 @@ public sealed class HttpLeagueDriver : ILeagueDriver
     /// <summary>The UTC date of the API's clock, which is what the dashboard counts days overdue from.</summary>
     public DateOnly Today => DateOnly.FromDateTime(Now.UtcDateTime);
 
+    /// <summary>The tick, for this league alone, as the API's Job would run it at that time; it delivers as it goes, so nothing is left to wait for.</summary>
+    public async Task RunTick(DateTimeOffset asOf) => _ = await Host.RunTick(_leagueId, asOf);
+
+    public async Task<string?> LastReminder(string member)
+    {
+        var delinquent = (await DashboardFor(Treasurer)).Delinquents.SingleOrDefault(d => d.MemberId == MemberId(member))
+            ?? throw new InvalidOperationException($"{member} is not a delinquent on the dashboard.");
+        return delinquent.LastReminder?.Status;
+    }
+
     /// <summary>The dashboard is built by the projection daemon after the commands, so waits for it to catch up first.</summary>
     public async Task<DashboardReading> ReadDashboard(string? readBy = null)
     {
-        await Host.Store.WaitForNonStaleProjectionDataAsync(TimeSpan.FromSeconds(30));
-
-        var dashboard = await Get<Dashboard>(readBy ?? Treasurer, $"/leagues/{_leagueId}/seasons/{Season}/dashboard");
+        var dashboard = await DashboardFor(readBy ?? Treasurer);
         var names = _memberIds.ToDictionary(m => m.Value, m => m.Key);
 
         return new DashboardReading(
@@ -303,6 +311,12 @@ public sealed class HttpLeagueDriver : ILeagueDriver
         _latestAttestation.TryGetValue(member, out var request)
             ? request
             : throw new InvalidOperationException($"{member} has not attested a payment yet.");
+
+    private async Task<Dashboard> DashboardFor(string person)
+    {
+        await Host.Store.WaitForNonStaleProjectionDataAsync(TimeSpan.FromSeconds(30));
+        return await Get<Dashboard>(person, $"/leagues/{_leagueId}/seasons/{Season}/dashboard");
+    }
 
     /// <summary>The account as the treasurer reads it.</summary>
     private Task<AccountStatement> Statement(string member) =>

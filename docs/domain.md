@@ -86,7 +86,7 @@ What a member has agreed to be texted is a third document, `NotificationPreferen
 | Document | Keyed by | Holds |
 |---|---|---|
 | `LeagueNotificationSettings` | the league id | The Discord webhook URL, `AnnouncePayments`, `PostDigest` (stored and toggled, but nothing posts the digest yet). Written straight by `PUT …/notifications/discord`, with no event ([ADR-0012](adr/0012-contact-details-are-a-document-not-events.md)); `DELETE` removes it, webhook and flags together, so it exists only while Discord is connected. The webhook is stored as it was accepted (a Discord host, path `/api/webhooks/{id}/{token}`) and is never returned: `GET` answers connected or not, the last four characters, and the flags. Treasurers only. |
-| `Notification` | its dedupe key, `{channel}/{recipient}/{kind}/{cause}` (the league is the recipient of a Discord post, a member of a text) | `Kind`, `Channel`, `MemberId` (for a text), the rendered `Text`, `Status` (`Pending`, `Sent`, `Dropped`, `Skipped`, `Held`), `Reason` (why `Skipped`), `SendAfter` (when a `Held` one may go), `CreatedAt`, `SentAt`. Inserting it claims the key, so an event handled twice inserts twice, the second insert fails, and nothing more is sent. |
+| `Notification` | its dedupe key, `{channel}/{recipient}/{kind}/{cause}` (the league is the recipient of a Discord post, a member of a text) | `Kind`, `Channel`, `MemberId` (for a text), `AccountId` (for a reminder), the rendered `Text`, `Status` (`Pending`, `Sent`, `Dropped`, `Skipped`, `Held`), `Reason` (why `Skipped`), `SendAfter` (when a `Held` one may go), `CreatedAt`, `SentAt`. Inserting it claims the key, so an event handled twice inserts twice, the second insert fails, and nothing more is sent. |
 
 | Event handled | Told, when | Cause in the key |
 |---|---|---|
@@ -124,8 +124,33 @@ from what the member has said by then (`SmsDelivery.Decide`, with domain tests):
 replied STOP (`PhoneOptOut`) is **skipped** (`Reason` says why), then a member with no consent at the
 number now on record is **skipped**, then a message inside the member's quiet hours is **held** with
 `SendAfter` at the end of the hours. Otherwise it goes. A held notification is sent by sending it again
-once its time has come; the tick that does that is not built yet, so nothing is scheduled and a held
-text waits. A skipped one never goes.
+once its time has come, which the tick does (below). A skipped one never goes.
+
+### Reminders and the tick
+
+`dotnet BallBank.Api.dll tick` ([ADR-0007](adr/0007-scheduled-work-under-scale-to-zero.md)) does the
+scheduled work as of the injected `TimeProvider` and exits (`TickCommand`, then `Tick`). For each league
+with an open season it first sends what was decided before this tick and has not gone (held notifications
+whose `SendAfter` has passed, and reminders a send refused), then, for each `MemberStatement` of the
+season, asks `Reminders.StageOn(balance, earliestDueDate, today)` for the stage reached:
+`ThreeDaysBefore`, `OnTheDay`, or `WeeksOverdue(n)`, the *latest* one, or nothing when the account owes
+nothing or is more than three days from its due date. The earliest due date is that of the account's
+assessments; the balance is the statement's, so only confirmed payments reduce it.
+
+A reminder is a `Notification` (kind `Reminder`, `AccountId` set) whose id is its dedupe key,
+`Sms/<member>/Reminder/<account>/<due date>/<stage>` (`Reminders.Key`). The tick inserts it, which claims
+the key, and then sends it through `SendNotificationHandler`, the same consent, opt-out and quiet-hours
+decision as every text. A key already claimed is left alone, so a `Skipped` reminder (no consent then) is
+not retried when the member opts in later: they are reminded at the next stage. A reminder that was
+`Held` or left `Pending` by a refused send goes from the first pass, and goes with what the member owes
+*then*: its text is worded again from the current statement, and if the member has paid up meanwhile it
+is `Skipped` with `Reminders.PaidUp` as the reason instead. The words are `SmsTexts.Reminder`. The
+dashboard's delinquents carry `lastReminder` (`at`, `status`, `reason`), the most recent reminder to that
+account.
+
+One Postgres advisory lock serializes ticks, and one `Information` line per league reports what
+the tick did: `sent`, `held`, `skipped` and `failed` counts. The command exits non-zero when a league
+could not be finished or any send was refused (`TickReport.Succeeded`). "Today" is the UTC date.
 
 `TwilioSmsChannel` is the second `INotificationChannel`: a typed `HttpClient` under the resilience
 handler and a rate limit in front of it, posting to Twilio's Messages API from the deployment's one

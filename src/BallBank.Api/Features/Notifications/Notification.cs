@@ -4,7 +4,8 @@ namespace BallBank.Api.Features.Notifications;
 /// One thing BallBank decided to tell someone. Tenant-scoped like every document, and keyed by its dedupe key
 /// (<see cref="Domain.Notifications.NotificationKey"/>): the channel, who is told, what it is about and what caused it.
 /// Inserting it claims that key, so an event handled a second time finds it taken and sends nothing (ADR-0008).
-/// It commits in the same transaction as the handling of the event, together with the message that sends it.
+/// One decided from an event commits in the same transaction as the handling of the event, together with the message
+/// that sends it; a reminder is decided and sent by the tick (ADR-0007).
 /// </summary>
 public sealed class Notification
 {
@@ -19,7 +20,10 @@ public sealed class Notification
     /// <summary>The member it is for, when it is for one; <c>null</c> for the league's own channel.</summary>
     public Guid? MemberId { get; set; }
 
-    /// <summary>The words, as they were rendered when the event was handled.</summary>
+    /// <summary>The account a reminder is about; <c>null</c> for anything else.</summary>
+    public Guid? AccountId { get; set; }
+
+    /// <summary>The words, as they were rendered when it was decided.</summary>
     public string Text { get; set; } = string.Empty;
 
     public string Status { get; set; } = NotificationStatus.Pending;
@@ -38,7 +42,10 @@ public sealed class Notification
 
 public static class NotificationStatus
 {
-    /// <summary>Not delivered yet. One that stays pending while its message sits in the dead-letter queue failed for good.</summary>
+    /// <summary>
+    /// Not delivered yet. One that stays pending while its message sits in the dead-letter queue failed for good; a
+    /// reminder the channel refused has no message, and stays pending until the next tick sends it.
+    /// </summary>
     public const string Pending = "Pending";
 
     public const string Sent = "Sent";

@@ -21,6 +21,15 @@ type DashboardFigures = {
   pendingAttestations: number;
 };
 
+// How the last due-date reminder for an account went: the notification's status
+// (Sent, Held, Skipped, Pending or Dropped) and, for the two that were not sent,
+// why. `at` is when it was sent, or when it was decided.
+type LastReminder = {
+  at: string;
+  status: string;
+  reason: string | null;
+};
+
 type Delinquent = {
   accountId: string;
   memberId: string;
@@ -29,6 +38,7 @@ type Delinquent = {
   balance: number;
   earliestDueDate: string;
   daysOverdue: number;
+  lastReminder: LastReminder | null;
 };
 
 type SeasonDashboard = {
@@ -252,6 +262,9 @@ function SeasonDashboardView({
                 <th scope="col" className="p-3 font-medium">
                   Days overdue
                 </th>
+                <th scope="col" className="p-3 font-medium">
+                  Last reminder
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
@@ -282,6 +295,12 @@ function SeasonDashboardView({
                       due {formatDueDate(delinquent.earliestDueDate)}
                     </span>
                   </td>
+                  <td className="p-3 text-zinc-700 dark:text-zinc-300">
+                    <ReminderStatus
+                      reminder={delinquent.lastReminder}
+                      now={now}
+                    />
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -292,6 +311,46 @@ function SeasonDashboardView({
       <DiscordSettings leagueId={leagueId} />
     </section>
   );
+}
+
+function ReminderStatus({
+  reminder,
+  now,
+}: {
+  reminder: LastReminder | null;
+  now: number;
+}) {
+  if (!reminder) {
+    return <span className="text-zinc-500">None yet</span>;
+  }
+
+  const ago = formatAgo(reminder.at, now);
+  switch (reminder.status) {
+    case "Sent":
+      return <>Texted {ago}</>;
+    case "Held":
+      return (
+        <>
+          Held {ago}
+          {reminder.reason && (
+            <span className="ml-2 text-xs text-zinc-500">{reminder.reason}</span>
+          )}
+        </>
+      );
+    case "Skipped":
+      return (
+        <>
+          Not texted
+          {reminder.reason && (
+            <span className="ml-2 text-xs text-zinc-500">{reminder.reason}</span>
+          )}
+        </>
+      );
+    case "Pending":
+      return <>Waiting to be sent</>;
+    default:
+      return <>Not sent</>;
+  }
 }
 
 function Figure({ label, value }: { label: string; value: string }) {

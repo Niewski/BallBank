@@ -65,9 +65,10 @@ messages for reminders. Design points:
   dead-letter queue; delivery status recorded from Twilio's status callback. Built so far (M3):
   Discord announcements of a season opening and of confirmed payments, configured per league by its
   treasurers, and texts to opted-in members about their own account and to treasurers about
-  attestations, checked for consent and quiet hours as they are sent
+  attestations, checked for consent and quiet hours as they are sent, and, from the tick, due-date
+  reminders and the release of held texts
   ([domain.md](domain.md#notifications), [ADR-0008](adr/0008-buy-auth-abstract-flags-free-notifications.md)).
-  Not yet: the status callback endpoint, STOP handling, and the tick that sends held texts.
+  Not yet: the status callback endpoint and STOP handling.
 - **Cost.** Discord is free. SMS is the one paid line item: a toll-free number is about $2.15/month
   plus roughly a cent per message including carrier fees; toll-free verification is required for
   US traffic and takes a few business days. A twelve-member league sending a handful of reminders
@@ -82,9 +83,10 @@ request, expected versions on every command, events and outgoing messages in one
 
 The API scales to zero between requests, so Wolverine's in-process scheduled messages only fire while
 something is awake. Reminders and digests therefore run from a Container Apps cron **Job** built
-from the same image (`dotnet BallBank.Api.dll tick`), which wakes the app on a schedule. Keeping one
-replica warm would cost more than the rest of the system combined
-([ADR-0007](adr/0007-scheduled-work-under-scale-to-zero.md)).
+from the same image (`dotnet BallBank.Api.dll tick`), hourly, which does what is due as of now from the
+books and exits; it does not call the API. Keeping one replica warm would cost more than the rest of the
+system combined ([ADR-0007](adr/0007-scheduled-work-under-scale-to-zero.md)). The weekly digest is not
+built yet.
 
 ## Hosting and cost
 
