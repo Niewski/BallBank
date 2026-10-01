@@ -40,9 +40,14 @@ public sealed class TreasurersDesk(BallBankApi api, HollandHogsSeason hogs)
         await Adjust(hogs.Jacobs, -5m, "Waived: hosted the draft");
     }
 
-    public async Task Assess(Guid[] memberIds, decimal amount, DateOnly dueDate, string memo) =>
+    /// <summary>Assesses the members; answers with the assessment's id.</summary>
+    public async Task<Guid> Assess(Guid[] memberIds, decimal amount, DateOnly dueDate, string memo)
+    {
+        var assessmentId = Guid.NewGuid();
         (await Send(hogs.Jacob, $"/leagues/{hogs.LeagueId}/seasons/2026/assessments",
-            new AssessmentRequest(Guid.NewGuid(), amount, dueDate, memo, memberIds))).StatusCode.ShouldBe(HttpStatusCode.OK);
+            new AssessmentRequest(assessmentId, amount, dueDate, memo, memberIds))).StatusCode.ShouldBe(HttpStatusCode.OK);
+        return assessmentId;
+    }
 
     public async Task<Guid> Attest(string subject, Guid memberId, decimal amount, PaymentRail rail, string? reference)
     {

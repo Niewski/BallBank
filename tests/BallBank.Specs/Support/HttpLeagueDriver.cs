@@ -11,6 +11,7 @@ using BallBank.Domain;
 using BallBank.Domain.Notifications;
 using BallBank.Domain.Treasury;
 using BallBank.Integration.Tests.Discord;
+using BallBank.Integration.Tests.Http;
 using BallBank.Integration.Tests.Sleeper;
 using Marten;
 using Marten.Events;
@@ -22,7 +23,9 @@ namespace BallBank.Specs.Support;
 /// fake Sleeper with only the teams of the members named, imported by Jacob (who keeps its books) and
 /// claimed by everyone else through an invite. Every command goes through the Treasury endpoints with
 /// a fresh <c>Idempotency-Key</c> and the version last read; balances and the pot are read from the
-/// statements and the ledger, the history from the event store.
+/// statements and the ledger, the history from the event store. Announcements and texts follow the command
+/// that caused them, deciding by what the league holds when they are handled, so each command waits for them
+/// before the next step: what a member is told is then what the league held at that step.
 /// </summary>
 public sealed class HttpLeagueDriver : ILeagueDriver
 {
@@ -78,7 +81,7 @@ public sealed class HttpLeagueDriver : ILeagueDriver
     {
         await Send(Treasurer, HttpMethod.Post, $"/leagues/{_leagueId}/seasons", new OpenSeasonRequest(label, duesAmount, dueDate));
         _season = label;
-        await LetDiscordBeTold();
+        await Host.Delivered();
     }
 
     /// <summary>The member's team joins on Sleeper, and the treasurer imports the league again. Nobody claims it yet.</summary>
@@ -91,45 +94,56 @@ public sealed class HttpLeagueDriver : ILeagueDriver
         await LearnMemberIds();
     }
 
-    public Task Assess(string member, decimal amount, string memo, DateOnly dueDate) =>
-        Send(
+    public async Task Assess(string member, decimal amount, string memo, DateOnly dueDate)
+    {
+        await Send(
             Treasurer,
             HttpMethod.Post,
             $"/leagues/{_leagueId}/seasons/{Season}/assessments",
             new AssessmentRequest(Guid.NewGuid(), amount, dueDate, memo, [MemberId(member)]));
+        await Host.Delivered();
+    }
 
     public async Task Attest(string member, decimal amount, PaymentRail rail, string? reference, bool byTreasurer = false)
     {
         var request = new AttestPaymentRequest(Guid.NewGuid(), amount, rail, reference, (await Statement(member)).Version);
         _latestAttestation[member] = request;
         await Send(byTreasurer ? Treasurer : member, HttpMethod.Post, $"/leagues/{_leagueId}/accounts/{AccountId(member)}/attestations", request);
+        await Host.Delivered();
     }
 
     public async Task AttestSameAgain(string member)
     {
         var request = LatestAttestation(member) with { Version = (await Statement(member)).Version };
         await Send(member, HttpMethod.Post, $"/leagues/{_leagueId}/accounts/{AccountId(member)}/attestations", request);
+        await Host.Delivered();
     }
 
     public async Task ConfirmLatest(string member)
     {
         await Send(Treasurer, HttpMethod.Post, ConfirmationPath(member), new ConfirmPaymentRequest((await Statement(member)).Version));
-        await LetDiscordBeTold();
+        await Host.Delivered();
     }
 
-    public async Task RejectLatest(string member, string reason) =>
+    public async Task RejectLatest(string member, string reason)
+    {
         await Send(
             Treasurer,
             HttpMethod.Post,
             $"/leagues/{_leagueId}/accounts/{AccountId(member)}/attestations/{LatestAttestation(member).AttestationId}/rejection",
             new RejectPaymentRequest(reason, (await Statement(member)).Version));
+        await Host.Delivered();
+    }
 
-    public async Task PostAdjustment(string member, decimal amount, string reason, bool refund = false, string? postedBy = null) =>
+    public async Task PostAdjustment(string member, decimal amount, string reason, bool refund = false, string? postedBy = null)
+    {
         await Send(
             postedBy ?? Treasurer,
             HttpMethod.Post,
             $"/leagues/{_leagueId}/accounts/{AccountId(member)}/adjustments",
             new PostAdjustmentRequest(Guid.NewGuid(), amount, reason, (await Statement(member)).Version, refund));
+        await Host.Delivered();
+    }
 
     public async Task<decimal> Balance(string member) => (await Statement(member)).Balance;
 
@@ -149,8 +163,10 @@ public sealed class HttpLeagueDriver : ILeagueDriver
         return pot;
     }
 
+    public DateTimeOffset Now => Host.Clock.GetUtcNow();
+
     /// <summary>The UTC date of the API's clock, which is what the dashboard counts days overdue from.</summary>
-    public DateOnly Today => DateOnly.FromDateTime(Host.Clock.GetUtcNow().UtcDateTime);
+    public DateOnly Today => DateOnly.FromDateTime(Now.UtcDateTime);
 
     /// <summary>The dashboard is built by the projection daemon after the commands, so waits for it to catch up first.</summary>
     public async Task<DashboardReading> ReadDashboard(string? readBy = null)
@@ -202,6 +218,18 @@ public sealed class HttpLeagueDriver : ILeagueDriver
         var reading = await Texting(member);
         return new TextingReading(reading.Consent, reading.QuietHours, reading.OptedIn);
     }
+
+    /// <summary>What the fake Twilio accepted for the member, named by the member each notification was recorded for.</summary>
+    public async Task<IReadOnlyList<string>> TextsSentTo(string member)
+    {
+        await Host.Delivered();
+
+        var recipient = $"{Channels.Sms}/{MemberId(member)}/";
+        return Host.Twilio.Sent(_leagueId).Where(text => text.NotificationId.StartsWith(recipient, StringComparison.Ordinal)).Select(text => text.Body).ToList();
+    }
+
+    public Task<string> StatementLink(string member) =>
+        Task.FromResult(SmsTexts.StatementLink(BallBankApi.WebBaseUrl, _leagueId, AccountId(member)));
 
     /// <summary>A webhook of the fake Discord, which posts a hello through it before answering.</summary>
     public async Task ConnectDiscord(bool announcePayments)
@@ -260,16 +288,6 @@ public sealed class HttpLeagueDriver : ILeagueDriver
 
     /// <summary>The account's version now.</summary>
     public async Task<int> Version(string member) => (await Statement(member)).Version;
-
-    // An announcement reads the league's figures when it is handled, after the command was answered, so
-    // the next command waits for it: what a channel is told is then what the league held at that step.
-    private async Task LetDiscordBeTold()
-    {
-        if (_webhook is not null)
-        {
-            await Host.Delivered();
-        }
-    }
 
     private string Season => _season ?? throw new InvalidOperationException("No season is open yet.");
 

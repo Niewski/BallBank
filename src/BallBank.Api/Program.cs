@@ -4,6 +4,7 @@ using BallBank.Api.Features.Notifications;
 using BallBank.Api.Features.Treasury;
 using BallBank.Api.Integrations.Discord;
 using BallBank.Api.Integrations.Sleeper;
+using BallBank.Api.Integrations.Twilio;
 using JasperFx;
 using JasperFx.Events;
 using JasperFx.Events.Daemon;
@@ -76,8 +77,15 @@ builder.Services.AddSleeper();
 builder.Services.AddExceptionHandler<SleeperUnavailableHandler>();
 
 // Discord, where a league is told things (ADR-0008). Its webhook URL is a secret and is kept out of logs and traces.
-builder.Services.Configure<NotificationOptions>(builder.Configuration.GetSection(NotificationOptions.Section));
+// A text links to the web app, so where it is served has to be known, like Auth0's settings.
+builder.Services.AddOptions<NotificationOptions>()
+    .Bind(builder.Configuration.GetSection(NotificationOptions.Section))
+    .Validate(options => !string.IsNullOrWhiteSpace(options.WebBaseUrl), "Notifications:WebBaseUrl is not configured.")
+    .ValidateOnStart();
 builder.Services.AddDiscord();
+
+// Twilio, where members are texted (ADR-0008); its settings are secrets.
+builder.Services.AddTwilio(builder.Configuration);
 
 // Marten: event store + documents on PostgreSQL. Tenant = league (ADR-0004).
 builder.Services.AddMarten(options =>
@@ -136,6 +144,7 @@ builder.Host.UseWolverine(options =>
     // Typed HTTP clients are built by the HTTP client factory, which Wolverine's code generation cannot inline.
     options.CodeGeneration.AlwaysUseServiceLocationFor<SleeperClient>();
     options.CodeGeneration.AlwaysUseServiceLocationFor<DiscordWebhookChannel>();
+    options.CodeGeneration.AlwaysUseServiceLocationFor<TwilioSmsChannel>();
     options.CodeGeneration.AlwaysUseServiceLocationFor<INotificationChannel>();
     options.CodeGeneration.AlwaysUseServiceLocationFor<NotificationChannels>();
 

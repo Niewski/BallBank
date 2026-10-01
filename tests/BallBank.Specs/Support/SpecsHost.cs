@@ -2,6 +2,7 @@ using System.Net.Http.Headers;
 using BallBank.Integration.Tests.Discord;
 using BallBank.Integration.Tests.Http;
 using BallBank.Integration.Tests.Sleeper;
+using BallBank.Integration.Tests.Twilio;
 using Marten;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -36,6 +37,8 @@ public sealed class SpecsHost
     public FakeSleeper Sleeper => _api.Sleeper;
 
     public FakeDiscord Discord => _api.Discord;
+
+    public FakeTwilio Twilio => _api.Twilio;
 
     /// <summary>
     /// Waits until the API has nothing left waiting in its inbox: the events its stores forwarded, and the

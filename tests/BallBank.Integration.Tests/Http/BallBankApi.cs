@@ -3,9 +3,11 @@ using System.Security.Claims;
 using System.Security.Cryptography;
 using BallBank.Api.Integrations.Discord;
 using BallBank.Api.Integrations.Sleeper;
+using BallBank.Api.Integrations.Twilio;
 using BallBank.Domain;
 using BallBank.Integration.Tests.Discord;
 using BallBank.Integration.Tests.Sleeper;
+using BallBank.Integration.Tests.Twilio;
 using JasperFx.CommandLine;
 using Marten;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -34,6 +36,9 @@ public sealed class BallBankApi(string connectionString) : WebApplicationFactory
     public const string Issuer = $"https://{Domain}/";
     public const string Audience = "https://api.ballbank.test";
 
+    /// <summary>Where the web app is, as far as the links in a text are concerned.</summary>
+    public const string WebBaseUrl = "https://ballbank.test";
+
     /// <summary>A route that throws a <see cref="DomainException"/>, for testing how refusals are reported.</summary>
     public const string RefusingPath = "/test/refuse";
     public const string RefusalMessage = "That member is already claimed.";
@@ -49,6 +54,9 @@ public sealed class BallBankApi(string connectionString) : WebApplicationFactory
 
     /// <summary>What the API's Discord channel talks to instead of Discord.</summary>
     public FakeDiscord Discord { get; } = new();
+
+    /// <summary>What the API's Twilio channel talks to instead of Twilio.</summary>
+    public FakeTwilio Twilio { get; } = new();
 
     /// <summary>Makes the commit of a league's notifications fail, for a test that needs to see them roll back.</summary>
     public NotificationCommitFailure NotificationCommits { get; } = new();
@@ -98,6 +106,13 @@ public sealed class BallBankApi(string connectionString) : WebApplicationFactory
         // Webhooks are only accepted on Discord's own hosts; the fake's is not one of them, so say so.
         builder.UseSetting("Notifications:DiscordHosts:0", FakeDiscord.Host);
 
+        // A text links to the web app, and Twilio reports on it to the API: neither address is real.
+        builder.UseSetting("Notifications:WebBaseUrl", WebBaseUrl);
+        builder.UseSetting("Twilio:AccountSid", Twilio.AccountSid);
+        builder.UseSetting("Twilio:AuthToken", Twilio.AuthToken);
+        builder.UseSetting("Twilio:FromNumber", Twilio.FromNumber);
+        builder.UseSetting("Twilio:StatusCallbackBaseUrl", FakeTwilio.StatusCallbackBaseUrl);
+
         // A send that keeps failing is retried a few times and then dead-lettered: in milliseconds, not minutes.
         builder.UseSetting("Notifications:RetryDelays:0", "00:00:00.050");
         builder.UseSetting("Notifications:RetryDelays:1", "00:00:00.050");
@@ -123,6 +138,7 @@ public sealed class BallBankApi(string connectionString) : WebApplicationFactory
 
             services.AddHttpClient<SleeperClient>().ConfigurePrimaryHttpMessageHandler(Sleeper.Handler);
             services.AddHttpClient<DiscordWebhookChannel>().ConfigurePrimaryHttpMessageHandler(Discord.Handler);
+            services.AddHttpClient<TwilioSmsChannel>().ConfigurePrimaryHttpMessageHandler(Twilio.Handler);
 
             // The standard resilience handler as configured, but giving up on a failing Sleeper in
             // seconds rather than half a minute. One API serves every test, so the circuit breaker

@@ -30,4 +30,8 @@ public static class PhoneOptOuts
         var found = await session.LoadManyAsync<PhoneOptOut>(cancellation, wanted);
         return found.Select(o => o.Id).ToHashSet();
     }
+
+    /// <summary>Whether this member's number, if they have one, has opted out.</summary>
+    public static async Task<bool> IsOptedOutAsync(IDocumentStore store, string? phone, CancellationToken cancellation) =>
+        phone is not null && (await AmongAsync(store, [phone], cancellation)).Contains(phone);
 }

@@ -54,6 +54,9 @@ public interface ILeagueDriver
     /// <summary>What the members paid in, less what was refunded.</summary>
     Task<decimal> Pot();
 
+    /// <summary>The instant the league keeps, which a member's quiet hours are read against.</summary>
+    DateTimeOffset Now { get; }
+
     /// <summary>The date the league keeps: the "today" that dues are overdue against.</summary>
     DateOnly Today { get; }
 
@@ -83,6 +86,15 @@ public interface ILeagueDriver
 
     /// <summary>What the member has said about being texted, as they read it.</summary>
     Task<TextingReading> ReadTexting(string member);
+
+    /// <summary>
+    /// Every text the member has been sent, oldest first, once the league has delivered all it is going to
+    /// (as with <see cref="PostedToDiscord"/>). A text held for quiet hours, or skipped, has not been sent.
+    /// </summary>
+    Task<IReadOnlyList<string>> TextsSentTo(string member);
+
+    /// <summary>Where the member's statement is, as a text names it.</summary>
+    Task<string> StatementLink(string member);
 
     /// <summary>
     /// The treasurer connects the league's Discord channel by its webhook, and says whether confirmed payments

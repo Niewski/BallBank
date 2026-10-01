@@ -1,6 +1,6 @@
 # ADR-0008: Buy identity, abstract feature flags, free notification channels
 
-- **Status:** Proposed; the Discord notification channel accepted 2026-09-29 (M3)
+- **Status:** Proposed; the Discord notification channel accepted 2026-09-29 and the texts 2026-09-30 (M3)
 - **Date:** 2026-09-24
 
 ## Context
@@ -38,3 +38,25 @@ cost is SMS.
   `allowed_mentions` to none, and only Discord's own hosts are accepted.
 - Discord is faked at the HTTP message handler, as Sleeper is, so the adapter, its resilience handler and
   its error mapping all run in the tests.
+
+## As built: texts (M3)
+
+- The same machinery carries SMS: one handler per Treasury event records a `Notification` for each member
+  it concerns (the dedupe key's recipient is the member) and a `SendNotification` for it. `DuesAssessed`,
+  `PaymentConfirmed`, `PaymentRejected` and `AdjustmentPosted` text the member whose account it is,
+  `PaymentAttested` texts every treasurer but the attester, and nobody is texted about what they did
+  themselves. `SeasonOpened` texts nobody: each member hears of the dues assessed to them. The assess,
+  attest and adjust endpoints open their session through `OutboxedSessionFactory`, for the reason above.
+- Whether to text is decided when the text is about to go, not when the event is handled, so a member who
+  opts out in between is not texted: no `PhoneOptOut`, then consent at the number now on record, then
+  quiet hours. A notification is otherwise `Skipped` (with a reason) or `Held` (with `SendAfter`). That
+  rule is `SmsDelivery.Decide` in the domain, as are the words of every text (`SmsTexts`).
+- Twilio is the second `INotificationChannel`, a typed HTTP client under the resilience handler and a
+  rate limit, sending from one toll-free number per deployment and asking Twilio to report delivery to
+  `POST /webhooks/twilio/status?league=&notification=`. It is faked at the HTTP message handler, like
+  Discord and Sleeper. Its auth token and the member's number are never logged, traced or put in an
+  exception. None of its settings are in the repository.
+- Not yet built: the status callback endpoint, STOP handling, and the tick that sends held texts. A send
+  that fails after its retries is dead-lettered without failing the command, as for Discord.
+- A resilience retry of Twilio's POST can send a text twice if the first was accepted but its answer was
+  lost. Twilio has no idempotency key for messages, so this is accepted for now.

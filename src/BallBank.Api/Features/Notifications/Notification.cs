@@ -16,10 +16,19 @@ public sealed class Notification
     /// <summary>Where it goes, one of <see cref="Domain.Notifications.Channels"/>.</summary>
     public string Channel { get; set; } = string.Empty;
 
+    /// <summary>The member it is for, when it is for one; <c>null</c> for the league's own channel.</summary>
+    public Guid? MemberId { get; set; }
+
     /// <summary>The words, as they were rendered when the event was handled.</summary>
     public string Text { get; set; } = string.Empty;
 
     public string Status { get; set; } = NotificationStatus.Pending;
+
+    /// <summary>Why it was <see cref="NotificationStatus.Skipped"/> or <see cref="NotificationStatus.Held"/>.</summary>
+    public string? Reason { get; set; }
+
+    /// <summary>When a <see cref="NotificationStatus.Held"/> notification may go: when the member's quiet hours end.</summary>
+    public DateTimeOffset? SendAfter { get; set; }
 
     public DateTimeOffset CreatedAt { get; set; }
 
@@ -36,4 +45,10 @@ public static class NotificationStatus
 
     /// <summary>Not sent: the league disconnected the channel after the notification was decided.</summary>
     public const string Dropped = "Dropped";
+
+    /// <summary>Not sent, and never will be: the member gave no consent at their number, or the number opted out.</summary>
+    public const string Skipped = "Skipped";
+
+    /// <summary>Not sent yet because it fell in the member's quiet hours; it goes once <see cref="Notification.SendAfter"/> has passed.</summary>
+    public const string Held = "Held";
 }

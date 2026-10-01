@@ -101,7 +101,7 @@ public static class NotificationPreferencesEndpoint
 
         var preferences = await session.LoadAsync<NotificationPreferences>(memberId, cancellation);
         var phone = (await session.LoadAsync<MemberContact>(memberId, cancellation))?.Phone;
-        var optedOut = phone is not null && (await PhoneOptOuts.AmongAsync(store, [phone], cancellation)).Contains(phone);
+        var optedOut = await PhoneOptOuts.IsOptedOutAsync(store, phone, cancellation);
         var consent = preferences?.ToConsent();
 
         return Results.Ok(new NotificationPreferencesReading(

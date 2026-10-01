@@ -63,7 +63,10 @@ messages for reminders. Design points:
   a durable local queue, in that same transaction. Retries with backoff; poison messages to the
   dead-letter queue; delivery status recorded from Twilio's status callback. Built so far (M3):
   Discord announcements of a season opening and of confirmed payments, configured per league by its
-  treasurers ([domain.md](domain.md#notifications), [ADR-0008](adr/0008-buy-auth-abstract-flags-free-notifications.md)).
+  treasurers, and texts to opted-in members about their own account and to treasurers about
+  attestations, checked for consent and quiet hours as they are sent
+  ([domain.md](domain.md#notifications), [ADR-0008](adr/0008-buy-auth-abstract-flags-free-notifications.md)).
+  Not yet: the status callback endpoint, STOP handling, and the tick that sends held texts.
 - **Cost.** Discord is free. SMS is the one paid line item: a toll-free number is about $2.15/month
   plus roughly a cent per message including carrier fees; toll-free verification is required for
   US traffic and takes a few business days. A twelve-member league sending a handful of reminders

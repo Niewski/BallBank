@@ -10,6 +10,9 @@ public sealed class NotificationOptions
     /// <summary>How long to wait before each retry of a send that failed, after which it is dead-lettered.</summary>
     public static readonly TimeSpan[] DefaultRetryDelays = [TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(30), TimeSpan.FromMinutes(5)];
 
+    /// <summary>Where the web app is served, which the links in a text point to: <c>/statement?league=&amp;account=</c> on it.</summary>
+    public string WebBaseUrl { get; set; } = string.Empty;
+
     /// <summary>The hosts a Discord webhook may be on; Discord's own unless a host says otherwise.</summary>
     public string[]? DiscordHosts { get; set; }
 

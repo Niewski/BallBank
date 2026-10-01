@@ -86,27 +86,54 @@ What a member has agreed to be texted is a third document, `NotificationPreferen
 | Document | Keyed by | Holds |
 |---|---|---|
 | `LeagueNotificationSettings` | the league id | The Discord webhook URL, `AnnouncePayments`, `PostDigest` (stored and toggled, but nothing posts the digest yet). Written straight by `PUT …/notifications/discord`, with no event ([ADR-0012](adr/0012-contact-details-are-a-document-not-events.md)); `DELETE` removes it, webhook and flags together, so it exists only while Discord is connected. The webhook is stored as it was accepted (a Discord host, path `/api/webhooks/{id}/{token}`) and is never returned: `GET` answers connected or not, the last four characters, and the flags. Treasurers only. |
-| `Notification` | its dedupe key, `{channel}/{league}/{kind}/{cause}` | `Kind`, `Channel`, the rendered `Text`, `Status` (`Pending`, `Sent`, `Dropped`), `CreatedAt`, `SentAt`. Inserting it claims the key, so an event handled twice inserts twice, the second insert fails, and nothing more is sent. |
+| `Notification` | its dedupe key, `{channel}/{recipient}/{kind}/{cause}` (the league is the recipient of a Discord post, a member of a text) | `Kind`, `Channel`, `MemberId` (for a text), the rendered `Text`, `Status` (`Pending`, `Sent`, `Dropped`, `Skipped`, `Held`), `Reason` (why `Skipped`), `SendAfter` (when a `Held` one may go), `CreatedAt`, `SentAt`. Inserting it claims the key, so an event handled twice inserts twice, the second insert fails, and nothing more is sent. |
 
 | Event handled | Told, when | Cause in the key |
 |---|---|---|
-| `SeasonOpened` | Discord is connected: the league's name, the season, the dues and when they are due. | the season id |
-| `PaymentConfirmed` | Discord is connected **and** `AnnouncePayments` is on: the payer's team name, the amount, and what the pot holds when the event is handled. | the attestation id |
+| `SeasonOpened` | Discord is connected: the league's name, the season, the dues and when they are due. Texts nobody: each member hears of the dues assessed to them. | the season id |
+| `PaymentConfirmed` | Discord is connected **and** `AnnouncePayments` is on: the payer's team name, the amount, and what the pot holds when the event is handled. By text: the member whose account it is, unless they confirmed it themselves. | the attestation id |
+| `DuesAssessed` | By text, the member assessed: the amount, what it is for and when it is due. | the assessment id |
+| `PaymentAttested` | By text, every treasurer but the one who attested: who says they paid, how much, and by which rail. | the attestation id |
+| `PaymentRejected` | By text, the member: the amount, the rail and the reason. | the attestation id |
+| `AdjustmentPosted` | By text, the member: how their balance moved and why, unless they posted it themselves. | the adjustment id |
 
-`PaymentAttested` and `PaymentRejected` are never announced. The pot in a payment's text is the
-accounts' figures at handling time, so a second confirmation handled first shows the larger pot.
+`PaymentAttested` and `PaymentRejected` are never announced on Discord. The pot in a payment's text is
+the accounts' figures at handling time, so a second confirmation handled first shows the larger pot.
 Connecting posts a hello through the webhook in the request itself; Discord refusing it is a `400` and
 nothing is saved.
 
-Marten forwards these two Treasury events to Wolverine in the transaction that commits them, but only
+Marten forwards these Treasury events to Wolverine in the transaction that commits them, but only
 for sessions opened through Wolverine's `OutboxedSessionFactory`: a plain `LightweightSession` with an
 enrolled outbox appends the events and forwards nothing. The endpoints that append them
-(`OpenSeasonEndpoint`, the confirmation endpoints) open their session that way. One handler hears each
-event, records the `Notification` and returns a `SendNotification` for it, which goes to the durable
+(`OpenSeasonEndpoint`, `AssessEndpoint`, `AttestPaymentEndpoint`, the confirmation and rejection
+endpoints, `PostAdjustmentEndpoint`) open their session that way. One handler hears each event,
+records the `Notification`(s) and returns a `SendNotification` for each, which goes to the durable
 local queue `notifications`. Sending marks the notification `Sent`. A send that fails is retried on a
 schedule (`Notifications:RetryDelays`, by default 5 s, 30 s and 5 min) and then dead-lettered; the
 notification stays `Pending`, and the confirmation that caused it was never held up
 ([runbook](runbook.md#replay-a-dead-lettered-message)).
+
+### Texts
+
+Every text is worded in the domain (`SmsTexts`, with domain tests): it names BallBank and the league, and
+ends with the link to the member's statement, `/statement?league=&account=` on `Notifications:WebBaseUrl`
+(or, for a treasurer told of an attestation, to the account that attested).
+
+Whether a member is texted is decided when the text is about to go, not when the event is handled,
+from what the member has said by then (`SmsDelivery.Decide`, with domain tests): a number that
+replied STOP (`PhoneOptOut`) is **skipped** (`Reason` says why), then a member with no consent at the
+number now on record is **skipped**, then a message inside the member's quiet hours is **held** with
+`SendAfter` at the end of the hours. Otherwise it goes. A held notification is sent by sending it again
+once its time has come; the tick that does that is not built yet, so nothing is scheduled and a held
+text waits. A skipped one never goes.
+
+`TwilioSmsChannel` is the second `INotificationChannel`: a typed `HttpClient` under the resilience
+handler and a rate limit in front of it, posting to Twilio's Messages API from the deployment's one
+toll-free number (`Twilio:FromNumber`), with `StatusCallback` set to
+`POST /webhooks/twilio/status?league=&notification=` on the API (`Twilio:StatusCallbackBaseUrl`); the
+endpoint that receives it, and so a text's delivery status, is not built yet. Neither the auth token
+nor a member's number is logged, traced or put in an exception. A machine without Twilio settings
+fails every send, which ends in the dead-letter queue like any other.
 
 ### `NotificationPreferences` — one per member, tenant-scoped
 

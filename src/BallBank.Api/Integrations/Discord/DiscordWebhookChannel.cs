@@ -20,7 +20,7 @@ public sealed class DiscordWebhookChannel(HttpClient http) : INotificationChanne
 
     public string Name => Channels.Discord;
 
-    public async Task SendAsync(string destination, string text, CancellationToken cancellation)
+    public async Task SendAsync(OutgoingNotification message, CancellationToken cancellation)
     {
         using var activity = Tracing.StartActivity("Discord webhook post");
 
@@ -28,8 +28,8 @@ public sealed class DiscordWebhookChannel(HttpClient http) : INotificationChanne
         {
             // No mention in the text can ping anybody: a team called "@everyone" is only a name.
             using var response = await http.PostAsJsonAsync(
-                destination,
-                new WebhookMessage(text, new AllowedMentions([])),
+                message.Destination,
+                new WebhookMessage(message.Text, new AllowedMentions([])),
                 cancellation);
 
             if (!response.IsSuccessStatusCode)
