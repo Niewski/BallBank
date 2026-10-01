@@ -102,6 +102,14 @@ dead-lettered message"), so a rotated token that does not take shows as dead let
 `SendNotification`, not as a failed command. After rotating, confirm with a text to a member who has
 opted in.
 
+Twilio's callbacks (`/webhooks/twilio/status` and `/webhooks/twilio/inbound`) are signed with the same
+auth token. The number's incoming-message webhook, in Twilio's console, must be
+`{Twilio:StatusCallbackBaseUrl}/webhooks/twilio/inbound`, and `Twilio:StatusCallbackBaseUrl` must be the
+exact address Twilio calls (scheme, host and any path prefix), because the signature covers the URL as
+Twilio saw it. If every callback is answered `403`, look for the warning "its Twilio signature did not
+match" in the API's logs: the cause is a base URL that differs from the public one, or a token that
+was rotated on one side only. Texts still go, but their status stays `Sent`, and a STOP is not recorded.
+
 ## Wake-up check before Sunday night
 
 *(M3)* The cron Job pings the API at 18:00 ET on Sundays so the first member does not eat the cold start.

@@ -1,7 +1,7 @@
 # ADR-0005: Idempotency and optimistic concurrency
 
 - **Status:** Accepted
-- **Date:** 2026-09-24; layer two accepted 2026-09-26; layer three accepted 2026-09-26
+- **Date:** 2026-09-24; layer two accepted 2026-09-26; layer three accepted 2026-09-26; webhooks named 2026-10-01
 
 ## Context
 
@@ -15,7 +15,8 @@ Three layers that converge:
 1. **Inside the aggregate:** every command carries the id of the fact it creates; a replay returns
    no event.
 2. **At the HTTP edge:** every mutating request carries an `Idempotency-Key`; the stored response is
-   returned on a retry. Webhooks use the provider's event id.
+   returned on a retry. Webhooks carry no key of ours: Twilio's status callbacks and inbound replies
+   (`/webhooks/twilio/…`) are idempotent by what they record (see "Webhooks in detail").
 3. **Between writers:** commands carry the expected stream `Version`; a stale version is a
    `409` with the current version, and the client re-reads.
 
@@ -41,6 +42,34 @@ Three layers that converge:
 - Records are kept. Purging old ones is an operational task (M3 runbook).
 - The web client generates a fresh key per submission and reuses it when retrying that submission
   (`web/src/lib/idempotency.ts`).
+
+### Webhooks in detail
+
+Twilio calls back at least once, in any order, and sends no event id we could key on. Both
+endpoints are therefore idempotent by what they record, not by a stored answer:
+
+- **A signature, not a key.** Every call must carry a valid `X-Twilio-Signature` (HMAC-SHA1 of the
+  public URL and the sorted form fields, under the deployment's auth token); otherwise `403`, with
+  nothing read from the body. The URL is rebuilt from `Twilio:StatusCallbackBaseUrl`, so that setting
+  must be the address Twilio signs.
+- **A status callback** (`POST /webhooks/twilio/status?league=&notification=`) names its
+  `Notification` in the query string, which BallBank wrote and Twilio signed, so the tenant never
+  comes from the form. Statuses only move forward: `queued`, `sending` and `sent` change nothing, and
+  `delivered`, `undelivered` or `failed` settle a notification that was `Sent` and are never overwritten.
+  A callback delivered twice, or late, records one state.
+- **An inbound reply** (`POST /webhooks/twilio/inbound`) is read by its trimmed body, whole and
+  case-insensitively. STOP keeps the first `PhoneOptOut` it made for the number (a second STOP changes
+  nothing); START deletes it, so a second START changes nothing either. Anything else is answered
+  `200` and ignored.
+- Only a `Sent` notification is settled, so nothing is ever moved back: the send handler saves `Sent`
+  after Twilio accepts a text, and a callback that beats it (a window of a few milliseconds) finds the
+  notification `Pending` and changes nothing. Twilio reports each state once, so that text stays
+  `Sent`, which the treasurer reads as "in flight". Closing the window would take a revision check on
+  a document only these two write, and is not worth it yet.
+- Twilio's signature carries no timestamp, so a captured signed request could be replayed. The worst a
+  replay does is repeat what it said: a replayed START lifts a later STOP, but only where a member's
+  consent is still on record. We do not guard against it (Twilio gives inbound messages a `MessageSid`
+  that could be remembered, if it ever matters).
 
 ### Layer three in detail
 
