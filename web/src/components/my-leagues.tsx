@@ -4,6 +4,7 @@ import { useAuth0 } from "@auth0/auth0-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { apiBaseUrl } from "@/lib/config";
+import { problemMessage } from "@/lib/problem";
 
 type MyLeague = {
   leagueId: string;
@@ -34,7 +35,7 @@ export function MyLeagues() {
       )
       .then(async (response) => {
         if (!response.ok) {
-          throw new Error(`API responded ${response.status}`);
+          throw new Error(await problemMessage(response));
         }
         return (await response.json()) as MyLeague[];
       })

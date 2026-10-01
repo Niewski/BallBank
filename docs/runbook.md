@@ -72,6 +72,21 @@ Written from making a fake Discord refuse, not yet from a real outage.
    `Sent`, while one already `Sent` is skipped, so replaying twice tells the channel once.
 4. **Check.** The notification is `Sent`, and the row is gone from `wolverine_dead_letters`.
 
+## A league is being refused with 429
+
+([ADR-0013](adr/0013-every-league-has-its-own-request-budget.md))
+
+1. **Find who.** `ballbank.ratelimit.rejections` is tagged `partition` (`league`, `caller`, `webhook`)
+   and, for a league, `tenant.id`. A refused request's trace carries `tenant.id` too.
+2. **Decide whether it is a runaway or real use.** A client stuck retrying is the former: ask whoever
+   is running it to stop. A league that has outgrown its budget is the latter.
+3. **Raise the budget.** Set `RateLimits__League__Burst` and `RateLimits__League__Refill` (or
+   `__Caller__`, `__Webhook__`; `__Every` is a time span, `00:00:01` by default) in the container's
+   settings and restart the revision. The defaults are in `RateLimitOptions`. A setting applies to every
+   league; there is no override for one.
+4. **Behind the ingress**, `ASPNETCORE_FORWARDEDHEADERS_ENABLED=true` has to be set, or every webhook
+   shares one address and one budget.
+
 ## Rotate a secret
 
 *(M1)* Auth0 client secret, Neon connection string, Twilio auth token: update in Container Apps
