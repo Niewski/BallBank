@@ -114,6 +114,9 @@ public sealed class SpecsHost
         }
     }
 
+    /// <summary>A client signed in as nobody, as Twilio's callbacks come.</summary>
+    public HttpClient AnonymousClient() => _host.CreateClient();
+
     /// <summary>A client signed in as <paramref name="subject"/>.</summary>
     public HttpClient ClientFor(string subject)
     {

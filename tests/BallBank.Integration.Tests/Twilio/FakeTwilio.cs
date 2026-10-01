@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Http.Headers;
+using System.Security.Cryptography;
 using System.Text;
 using System.Web;
 
@@ -64,6 +65,46 @@ public sealed class FakeTwilio
         }
 
         Attempts(leagueId).ShouldBeGreaterThanOrEqualTo(count);
+    }
+
+    /// <summary>Where Twilio posts a reply to the toll-free number: the address the number is configured with.</summary>
+    public static string InboundUrl => $"{StatusCallbackBaseUrl}/webhooks/twilio/inbound";
+
+    /// <summary>Twilio's request signature for a post of <c>form</c> to <c>url</c>, by <c>authToken</c> or the fake's own.</summary>
+    public string Sign(string url, IEnumerable<(string Name, string Value)> form, string? authToken = null)
+    {
+        var data = new StringBuilder(url);
+        foreach (var (name, value) in form.OrderBy(parameter => parameter.Name, StringComparer.Ordinal))
+        {
+            data.Append(name).Append(value);
+        }
+
+        using var hmac = new HMACSHA1(Encoding.UTF8.GetBytes(authToken ?? AuthToken));
+        return Convert.ToBase64String(hmac.ComputeHash(Encoding.UTF8.GetBytes(data.ToString())));
+    }
+
+    /// <summary>Twilio reporting to <paramref name="url"/> as it does: a form post, signed with the account's token.</summary>
+    public Task<HttpResponseMessage> Report(HttpClient client, string url, params (string Name, string Value)[] form) =>
+        Post(client, url, form, Sign(url, form));
+
+    /// <summary>A reply to the number: <paramref name="body"/>, from <paramref name="from"/>, signed as Twilio signs it.</summary>
+    public Task<HttpResponseMessage> Reply(HttpClient client, string from, string body) =>
+        Report(client, InboundUrl, ("MessageSid", $"SM{Guid.NewGuid():N}"), ("From", from), ("To", FromNumber), ("Body", body));
+
+    /// <summary>A form post to <paramref name="url"/>'s path and query, with <paramref name="signature"/> as its signature when there is one.</summary>
+    public static Task<HttpResponseMessage> Post(
+        HttpClient client, string url, IEnumerable<(string Name, string Value)> form, string? signature)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Post, new Uri(url).PathAndQuery)
+        {
+            Content = new FormUrlEncodedContent(form.Select(parameter => KeyValuePair.Create(parameter.Name, parameter.Value))),
+        };
+        if (signature is not null)
+        {
+            request.Headers.Add("X-Twilio-Signature", signature);
+        }
+
+        return client.SendAsync(request);
     }
 
     /// <summary>One text Twilio accepted: where it went, what it said, and the callback it was asked to report to.</summary>

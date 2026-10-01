@@ -1,3 +1,5 @@
+using BallBank.Domain.Notifications;
+
 namespace BallBank.Api.Features.Notifications;
 
 /// <summary>
@@ -24,7 +26,7 @@ public sealed class Notification
 
     public string Status { get; set; } = NotificationStatus.Pending;
 
-    /// <summary>Why it was <see cref="NotificationStatus.Skipped"/> or <see cref="NotificationStatus.Held"/>.</summary>
+    /// <summary>Why it was skipped or held, or the error Twilio gave when it did not deliver it.</summary>
     public string? Reason { get; set; }
 
     /// <summary>When a <see cref="NotificationStatus.Held"/> notification may go: when the member's quiet hours end.</summary>
@@ -34,6 +36,26 @@ public sealed class Notification
 
     /// <summary>When the channel accepted it.</summary>
     public DateTimeOffset? SentAt { get; set; }
+
+    /// <summary>Takes Twilio's report of a text; a status only moves forward, so a repeated or late one changes nothing. <c>true</c> when it changed.</summary>
+    public bool Settle(TextDelivery delivery, string? errorCode)
+    {
+        if (delivery == TextDelivery.InFlight || Status != NotificationStatus.Sent)
+        {
+            return false;
+        }
+
+        Status = delivery switch
+        {
+            TextDelivery.Delivered => NotificationStatus.Delivered,
+            TextDelivery.Undelivered => NotificationStatus.Undelivered,
+            _ => NotificationStatus.Failed,
+        };
+        Reason = delivery != TextDelivery.Delivered && errorCode is { Length: > 0 and <= 8 } && errorCode.All(char.IsAsciiDigit)
+            ? $"Twilio error {errorCode}"
+            : null;
+        return true;
+    }
 }
 
 public static class NotificationStatus
@@ -51,4 +73,13 @@ public static class NotificationStatus
 
     /// <summary>Not sent yet because it fell in the member's quiet hours; it goes once <see cref="Notification.SendAfter"/> has passed.</summary>
     public const string Held = "Held";
+
+    /// <summary>Twilio reports the text reached the member's phone. Where a sent text ends if all goes well.</summary>
+    public const string Delivered = "Delivered";
+
+    /// <summary>Twilio sent the text, and the carrier did not deliver it.</summary>
+    public const string Undelivered = "Undelivered";
+
+    /// <summary>Twilio could not send the text.</summary>
+    public const string Failed = "Failed";
 }

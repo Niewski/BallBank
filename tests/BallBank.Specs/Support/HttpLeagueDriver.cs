@@ -13,6 +13,7 @@ using BallBank.Domain.Treasury;
 using BallBank.Integration.Tests.Discord;
 using BallBank.Integration.Tests.Http;
 using BallBank.Integration.Tests.Sleeper;
+using BallBank.Integration.Tests.Twilio;
 using Marten;
 using Marten.Events;
 
@@ -230,6 +231,59 @@ public sealed class HttpLeagueDriver : ILeagueDriver
 
     public Task<string> StatementLink(string member) =>
         Task.FromResult(SmsTexts.StatementLink(BallBankApi.WebBaseUrl, _leagueId, AccountId(member)));
+
+    /// <summary>Whether the number on record has replied STOP, as the member reads it.</summary>
+    public async Task<bool> IsOptedOut(string member) => (await Texting(member)).OptedOut;
+
+    /// <summary>Where the member's latest text stands on the notification that records it.</summary>
+    public async Task<string> LatestTextStatus(string member)
+    {
+        var text = await LatestText(member);
+        await using var session = Host.Store.QuerySession(_leagueId.ToString());
+        return (await session.LoadAsync<Notification>(text.NotificationId))!.Status;
+    }
+
+    /// <summary>Twilio reports on the member's latest text to its callback address, or someone else does when <paramref name="forged"/>.</summary>
+    public async Task<HttpStatusCode> ReportOnLatestText(string member, string messageStatus, bool forged = false)
+    {
+        var text = await LatestText(member);
+        return await TwilioPosts(
+            text.StatusCallback.OriginalString,
+            forged,
+            ("MessageSid", $"SM{Guid.NewGuid():N}"),
+            ("MessageStatus", messageStatus),
+            ("To", text.To),
+            ("From", text.From));
+    }
+
+    /// <summary>The member texts <paramref name="body"/> back from the number on record, to the number the texts come from.</summary>
+    public async Task<HttpStatusCode> Reply(string member, string body, bool forged = false)
+    {
+        var phone = (await Texting(member)).Consent?.Phone ?? throw new InvalidOperationException($"{member} has no number to reply from.");
+        return await TwilioPosts(
+            FakeTwilio.InboundUrl,
+            forged,
+            ("MessageSid", $"SM{Guid.NewGuid():N}"),
+            ("From", phone),
+            ("To", Host.Twilio.FromNumber),
+            ("Body", body));
+    }
+
+    private async Task<FakeTwilio.SentText> LatestText(string member)
+    {
+        await Host.Delivered();
+
+        var recipient = $"{Channels.Sms}/{MemberId(member)}/";
+        return Host.Twilio.Sent(_leagueId).LastOrDefault(text => text.NotificationId.StartsWith(recipient, StringComparison.Ordinal))
+            ?? throw new InvalidOperationException($"{member} has not been texted.");
+    }
+
+    private async Task<HttpStatusCode> TwilioPosts(string url, bool forged, params (string Name, string Value)[] form)
+    {
+        using var client = Host.AnonymousClient();
+        using var response = await FakeTwilio.Post(client, url, form, Host.Twilio.Sign(url, form, forged ? "not-Twilios-auth-token" : null));
+        return response.StatusCode;
+    }
 
     /// <summary>A webhook of the fake Discord, which posts a hello through it before answering.</summary>
     public async Task ConnectDiscord(bool announcePayments)

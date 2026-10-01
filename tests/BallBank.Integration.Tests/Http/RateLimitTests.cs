@@ -4,6 +4,7 @@ using System.Net;
 using System.Net.Http.Json;
 using BallBank.Api;
 using BallBank.Api.Features.Membership;
+using BallBank.Integration.Tests.Twilio;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
@@ -130,6 +131,31 @@ public class RateLimitTests(PostgresFixture postgres)
         (await UntilRefused(anonymous, BallBankApi.WebhookPath))[^1].StatusCode.ShouldBe(HttpStatusCode.TooManyRequests);
 
         (await signedIn.GetAsync(BallBankApi.WebhookPath)).StatusCode.ShouldBe(HttpStatusCode.TooManyRequests);
+    }
+
+    [Fact]
+    public async Task Twilios_callbacks_are_budgeted_by_the_address_they_come_from_whatever_they_say()
+    {
+        var api = await postgres.LimitedApi;
+        var chatty = WebhookClientFrom(api, NewAddress());
+        var inbound = FakeTwilio.InboundUrl;
+        var status = $"{FakeTwilio.StatusCallbackBaseUrl}/webhooks/twilio/status?league={Guid.NewGuid()}&notification=sms";
+
+        // Forged, so refused for what they are; but each is spent from the one budget, whichever callback it is.
+        var answers = new List<HttpStatusCode>();
+        for (var i = 0; i < Burst; i++)
+        {
+            var url = i % 2 == 0 ? inbound : status;
+            answers.Add((await FakeTwilio.Post(chatty, url, [("Body", "STOP")], signature: null)).StatusCode);
+        }
+
+        answers.ShouldAllBe(code => code == HttpStatusCode.Forbidden);
+        (await FakeTwilio.Post(chatty, status, [("MessageStatus", "delivered")], signature: null)).StatusCode
+            .ShouldBe(HttpStatusCode.TooManyRequests);
+        (await FakeTwilio.Post(chatty, inbound, [("Body", "STOP")], signature: null)).StatusCode
+            .ShouldBe(HttpStatusCode.TooManyRequests);
+        (await FakeTwilio.Post(WebhookClientFrom(api, NewAddress()), status, [("MessageStatus", "delivered")], signature: null))
+            .StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
 
     [Fact]
