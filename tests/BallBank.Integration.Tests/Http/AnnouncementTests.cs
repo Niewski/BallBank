@@ -166,6 +166,51 @@ public class AnnouncementTests(PostgresFixture postgres)
             .Totals().Confirmed.ShouldBe(50m);
     }
 
+    // The runbook's "Replay a dead-lettered message", step for step.
+    [Fact]
+    public async Task A_dead_lettered_send_is_delivered_once_it_is_marked_replayable_and_Discord_takes_it()
+    {
+        var hogs = await HollandHogsSeason.Open(Api);
+        var desk = new TreasurersDesk(Api, hogs);
+        var webhook = await Connect(hogs, announcePayments: true);
+        webhook.RefusesWith(HttpStatusCode.InternalServerError);
+        var payment = await desk.Attest(hogs.Sam, hogs.Sams, 50m, PaymentRail.Venmo, "VN-1");
+        await Quiesced(() => desk.Confirm(hogs.Sams, payment));
+        var notification = await NotificationOf(hogs, NotificationKinds.PaymentConfirmed, payment);
+        (await DeadLetterCount(notification.Id)).ShouldBe(1);
+        webhook.Posted.Count.ShouldBe(1);
+
+        webhook.Accepts();
+        (await MarkReplayable(notification.Id)).ShouldBe(1);
+
+        var sent = await Eventually(async () =>
+            await FindNotification(hogs, NotificationKinds.PaymentConfirmed, payment) is { Status: NotificationStatus.Sent } found ? found : null);
+        sent.SentAt.ShouldNotBeNull();
+        (await webhook.WaitForPosts(2)).Select(p => p.Content).Last().ShouldBe(sent.Text);
+        (await Eventually(async () => await CountDeadLetters(notification.Id) is 0 ? "gone" : null)).ShouldBe("gone");
+    }
+
+    [Fact]
+    public async Task A_replayed_send_that_Discord_refuses_again_is_dead_lettered_again()
+    {
+        var hogs = await HollandHogsSeason.Open(Api);
+        var desk = new TreasurersDesk(Api, hogs);
+        var webhook = await Connect(hogs, announcePayments: true);
+        webhook.RefusesWith(HttpStatusCode.InternalServerError);
+        var payment = await desk.Attest(hogs.Sam, hogs.Sams, 50m, PaymentRail.Venmo, "VN-1");
+        await Quiesced(() => desk.Confirm(hogs.Sams, payment));
+        var notification = await NotificationOf(hogs, NotificationKinds.PaymentConfirmed, payment);
+        (await DeadLetterCount(notification.Id)).ShouldBe(1);
+        var attempts = webhook.Attempts;
+
+        (await MarkReplayable(notification.Id)).ShouldBe(1);
+
+        await Eventually(async () => webhook.Attempts > attempts ? "tried again" : null);
+        (await Eventually(async () => await DeadLetterCount(notification.Id) == 1 && await ReplayableDeadLetters(notification.Id) == 0 ? "dead again" : null))
+            .ShouldBe("dead again");
+        (await FindNotification(hogs, NotificationKinds.PaymentConfirmed, payment))!.Status.ShouldBe(NotificationStatus.Pending);
+    }
+
     [Fact]
     public async Task A_notification_is_recorded_as_sent_once_Discord_has_taken_it()
     {
@@ -308,21 +353,65 @@ public class AnnouncementTests(PostgresFixture postgres)
     // A message is dead-lettered a moment after its last attempt, so this waits for it.
     private async Task<long> DeadLetterCount(string bodyFragment)
     {
+        var deadline = DateTime.UtcNow.AddSeconds(15);
+        var count = await CountDeadLetters(bodyFragment);
+        while (count == 0 && DateTime.UtcNow < deadline)
+        {
+            await Task.Delay(100);
+            count = await CountDeadLetters(bodyFragment);
+        }
+
+        return count;
+    }
+
+    private async Task<long> CountDeadLetters(string bodyFragment)
+    {
         await using var connection = new Npgsql.NpgsqlConnection(postgres.ConnectionString);
         await connection.OpenAsync();
         await using var command = connection.CreateCommand();
         command.CommandText = "select count(*) from ballbank.wolverine_dead_letters where message_type like '%SendNotification%' and encode(body, 'escape') like @fragment";
         command.Parameters.AddWithValue("fragment", $"%{bodyFragment}%");
+        return (long)(await command.ExecuteScalarAsync())!;
+    }
 
-        var deadline = DateTime.UtcNow.AddSeconds(15);
-        var count = (long)(await command.ExecuteScalarAsync())!;
-        while (count == 0 && DateTime.UtcNow < deadline)
+    private async Task<long> ReplayableDeadLetters(string bodyFragment)
+    {
+        await using var connection = new Npgsql.NpgsqlConnection(postgres.ConnectionString);
+        await connection.OpenAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText = "select count(*) from ballbank.wolverine_dead_letters where message_type like '%SendNotification%' and replayable and encode(body, 'escape') like @fragment";
+        command.Parameters.AddWithValue("fragment", $"%{bodyFragment}%");
+        return (long)(await command.ExecuteScalarAsync())!;
+    }
+
+    // What the runbook asks the operator to do: set replayable on the dead letters to send again.
+    private async Task<int> MarkReplayable(string bodyFragment)
+    {
+        await using var connection = new Npgsql.NpgsqlConnection(postgres.ConnectionString);
+        await connection.OpenAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText = "update ballbank.wolverine_dead_letters set replayable = true where message_type like '%SendNotification%' and encode(body, 'escape') like @fragment";
+        command.Parameters.AddWithValue("fragment", $"%{bodyFragment}%");
+        return await command.ExecuteNonQueryAsync();
+    }
+
+    private static async Task<T> Eventually<T>(Func<Task<T?>> read) where T : class
+    {
+        var giveUp = DateTime.UtcNow.AddSeconds(60);
+        while (true)
         {
-            await Task.Delay(100);
-            count = (long)(await command.ExecuteScalarAsync())!;
-        }
+            if (await read() is { } value)
+            {
+                return value;
+            }
 
-        return count;
+            if (DateTime.UtcNow > giveUp)
+            {
+                throw new TimeoutException("The replay did not happen.");
+            }
+
+            await Task.Delay(250);
+        }
     }
 
     private async Task<List<DeadLetter>> SendDeadLetters(Guid leagueId)

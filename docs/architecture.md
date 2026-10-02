@@ -54,16 +54,17 @@ Two channels, one abstraction: `INotificationChannel` with `DiscordWebhookChanne
 `TwilioSmsChannel`, driven by Wolverine handlers reacting to Treasury events and by scheduled
 messages for reminders. Design points:
 
-- **Consent.** SMS is opt-in per member, recorded with a timestamp; STOP/START are honoured (Twilio
-  handles the keywords, the API records the resulting state). Discord goes to a league channel the
-  treasurer configures.
-- **Preferences.** Each member chooses channels and quiet hours. The same event is never sent twice
-  on the same channel (dedupe key: channel + recipient + kind + cause, the id of the `Notification`
-  document).
+- **Consent.** SMS is opt-in per member, given by the member alone at one number and recorded with a
+  timestamp. STOP and START are honoured: Twilio calls the API's signed inbound webhook, which records
+  the number's opt-out or deletes it, and an opt-out outranks consent. Discord goes to a league channel
+  the treasurer configures.
+- **Preferences.** Each member chooses whether to be texted and their quiet hours; a text inside them is
+  held, not dropped. The same event is never sent twice on the same channel (dedupe key: channel +
+  recipient + kind + cause, the id of the `Notification` document).
 - **Delivery through the outbox.** Marten forwards a Treasury event to its Wolverine handler in the
   transaction that commits it; the handler records a `Notification` and a `SendNotification` message on
   a durable local queue, in that same transaction. Retries with backoff; poison messages to the
-  dead-letter queue; delivery status recorded from Twilio's status callback. Built so far (M3):
+  dead-letter queue; delivery status recorded from Twilio's status callback. As built (M3):
   Discord announcements of a season opening and of confirmed payments, configured per league by its
   treasurers, and texts to opted-in members about their own account and to treasurers about
   attestations, checked for consent and quiet hours as they are sent, with Twilio's signed callbacks
@@ -97,7 +98,7 @@ Eastern, asks the API for its version so the league's busiest hour does not begi
 
 | Component | Service | Notes |
 |---|---|---|
-| API | Azure Container Apps, consumption plan, `minReplicas: 0`, `maxReplicas: 1` | The monthly free grant (180,000 vCPU-s, 360,000 GiB-s, 2M requests) covers a league many times over. Cold start a few seconds; measured in [numbers.md](numbers.md). |
+| API | Azure Container Apps, consumption plan, `minReplicas: 0`, `maxReplicas: 1` | The monthly free grant (180,000 vCPU-s, 360,000 GiB-s, 2M requests) covers a league many times over. Cold start a few seconds, to be measured by hand once deployed ([numbers.md](numbers.md)). |
 | Scheduled work | Container Apps Jobs (cron) | The hourly tick, and the Sunday wake-up that asks the API for its version. Same consumption meter. |
 | Database | Neon PostgreSQL, Free plan | 0.5 GB and 100 compute-hours per project; suspends after 5 minutes idle. A season of one league is a few hundred events. |
 | Web | Azure Static Web Apps, Free plan | Static export, custom domain, managed certificate. |
@@ -107,8 +108,8 @@ Eastern, asks the API for its version so the league's busiest hour does not begi
 | Telemetry | Application Insights, through the Azure Monitor exporter | Within the monthly free ingestion allowance; alternative: Grafana Cloud free tier, through the OTLP exporter that is already there. |
 | Notifications | Discord webhook (free), Twilio SMS (paid, small) | See above. |
 
-Expected bill: a few dollars a month, almost all SMS. The actual bill is published monthly in
-[numbers.md](numbers.md).
+Expected bill: a few dollars a month, almost all SMS. The actual bill goes into [numbers.md](numbers.md)
+monthly once the league is live.
 
 ## Observability
 
@@ -164,5 +165,6 @@ Two choices that are not obvious from the code:
   exporter per signal rather than `UseAzureMonitorExporter`, which attaches its trace and log exporters only
   once a host starts.
 
-Published numbers: cold start, warm p50/p95 for `ConfirmPayment`, `LeaguePot` projection lag,
-availability over the season, rate-limit proof, events per season, monthly cost.
+[numbers.md](numbers.md) holds the figures: cold start, warm p50/p95 for confirming a payment, `LeaguePot`
+projection lag, availability over the season, rate-limit proof, events per season, test suites, monthly
+cost. Those a deployed environment must give are commands for a person to run, not estimates.

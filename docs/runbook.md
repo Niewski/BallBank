@@ -35,7 +35,11 @@ a local PostgreSQL holding a mixed season, after deleting the `LeaguePot` docume
    measures how old an event is when it is applied, so a replay records every event as old; large
    values from the process that ran the rebuild are the replay, not a stalled daemon.
 
-Only `LeaguePot` has been rebuilt this way so far.
+`dotnet BallBank.Api.dll projections list` shows `LeaguePot` as the one `Async` projection; the others are `Live`
+(folded when read) or `Inline` (folded as the events commit), so it is the only one with a daemon to stop. Only
+`LeaguePot` has been rebuilt this way so far. A rebuild against a database with no events says `The event
+storage … is empty, aborting` and exits `0`: if that is not what the season looks like, the connection string
+points at the wrong database.
 
 ## Replay a dead-lettered message
 
@@ -43,7 +47,8 @@ A notification that Discord would not take is retried after 5 seconds, 30 second
 (`Notifications:RetryDelays`) and then moved to the dead-letter queue. Nothing else is held up: the
 confirmation or season that caused it is committed and answered. The `Notification` document stays
 `Pending`, which is how you tell a notification that failed for good from one that is merely waiting.
-Written from making a fake Discord refuse, not yet from a real outage.
+Written from doing it end to end against a real PostgreSQL, with a fake Discord that refuses and is then mended
+(`A_dead_lettered_send_is_delivered_once_it_is_marked_replayable_and_Discord_takes_it`), not yet from a real outage.
 
 1. **Find them.** Dead letters live in the `ballbank` schema, and the body is `bytea`:
 
@@ -66,11 +71,27 @@ Written from making a fake Discord refuse, not yet from a real outage.
    disconnected in the meantime is not posted to; its pending notifications are marked `Dropped` when
    the send runs.
 3. **Replay.** Rows are dead-lettered with `replayable = false`. Setting it to `true` on the ones to send
-   again is Wolverine's way of asking for a replay: it moves them back to the inbox on a later
-   durability pass. That step has not been run here yet; the tests stop at the dead letter. What is
-   proven is that a send is safe to repeat: it finds the notification `Pending`, posts it and marks it
-   `Sent`, while one already `Sent` is skipped, so replaying twice tells the channel once.
-4. **Check.** The notification is `Sent`, and the row is gone from `wolverine_dead_letters`.
+   again is Wolverine's way of asking for a replay:
+
+   ```sql
+   update ballbank.wolverine_dead_letters set replayable = true
+   where message_type like '%SendNotification%' and encode(body, 'escape') like '%<notification id>%';
+   ```
+
+   The API's own durability pass moves them back to the inbox and sends them, so the API has to be running:
+   ask it for `GET /v1/version` and leave it a minute. Locally the send went out about six seconds after the
+   update. Mend the cause first (step 2): a send that is refused again is retried and dead-lettered again.
+   Replaying is safe to repeat: the send finds the notification `Pending`, posts it and marks it `Sent`, while
+   one already `Sent` is skipped, so replaying twice tells the channel once.
+4. **Check.** The notification is `Sent` with a `SentAt`, the row is gone from `wolverine_dead_letters`, and
+   the channel has the post:
+
+   ```sql
+   select data ->> 'Status' as status, data ->> 'SentAt' as sent_at
+   from ballbank.mt_doc_notification where id = '<notification id>';
+
+   select count(*) from ballbank.wolverine_dead_letters where encode(body, 'escape') like '%<notification id>%';
+   ```
 
 ## A league is being refused with 429
 
@@ -220,8 +241,24 @@ follow its `operation_Id`.
 
 ## Rotate a secret
 
-*(M1)* Auth0 client secret, Neon connection string, Twilio auth token: update in Container Apps
-secrets, restart the revision, confirm `/health`.
+Three secrets are BallBank's to rotate: the Neon connection string (`ConnectionStrings__ballbank`), the
+Twilio auth token (`Twilio__AuthToken`) and, if Application Insights is on, its connection string
+(`APPLICATIONINSIGHTS_CONNECTION_STRING`). There is no Auth0 client secret to rotate: the API only validates
+tokens against `Auth0__Domain` and `Auth0__Audience`, which are not secrets, and the web app is a static export.
+A league's Discord webhook URL is a secret too, but it is the league's: if it leaks, a treasurer makes a new
+webhook in Discord and connects it (`PUT …/notifications/discord`).
+
+Written from the code and from running the API locally (a wrong database password stops it at start-up);
+no deployed secret has been rotated yet, so correct what differs the first time.
+
+1. **Make the new value at the provider** (Neon: reset the role's password; Twilio: promote a new auth token).
+   The old value stops working there, so expect failures until the next two steps are done.
+2. **Update it in Container Apps secrets**, on the API *and* on the tick Job: each holds its own copy.
+3. **Restart the API's revision.** The API connects to Postgres as it starts, and with a wrong password it does
+   not start (`28P01: password authentication failed`, exit code 1), so a revision that stays up and answers
+   `GET /v1/version` has a working connection string. Do not check `/health`: it exists only in Development.
+4. **Check the Job.** Start one tick, or wait for the next, and read its execution as "The tick, and when it
+   fails" does: `Succeeded` means it reached Postgres (and Twilio, if anyone was due a text).
 
 The API refuses to start without `Notifications__WebBaseUrl`, where the web app is served, which the
 links in a text point to. The Twilio settings are `Twilio:AccountSid`, `Twilio:AuthToken` (the one to rotate), `Twilio:FromNumber`
@@ -281,7 +318,9 @@ not a record of having done it. Correct what differs the first time they are cre
 Sunday evening is the league's busiest hour, and the API stops after it has been asked for nothing for
 five minutes (the consumption plan's scale-down cooldown, 300 seconds unless it was changed). The wake-up
 Job asks at 18:00 Eastern, so the first member to open the app does not wait for the API to start. Written
-from the definition above, not from deployed Jobs.
+from the definition above, not from deployed Jobs, which do not exist yet; what could be checked without them was
+checked against the API running locally: `GET /v1/version` answers `200` and `{"name":"BallBank","version":…}` with no
+token, and `/health` and `/alive` answer `404` outside Development, so the wake-up's address is the right one.
 
 1. **Last Sunday's wake-up ran.** The wake-up's execution history has one at the cron's time that
    `Succeeded`. A `Failed` one has curl's error in its log: the API did not answer within 120 seconds, or
