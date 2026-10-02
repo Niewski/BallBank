@@ -1,3 +1,4 @@
+using Azure.Monitor.OpenTelemetry.Exporter;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.DependencyInjection;
@@ -5,6 +6,7 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.ServiceDiscovery;
 using OpenTelemetry;
+using OpenTelemetry.Logs;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
 
@@ -19,6 +21,7 @@ public static class Extensions
 {
     private const string HealthEndpointPath = "/health";
     private const string AlivenessEndpointPath = "/alive";
+    private const string ApplicationInsightsConnectionStringSetting = "APPLICATIONINSIGHTS_CONNECTION_STRING";
 
     public static TBuilder AddServiceDefaults<TBuilder>(this TBuilder builder)
         where TBuilder : IHostApplicationBuilder
@@ -57,7 +60,7 @@ public static class Extensions
             })
             .WithTracing(tracing =>
             {
-                tracing.AddSource(builder.Environment.ApplicationName)
+                tracing.AddSource(builder.Environment.ApplicationName, "Wolverine")
                     .AddAspNetCoreInstrumentation(options =>
                         // Health probes are noise in traces.
                         options.Filter = context =>
@@ -75,6 +78,13 @@ public static class Extensions
         return builder;
     }
 
+    /// <summary>Builds the telemetry of a host that is never started, as the Job's are; dispose what it returns before the process exits.</summary>
+    public static IDisposable StartTelemetry(this IHost host) =>
+        new TelemetryFlush(
+            host.Services.GetService<TracerProvider>(),
+            host.Services.GetService<MeterProvider>(),
+            host.Services.GetService<LoggerProvider>());
+
     private static TBuilder AddOpenTelemetryExporters<TBuilder>(this TBuilder builder)
         where TBuilder : IHostApplicationBuilder
     {
@@ -84,6 +94,25 @@ public static class Extensions
         if (useOtlpExporter)
         {
             builder.Services.AddOpenTelemetry().UseOtlpExporter();
+        }
+
+        // One exporter per signal: UseAzureMonitorExporter attaches traces and logs only when the host starts, which the Job's never does.
+        var connectionString = builder.Configuration[ApplicationInsightsConnectionStringSetting];
+        if (!string.IsNullOrWhiteSpace(connectionString))
+        {
+            void Configure(AzureMonitorExporterOptions options)
+            {
+                options.ConnectionString = connectionString;
+
+                // Every trace: a league's traffic is small, and its questions are answered from one.
+                options.TracesPerSecond = null;
+                options.SamplingRatio = 1f;
+            }
+
+            builder.Services.AddOpenTelemetry()
+                .WithTracing(tracing => tracing.AddAzureMonitorTraceExporter(Configure))
+                .WithMetrics(metrics => metrics.AddAzureMonitorMetricExporter(Configure))
+                .WithLogging(logging => logging.AddAzureMonitorLogExporter(Configure));
         }
 
         return builder;
@@ -116,5 +145,18 @@ public static class Extensions
         }
 
         return app;
+    }
+
+    // Starting a host is what builds the providers, and disposing it leaves OTLP logs unsent.
+    private sealed class TelemetryFlush(TracerProvider? tracing, MeterProvider? metrics, LoggerProvider? logging) : IDisposable
+    {
+        private const int TimeoutMilliseconds = 10_000;
+
+        public void Dispose()
+        {
+            tracing?.ForceFlush(TimeoutMilliseconds);
+            metrics?.ForceFlush(TimeoutMilliseconds);
+            logging?.ForceFlush(TimeoutMilliseconds);
+        }
     }
 }

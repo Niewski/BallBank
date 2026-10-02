@@ -1,30 +1,44 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using BallBank.Api;
 using Microsoft.Extensions.Logging;
 
 namespace BallBank.Integration.Tests.Http;
 
 /// <summary>
-/// A request sent under a trace of its own, so what the API recorded about it (its server span and the
-/// logs written while handling it) can be told apart from every other request the test host serves.
+/// A request sent under a trace of its own, so what the API recorded about it (its server span, the spans of the
+/// messages it caused, and the logs written while handling it) can be told apart from every other request the test host serves.
 /// </summary>
 public sealed class TracedRequest : IDisposable
 {
+    private const string ServerSource = "Microsoft.AspNetCore";
+    private const string MessagingSource = "Wolverine";
+
     private readonly TaskCompletionSource<Activity> _serverSpan = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private readonly ConcurrentQueue<Activity> _messageSpans = new();
     private readonly ActivityListener _listener;
 
     public TracedRequest()
     {
         _listener = new ActivityListener
         {
-            ShouldListenTo = source => source.Name == "Microsoft.AspNetCore",
+            ShouldListenTo = source => source.Name is ServerSource or MessagingSource,
             Sample = (ref ActivityCreationOptions<ActivityContext> options) =>
                 options.TraceId == TraceId ? ActivitySamplingResult.AllDataAndRecorded : ActivitySamplingResult.None,
             ActivityStopped = activity =>
             {
-                if (activity.TraceId == TraceId)
+                if (activity.TraceId != TraceId)
+                {
+                    return;
+                }
+
+                if (activity.Source.Name == ServerSource)
                 {
                     _serverSpan.TrySetResult(activity);
+                }
+                else
+                {
+                    _messageSpans.Enqueue(activity);
                 }
             },
         };
@@ -39,9 +53,14 @@ public sealed class TracedRequest : IDisposable
     /// </summary>
     public Task<Activity> ServerSpan() => _serverSpan.Task.WaitAsync(TimeSpan.FromSeconds(10));
 
-    public HttpRequestMessage Get(string path)
+    /// <summary>The spans Wolverine opened to send and to handle the messages the request caused, as far as they have ended.</summary>
+    public IReadOnlyCollection<Activity> MessageSpans => _messageSpans;
+
+    public HttpRequestMessage Get(string path) => Under(new HttpRequestMessage(HttpMethod.Get, path));
+
+    /// <summary>The request, sent under this trace.</summary>
+    public HttpRequestMessage Under(HttpRequestMessage request)
     {
-        var request = new HttpRequestMessage(HttpMethod.Get, path);
         request.Headers.Add("traceparent", $"00-{TraceId}-{ActivitySpanId.CreateRandom()}-01");
         return request;
     }
@@ -50,7 +69,10 @@ public sealed class TracedRequest : IDisposable
 }
 
 /// <summary>One log entry the API wrote, with the trace it was written under and the scopes around it.</summary>
-public sealed record CapturedLog(string Category, string Message, string? TraceId, IReadOnlyDictionary<string, object?> Scope);
+public sealed record CapturedLog(string Category, string Message, string? TraceId, IReadOnlyDictionary<string, object?> Scope)
+{
+    public bool IsInLeague(Guid leagueId) => Equals(Scope.GetValueOrDefault(TenantTelemetry.TenantId), leagueId.ToString());
+}
 
 /// <summary>Keeps every log entry the API writes, at every level, with its scopes.</summary>
 public sealed class CapturedLogs : ILoggerProvider, ISupportExternalScope

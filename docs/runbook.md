@@ -154,6 +154,69 @@ retention age, then exits.
   first purges, after the league's reminders and digest have gone: that league is logged as one the tick
   "did not finish" with the same message, nothing is deleted, and the Job exits non-zero. Set it back to
   14 or more, or unset it.
+- **Its telemetry** is sent before it exits. With `APPLICATIONINSIGHTS_CONNECTION_STRING` set on the Job
+  ([below](#send-telemetry-to-application-insights)), the per-league lines and `ballbank.notifications` (what the
+  tick sent, held, skipped and could not send) reach Application Insights, and the Job waits at most ten seconds
+  for each of its traces, metrics and logs at the end. An execution that is slow to exit with nothing else
+  wrong is that wait: Application Insights was slow to answer.
+
+## Send telemetry to Application Insights
+
+([architecture](architecture.md#observability))
+
+The API and the Job send their traces, metrics and logs to Application Insights when
+`APPLICATIONINSIGHTS_CONNECTION_STRING` is set and, independently, to an OTLP collector when
+`OTEL_EXPORTER_OTLP_ENDPOINT` is. Written against a fake of Application Insights on loopback, which proves what
+leaves the process and what it carries; the portal itself has not been looked at yet.
+
+1. **Set the connection string** on the API's container app and on the Job, copied from the Application
+   Insights resource. It is a platform setting (a Container Apps secret the app's environment refers to),
+   never a file in the repo, and never `appsettings`. Locally it stays unset and the Aspire dashboard receives
+   the telemetry. A blank value counts as unset.
+2. **Name each one.** The API and the Job run the same assembly, so without `OTEL_SERVICE_NAME` both are
+   `unknown_service:dotnet`, one role in Application Insights. Set it on the API (say `ballbank-api`) and on the Job
+   (`ballbank-tick`).
+3. **Restart the revision**; the Job reads it on its next execution.
+4. **Check.** A minute or two after a request (metrics go out every minute), in the resource's Logs:
+
+   ```kusto
+   union requests, dependencies, traces
+   | where timestamp > ago(15m)
+   | summarize count() by cloud_RoleName, tostring(customDimensions["tenant.id"])
+   ```
+
+   There is a row per league under each role, and one with an empty `tenant.id` for what was written outside
+   any league's scope. No rows at all means the setting did not reach the process: look in the revision's
+   environment, and for the Job's rows, check it was set on the Job and not only on the API.
+
+Every trace is exported, not a sample. A league's traffic is small, but the resource's ingestion is still to be
+watched against the monthly free allowance ([architecture](architecture.md#hosting-and-cost)).
+
+## Ask the telemetry about one league
+
+Everything a league's requests, messages, ticks and projections record carries `tenant.id`, the league's id
+([architecture](architecture.md#observability)). In the Aspire dashboard, filter traces, logs or metrics on it. In
+Application Insights it is a custom dimension on every table:
+
+```kusto
+// What happened to one league: its requests, handlers, ticks and projection batches, newest first
+union requests, dependencies, traces, exceptions
+| where customDimensions["tenant.id"] == "<league id>"
+| order by timestamp desc
+
+// Did anyone get texted this week? What will Twilio charge: the Sent count, at the per-message rate
+customMetrics
+| where name == "ballbank.notifications" and timestamp > ago(7d)
+| where customDimensions["channel"] == "Sms"
+| summarize attempts = sum(value) by tostring(customDimensions["tenant.id"]), tostring(customDimensions["kind"]), tostring(customDimensions["outcome"])
+```
+
+`outcome` is `Sent`, `Held` (quiet hours), `Skipped` (no consent, opted out, a reminder to someone who has since
+paid, or a digest no longer due), `Dropped` (the league disconnected the channel) or `Failed` (the channel refused the send; the retry or the
+next tick counts again). A text held at night and sent in the morning is one `Held` and one `Sent`. The same
+counter answers it for Discord with `channel` `Discord`. What the framework logs before the league is known (a
+request starting) or around a handler (a message arriving) has the trace id but not `tenant.id`: find the span, then
+follow its `operation_Id`.
 
 ## Rotate a secret
 
@@ -203,7 +266,8 @@ not a record of having done it. Correct what differs the first time they are cre
 - **The tick's settings are the API's**: `ConnectionStrings__ballbank` (direct to Postgres, not through a
   pooler, see above), `Auth0__Domain`, `Auth0__Audience`, `Notifications__WebBaseUrl` and the
   `Twilio__…` settings (see "Rotate a secret"), as platform settings and secrets, never the repo's.
-  `Retention__Days` only to change the 90.
+  `Retention__Days` only to change the 90. `APPLICATIONINSIGHTS_CONNECTION_STRING` (the API's) and its own
+  `OTEL_SERVICE_NAME` send its telemetry ([Send telemetry to Application Insights](#send-telemetry-to-application-insights)).
 - **The wake-up uses `/v1/version`** because it is the one address the API answers anonymously in every
   environment. (`/health` and `/alive` exist only in Development.) The request reads no database itself,
   but the API connects to Postgres as it starts (it applies its schema and starts its background workers),

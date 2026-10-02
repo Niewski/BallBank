@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using BallBank.Api;
 using BallBank.Api.Features.Membership;
 using BallBank.Api.Features.Notifications;
 using BallBank.Api.Features.Treasury;
@@ -343,7 +344,7 @@ public class TickTests(PostgresFixture postgres)
         var summary = await RunTick(hogs);
 
         var lines = Api.Logs.All
-            .Where(entry => entry.Category == typeof(Tick).FullName && entry.Scope.Values.Any(value => hogs.LeagueId.ToString().Equals(value)))
+            .Where(entry => entry.Category == typeof(Tick).FullName && entry.IsInLeague(hogs.LeagueId))
             .Select(entry => entry.Message)
             .ToList();
         var line = lines.ShouldHaveSingleItem();
@@ -353,6 +354,22 @@ public class TickTests(PostgresFixture postgres)
         summary.Sent.ShouldBe(1);
         summary.Skipped.ShouldBeGreaterThan(0);
         Api.Logs.All.Where(entry => entry.Message.Contains(SamsPhone) || entry.Message.Contains("5550100002")).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task What_the_tick_logs_about_a_refused_send_names_the_league_it_was_for()
+    {
+        using var _ = Api.Clock.Set(ThreeDaysBefore);
+        var hogs = await OpenSeason();
+        await OptIn(hogs, hogs.Sam, hogs.Sams, "555 010 0002");
+        Twilio.RefusesWith(hogs.LeagueId, HttpStatusCode.InternalServerError);
+
+        await RunTick(hogs);
+
+        var refusal = Api.Logs.All
+            .Where(entry => entry.Category == typeof(Tick).FullName && entry.Message.Contains("was not accepted") && entry.Message.Contains(hogs.LeagueId.ToString()))
+            .ShouldHaveSingleItem();
+        refusal.IsInLeague(hogs.LeagueId).ShouldBeTrue();
     }
 
     [Fact]

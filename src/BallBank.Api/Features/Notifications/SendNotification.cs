@@ -39,17 +39,27 @@ public static class SendNotificationHandler
         if (destination is null)
         {
             session.Store(notification);
+            NotificationMetric.Record(command.LeagueId, notification, notification.Status);
             return;
         }
 
-        await channels.For(notification.Channel).SendAsync(
-            new OutgoingNotification(command.LeagueId, notification.Id, destination, notification.Text), cancellation);
+        try
+        {
+            await channels.For(notification.Channel).SendAsync(
+                new OutgoingNotification(command.LeagueId, notification.Id, destination, notification.Text), cancellation);
+        }
+        catch (NotificationDeliveryException)
+        {
+            NotificationMetric.Record(command.LeagueId, notification, NotificationMetric.Failed);
+            throw;
+        }
 
         notification.Status = NotificationStatus.Sent;
         notification.SentAt = now;
         notification.Reason = null;
         notification.SendAfter = null;
         session.Store(notification);
+        NotificationMetric.Record(command.LeagueId, notification, NotificationStatus.Sent);
     }
 
     // The webhook of the league's channel; null, and the notification dropped, when the league disconnected it.

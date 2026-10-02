@@ -122,9 +122,6 @@ builder.Services.AddMarten(options =>
         options.Projections.Add(new SeasonListingProjection(), ProjectionLifecycle.Inline);
         options.Projections.Add(new MemberStatementProjection(), ProjectionLifecycle.Inline);
 
-        // The treasurer's dashboard trails the events by a moment, built by the projection daemon (ADR-0006).
-        options.Projections.Add(new LeaguePotProjection(), ProjectionLifecycle.Async);
-
         // Who caused what: correlation/causation ids and headers (e.g. the acting user) on every event.
         options.Events.MetadataConfig.CausationIdEnabled = true;
         options.Events.MetadataConfig.CorrelationIdEnabled = true;
@@ -140,11 +137,17 @@ builder.Services.AddMarten(options =>
     // One node runs the daemon, for now (ADR-0007), like Wolverine's durability below.
     .AddAsyncDaemon(DaemonMode.Solo);
 
+// The treasurer's dashboard trails the events by a moment, built by the projection daemon (ADR-0006).
+builder.Services.ConfigureMarten((services, options) =>
+    options.Projections.Add(
+        new LeaguePotProjection(services.GetRequiredService<ILogger<LeaguePotProjection>>()), ProjectionLifecycle.Async));
+
 // Wolverine: command handlers, HTTP endpoints, transactional outbox, scheduling.
 builder.Host.UseWolverine(options =>
 {
     options.Policies.AutoApplyTransactions();
     options.Policies.UseDurableLocalQueues();
+    options.Policies.AddMiddleware<MessageTenantLogScope>();
 
     // One node for now (ADR-0007). Revisit when there is more than one replica.
     options.Durability.Mode = DurabilityMode.Solo;

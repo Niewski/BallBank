@@ -80,7 +80,7 @@ public sealed class Tick(
         var failed = 0;
         foreach (var season in await OpenSeasonsAsync(onlyLeague, cancellation))
         {
-            using var scope = logger.BeginScope(new KeyValuePair<string, object>[] { new(TenantTelemetry.TenantId, season.LeagueId.ToString()) });
+            using var scope = logger.BeginTenantScope(season.LeagueId.ToString());
             try
             {
                 var summary = await TickLeagueAsync(season, cancellation);
@@ -154,7 +154,7 @@ public sealed class Tick(
                 var (balance, due) = owing.GetValueOrDefault(accountId);
                 if (balance <= 0 || due is null)
                 {
-                    await SkipAsync(session, notification, Reminders.PaidUp, tally, cancellation);
+                    await SkipAsync(session, leagueId, notification, Reminders.PaidUp, tally, cancellation);
                     continue;
                 }
 
@@ -232,7 +232,7 @@ public sealed class Tick(
             }
             else
             {
-                await SkipAsync(session, digest, Digests.NoLongerDue, tally, cancellation);
+                await SkipAsync(session, leagueId, digest, Digests.NoLongerDue, tally, cancellation);
             }
         }
 
@@ -310,12 +310,13 @@ public sealed class Tick(
     }
 
     private static async Task SkipAsync(
-        IDocumentSession session, Notification notification, string reason, Tally tally, CancellationToken cancellation)
+        IDocumentSession session, Guid leagueId, Notification notification, string reason, Tally tally, CancellationToken cancellation)
     {
         notification.Status = NotificationStatus.Skipped;
         notification.Reason = reason;
         session.Store(notification);
         await session.SaveChangesAsync(cancellation);
+        NotificationMetric.Record(leagueId, notification, NotificationStatus.Skipped);
         tally.Skipped++;
     }
 
