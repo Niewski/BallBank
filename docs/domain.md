@@ -85,7 +85,7 @@ What a member has agreed to be texted is a third document, `NotificationPreferen
 
 | Document | Keyed by | Holds |
 |---|---|---|
-| `LeagueNotificationSettings` | the league id | The Discord webhook URL, `AnnouncePayments`, `PostDigest` (stored and toggled, but nothing posts the digest yet). Written straight by `PUT …/notifications/discord`, with no event ([ADR-0012](adr/0012-contact-details-are-a-document-not-events.md)); `DELETE` removes it, webhook and flags together, so it exists only while Discord is connected. The webhook is stored as it was accepted (a Discord host, path `/api/webhooks/{id}/{token}`) and is never returned: `GET` answers connected or not, the last four characters, and the flags. Treasurers only. |
+| `LeagueNotificationSettings` | the league id | The Discord webhook URL, `AnnouncePayments`, `PostDigest` (whether the tick posts the weekly digest). Written straight by `PUT …/notifications/discord`, with no event ([ADR-0012](adr/0012-contact-details-are-a-document-not-events.md)); `DELETE` removes it, webhook and flags together, so it exists only while Discord is connected. The webhook is stored as it was accepted (a Discord host, path `/api/webhooks/{id}/{token}`) and is never returned: `GET` answers connected or not, the last four characters, and the flags. Treasurers only. |
 | `Notification` | its dedupe key, `{channel}/{recipient}/{kind}/{cause}` (the league is the recipient of a Discord post, a member of a text) | `Kind`, `Channel`, `MemberId` (for a text), `AccountId` (for a reminder), the rendered `Text`, `Status` (`Pending`, `Sent`, `Dropped`, `Skipped`, `Held`, and for a text Twilio has reported on, `Delivered`, `Undelivered`, `Failed`), `Reason` (why `Skipped`, or the `Twilio error 30003` an `Undelivered` or `Failed` text came back with), `SendAfter` (when a `Held` one may go), `CreatedAt`, `SentAt`. Inserting it claims the key, so an event handled twice inserts twice, the second insert fails, and nothing more is sent. |
 
 | Event handled | Told, when | Cause in the key |
@@ -131,8 +131,9 @@ once its time has come, which the tick does (below). A skipped one never goes.
 `dotnet BallBank.Api.dll tick` ([ADR-0007](adr/0007-scheduled-work-under-scale-to-zero.md)) does the
 scheduled work as of the injected `TimeProvider` and exits (`TickCommand`, then `Tick`). For each league
 with an open season it first sends what was decided before this tick and has not gone (held notifications
-whose `SendAfter` has passed, and reminders a send refused), then, for each `MemberStatement` of the
-season, asks `Reminders.StageOn(balance, earliestDueDate, today)` for the stage reached:
+whose `SendAfter` has passed, and reminders a send refused), then posts the week's digest if one is due,
+then, for each `MemberStatement` of the season, asks `Reminders.StageOn(balance, earliestDueDate, today)`
+for the stage reached:
 `ThreeDaysBefore`, `OnTheDay`, or `WeeksOverdue(n)`, the *latest* one, or nothing when the account owes
 nothing or is more than three days from its due date. The earliest due date is that of the account's
 assessments; the balance is the statement's, so only confirmed payments reduce it.
@@ -148,8 +149,32 @@ is `Skipped` with `Reminders.PaidUp` as the reason instead. The words are `SmsTe
 dashboard's delinquents carry `lastReminder` (`at`, `status`, `reason`), the most recent reminder to that
 account.
 
+The weekly digest is a `Notification` of kind `Digest` to the league's Discord, keyed
+`Discord/<league>/Digest/<year>-W<week>` (`Digests.Key`, the week an `IsoWeek`). `Digests.WeekDueAt(now)`
+says which week is due: the ISO week of `now` by the Eastern calendar, and none before Monday 09:00
+Eastern, so the first tick at or after that slot is the first that can post it, and a late tick still can,
+until Sunday night. A week no tick found is not made up for. The tick posts it when the league's
+`LeagueNotificationSettings` has `PostDigest` on (a league that disconnected Discord has no settings, so
+none) and the week's key is not yet claimed: it inserts the notification, which claims the key, and sends
+it through `SendNotificationHandler`, so a second tick that week finds the key and sends nothing. The words
+are `NotificationTexts.Digest`, from the season's `MemberStatement`s: who still owes and how much (a
+balance above zero, the largest first), what the pot holds, and how many attestations wait for a
+treasurer. A digest the channel refused stays `Pending`, and the next tick sends it again, worded again
+from the statements, while its week is still the one due and the league still wants it; after that, or
+once the league has turned the digest off or disconnected Discord, it is `Skipped` with
+`Digests.NoLongerDue`. (`Dropped` is left to a disconnect that lands between the tick's check and its send.)
+
+The tick ends each league's turn with the purge: it deletes what is older than `Retention:Days`
+(`RetentionOptions`: 90 unless set, and not less than 14), the league's `IdempotencyRecord`s by when they
+were recorded and its `Notification`s by when they were created, whatever their status, within the
+league's own session ([ADR-0005](adr/0005-idempotency-and-concurrency.md)). Deleting a `Notification`
+frees its dedupe key, which is why the age has a floor: a key has to hold for a week at most, a digest's
+week or a reminder's stage. Events, statements, settings and preferences are never purged. Only a league
+the tick visits, one with an open season, is purged.
+
 One Postgres advisory lock serializes ticks, and one `Information` line per league reports what
-the tick did: `sent`, `held`, `skipped` and `failed` counts. The command exits non-zero when a league
+the tick did: `sent`, `held`, `skipped` and `failed` counts, the `digests` posted, and how many
+idempotency records and notifications it purged. The command exits non-zero when a league
 could not be finished or any send was refused (`TickReport.Succeeded`). "Today" is the UTC date.
 
 `TwilioSmsChannel` is the second `INotificationChannel`: a typed `HttpClient` under the resilience

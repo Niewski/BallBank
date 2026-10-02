@@ -33,6 +33,9 @@ public class NotificationMetricTests(PostgresFixture postgres)
     // 11pm Sunday in Eastern, in those quiet hours; they end at 9am.
     private static readonly DateTimeOffset Night = new(2026, 9, 28, 3, 0, 0, TimeSpan.Zero);
 
+    // Monday 09:00 in New York is 13:00 UTC while the clocks are forward; the first tick at or after it posts the week's digest.
+    private static readonly DateTimeOffset SlotOfWeek38 = new(2026, 9, 14, 13, 0, 0, TimeSpan.Zero);
+
     private BallBankApi Api => postgres.Api;
     private FakeTwilio Twilio => Api.Twilio;
 
@@ -168,6 +171,31 @@ public class NotificationMetricTests(PostgresFixture postgres)
         counted.Of(hogs, Channels.Sms, NotificationKinds.Reminder, NotificationStatus.Sent).ShouldBe(0);
     }
 
+    [Fact]
+    public async Task A_digest_refused_until_its_week_is_over_is_counted_as_failed_then_skipped_and_the_next_weeks_as_sent()
+    {
+        using var counted = new Counted();
+        var hogs = await OpenSeason();
+        var webhook = await ConnectDiscord(hogs, announcePayments: false, postDigest: true);
+        webhook.RefusesWith(HttpStatusCode.InternalServerError);
+        using (Api.Clock.Set(SlotOfWeek38))
+        {
+            await Api.Services.GetRequiredService<Tick>().RunAsync(hogs.LeagueId);
+        }
+
+        counted.Of(hogs, Channels.Discord, NotificationKinds.Digest, NotificationMetric.Failed).ShouldBe(1);
+
+        webhook.Accepts();
+        using (Api.Clock.Set(SlotOfWeek38.AddDays(7)))
+        {
+            await Api.Services.GetRequiredService<Tick>().RunAsync(hogs.LeagueId);
+        }
+
+        counted.Of(hogs, Channels.Discord, NotificationKinds.Digest, NotificationStatus.Skipped).ShouldBe(1);
+        counted.Of(hogs, Channels.Discord, NotificationKinds.Digest, NotificationStatus.Sent).ShouldBe(1);
+        counted.Of(hogs, Channels.Discord, NotificationKinds.Digest, NotificationMetric.Failed).ShouldBe(1);
+    }
+
     private static string SettingsPath(HollandHogsSeason hogs) => $"/leagues/{hogs.LeagueId}/notifications/discord";
 
     private IDocumentStore Store => Api.Services.GetRequiredService<IDocumentStore>();
@@ -180,11 +208,11 @@ public class NotificationMetricTests(PostgresFixture postgres)
             .CountAsync();
     }
 
-    private async Task<FakeDiscord.Webhook> ConnectDiscord(HollandHogsSeason hogs, bool announcePayments)
+    private async Task<FakeDiscord.Webhook> ConnectDiscord(HollandHogsSeason hogs, bool announcePayments, bool postDigest = false)
     {
         var webhook = Api.Discord.NewWebhook();
         var response = await Api.CreateClientFor(hogs.Jacob)
-            .PutAsJsonAsync(SettingsPath(hogs), new DiscordSettingsRequest(webhook.Url, announcePayments, PostDigest: false));
+            .PutAsJsonAsync(SettingsPath(hogs), new DiscordSettingsRequest(webhook.Url, announcePayments, postDigest));
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
         return webhook;
     }

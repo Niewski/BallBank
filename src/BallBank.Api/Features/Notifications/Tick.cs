@@ -9,7 +9,19 @@ namespace BallBank.Api.Features.Notifications;
 
 /// <summary>What one tick did for one league, as its summary line says.</summary>
 /// <param name="Failed">Left pending because the channel refused: the next tick tries again.</param>
-public sealed record TickSummary(Guid LeagueId, string Season, int Sent, int Held, int Skipped, int Failed);
+/// <param name="DigestsPosted">Weekly digests the channel took. Counted here, not under <paramref name="Sent"/>.</param>
+/// <param name="PurgedIdempotencyRecords">Answers kept for retried requests that were older than the retention age, and deleted.</param>
+/// <param name="PurgedNotifications">Records of what was sent that were older than the retention age, and deleted.</param>
+public sealed record TickSummary(
+    Guid LeagueId,
+    string Season,
+    int Sent,
+    int Held,
+    int Skipped,
+    int Failed,
+    int DigestsPosted = 0,
+    int PurgedIdempotencyRecords = 0,
+    int PurgedNotifications = 0);
 
 /// <param name="LeaguesFailed">Leagues the tick could not finish; the others were not held up by them.</param>
 public sealed record TickReport(IReadOnlyList<TickSummary> Leagues, int LeaguesFailed)
@@ -20,15 +32,18 @@ public sealed record TickReport(IReadOnlyList<TickSummary> Leagues, int LeaguesF
 
 /// <summary>
 /// The scheduled work (ADR-0007), done as of the injected clock and then over: for each league with an open season, the
-/// reminder each member who still owes is due, and the held texts whose quiet hours have ended. Run by the Job's
+/// reminder each member who still owes is due, the held texts whose quiet hours have ended, the weekly digest of a league
+/// that connected Discord and wants it, and the purge of what is older than the retention age (ADR-0005). Run by the Job's
 /// <c>tick</c> command, hourly. It delivers as it goes rather than leaving it to the notifications queue, which a
 /// process that exits cannot keep draining; a send the channel refuses stays pending and is tried again by the next tick.
-/// A reminder is keyed on its account, due date and stage (<see cref="Reminders.Key"/>), so running twice sends once.
+/// A reminder is keyed on its account, due date and stage (<see cref="Reminders.Key"/>) and a digest on its league and ISO
+/// week (<see cref="Digests.Key"/>), so running twice sends once.
 /// </summary>
 public sealed class Tick(
     IDocumentStore store,
     NotificationChannels channels,
     IOptions<NotificationOptions> options,
+    IOptions<RetentionOptions> retention,
     TimeProvider clock,
     ILogger<Tick> logger)
 {
@@ -70,8 +85,10 @@ public sealed class Tick(
             {
                 var summary = await TickLeagueAsync(season, cancellation);
                 logger.LogInformation(
-                    "Tick for league {LeagueId}, season {Season}: sent {Sent}, held {Held}, skipped {Skipped}, failed {Failed}",
-                    summary.LeagueId, summary.Season, summary.Sent, summary.Held, summary.Skipped, summary.Failed);
+                    "Tick for league {LeagueId}, season {Season}: sent {Sent}, held {Held}, skipped {Skipped}, failed {Failed}, digests {Digests}, "
+                    + "purged {PurgedIdempotencyRecords} idempotency records and {PurgedNotifications} notifications",
+                    summary.LeagueId, summary.Season, summary.Sent, summary.Held, summary.Skipped, summary.Failed,
+                    summary.DigestsPosted, summary.PurgedIdempotencyRecords, summary.PurgedNotifications);
                 summaries.Add(summary);
             }
             catch (Exception failure) when (failure is not OperationCanceledException)
@@ -137,12 +154,7 @@ public sealed class Tick(
                 var (balance, due) = owing.GetValueOrDefault(accountId);
                 if (balance <= 0 || due is null)
                 {
-                    notification.Status = NotificationStatus.Skipped;
-                    notification.Reason = Reminders.PaidUp;
-                    session.Store(notification);
-                    await session.SaveChangesAsync(cancellation);
-                    NotificationMetric.Record(leagueId, notification, NotificationStatus.Skipped);
-                    tally.Skipped++;
+                    await SkipAsync(session, leagueId, notification, Reminders.PaidUp, tally, cancellation);
                     continue;
                 }
 
@@ -153,6 +165,8 @@ public sealed class Tick(
 
             await DeliverAsync(session, leagueId, notification.Id, notification.Kind, tally, cancellation);
         }
+
+        await PostDigestAsync(session, league, season, statements, now, tally, cancellation);
 
         foreach (var statement in statements)
         {
@@ -169,23 +183,96 @@ public sealed class Tick(
                 continue;
             }
 
-            // Claiming the key, before sending, is what makes a later tick send nothing.
-            session.Insert(new Notification
-            {
-                Id = key,
-                Kind = NotificationKinds.Reminder,
-                Channel = Channels.Sms,
-                MemberId = member.MemberId,
-                AccountId = statement.Id,
-                Text = ReminderText(league.Name, leagueId, statement.Id, balance, due.Value, today),
-                CreatedAt = now,
-            });
-            await session.SaveChangesAsync(cancellation);
-
-            await DeliverAsync(session, leagueId, key, NotificationKinds.Reminder, tally, cancellation);
+            await ClaimAndDeliverAsync(
+                session,
+                leagueId,
+                new Notification
+                {
+                    Id = key,
+                    Kind = NotificationKinds.Reminder,
+                    Channel = Channels.Sms,
+                    MemberId = member.MemberId,
+                    AccountId = statement.Id,
+                    Text = ReminderText(league.Name, leagueId, statement.Id, balance, due.Value, today),
+                    CreatedAt = now,
+                },
+                tally,
+                cancellation);
         }
 
-        return new TickSummary(leagueId, season.Label, tally.Sent, tally.Held, tally.Skipped, tally.Failed);
+        var (purgedRecords, purgedNotifications) = await PurgeAsync(session, now, cancellation);
+
+        return new TickSummary(
+            leagueId, season.Label, tally.Sent, tally.Held, tally.Skipped, tally.Failed, tally.Digests, purgedRecords, purgedNotifications);
+    }
+
+    // A digest the channel refused is sent again, worded from what is owed now, only while its week is the one due and the
+    // league still wants it; then it is skipped. The week's key is claimed before posting, so a later tick posts nothing.
+    private async Task PostDigestAsync(
+        IDocumentSession session, League league, SeasonListing season, IReadOnlyList<MemberStatement> statements,
+        DateTimeOffset now, Tally tally, CancellationToken cancellation)
+    {
+        var leagueId = season.LeagueId;
+        var week = Digests.WeekDueAt(now);
+        var wanted = week is not null
+            && await session.LoadAsync<LeagueNotificationSettings>(leagueId, cancellation) is { PostDigest: true };
+        var dueKey = week is { } due ? Digests.Key(leagueId, due) : null;
+
+        var refused = await session.Query<Notification>()
+            .Where(notification => notification.Kind == NotificationKinds.Digest && notification.Status == NotificationStatus.Pending)
+            .ToListAsync(cancellation);
+        foreach (var digest in refused)
+        {
+            if (wanted && digest.Id == dueKey)
+            {
+                digest.Text = DigestText(league, season, statements);
+                session.Store(digest);
+                await session.SaveChangesAsync(cancellation);
+                await DeliverAsync(session, leagueId, digest.Id, digest.Kind, tally, cancellation);
+            }
+            else
+            {
+                await SkipAsync(session, leagueId, digest, Digests.NoLongerDue, tally, cancellation);
+            }
+        }
+
+        if (!wanted || dueKey is null || await session.LoadAsync<Notification>(dueKey, cancellation) is not null)
+        {
+            return;
+        }
+
+        await ClaimAndDeliverAsync(
+            session,
+            leagueId,
+            new Notification
+            {
+                Id = dueKey,
+                Kind = NotificationKinds.Digest,
+                Channel = Channels.Discord,
+                Text = DigestText(league, season, statements),
+                CreatedAt = now,
+            },
+            tally,
+            cancellation);
+    }
+
+    // Within this league's session, so another league's records are not this tick's to delete (ADR-0005).
+    private async Task<(int IdempotencyRecords, int Notifications)> PurgeAsync(
+        IDocumentSession session, DateTimeOffset now, CancellationToken cancellation)
+    {
+        var cutoff = now - retention.Value.Age;
+
+        var records = await session.Query<IdempotencyRecord>().Where(record => record.RecordedAt < cutoff).CountAsync(cancellation);
+        var notifications = await session.Query<Notification>().Where(notification => notification.CreatedAt < cutoff).CountAsync(cancellation);
+        if (records + notifications == 0)
+        {
+            return (0, 0);
+        }
+
+        session.DeleteWhere<IdempotencyRecord>(record => record.RecordedAt < cutoff);
+        session.DeleteWhere<Notification>(notification => notification.CreatedAt < cutoff);
+        await session.SaveChangesAsync(cancellation);
+        return (records, notifications);
     }
 
     private static (decimal Balance, DateOnly? Due) Owing(MemberStatement statement) =>
@@ -198,6 +285,41 @@ public sealed class Tick(
     private string ReminderText(string leagueName, Guid leagueId, Guid accountId, decimal balance, DateOnly due, DateOnly today) =>
         SmsTexts.Reminder(leagueName, balance, due, today, SmsTexts.StatementLink(options.Value.WebBaseUrl, leagueId, accountId));
 
+    // The pot is what the accounts hold, summed from the statements as a confirmed payment's announcement sums it.
+    private static string DigestText(League league, SeasonListing season, IReadOnlyList<MemberStatement> statements)
+    {
+        var teams = league.Members.ToDictionary(member => member.MemberId, member => member.TeamName);
+        return NotificationTexts.Digest(
+            league.Name,
+            season.Label,
+            statements
+                .Where(statement => teams.ContainsKey(statement.MemberId))
+                .Select(statement => new MemberBalance(teams[statement.MemberId], statement.Totals().Balance)),
+            pot: statements.Sum(statement => statement.InThePot()),
+            attestationsPending: statements.Sum(statement => statement.PendingAttestations()));
+    }
+
+    // Inserting the notification claims its key, before anything is sent, which is what makes a later tick send nothing.
+    private async Task ClaimAndDeliverAsync(
+        IDocumentSession session, Guid leagueId, Notification notification, Tally tally, CancellationToken cancellation)
+    {
+        session.Insert(notification);
+        await session.SaveChangesAsync(cancellation);
+
+        await DeliverAsync(session, leagueId, notification.Id, notification.Kind, tally, cancellation);
+    }
+
+    private static async Task SkipAsync(
+        IDocumentSession session, Guid leagueId, Notification notification, string reason, Tally tally, CancellationToken cancellation)
+    {
+        notification.Status = NotificationStatus.Skipped;
+        notification.Reason = reason;
+        session.Store(notification);
+        await session.SaveChangesAsync(cancellation);
+        NotificationMetric.Record(leagueId, notification, NotificationStatus.Skipped);
+        tally.Skipped++;
+    }
+
     private async Task DeliverAsync(IDocumentSession session, Guid leagueId, string notificationId, string kind, Tally tally, CancellationToken cancellation)
     {
         try
@@ -207,13 +329,16 @@ public sealed class Tick(
         }
         catch (NotificationDeliveryException failure)
         {
-            logger.LogWarning(failure, "A {Kind} text for league {LeagueId} was not accepted and stays pending", kind, leagueId);
+            logger.LogWarning(failure, "A {Kind} notification for league {LeagueId} was not accepted and stays pending", kind, leagueId);
             tally.Failed++;
             return;
         }
 
         switch ((await session.LoadAsync<Notification>(notificationId, cancellation))?.Status)
         {
+            case NotificationStatus.Sent when kind == NotificationKinds.Digest:
+                tally.Digests++;
+                break;
             case NotificationStatus.Sent:
                 tally.Sent++;
                 break;
@@ -232,5 +357,6 @@ public sealed class Tick(
         public int Held;
         public int Skipped;
         public int Failed;
+        public int Digests;
     }
 }

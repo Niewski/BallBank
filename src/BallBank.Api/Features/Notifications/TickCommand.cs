@@ -8,7 +8,7 @@ namespace BallBank.Api.Features.Notifications;
 /// or a send was refused, so the Job shows as failed. The host is built and not started: the Job serves nothing, and runs neither the
 /// projection daemon nor the queues the API's node owns. Not starting it is also why its telemetry is built and flushed by hand.
 /// </summary>
-[Description("Sends the due-date reminders due now, releases held texts whose quiet hours have ended, and exits.")]
+[Description("Sends the due-date reminders due now, releases held texts whose quiet hours have ended, posts the weekly digest, purges what is past the retention age, and exits.")]
 public sealed class TickCommand : JasperFxAsyncCommand<NetCoreInput>
 {
     public override async Task<bool> Execute(NetCoreInput input)

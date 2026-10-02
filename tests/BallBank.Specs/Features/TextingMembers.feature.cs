@@ -612,13 +612,13 @@ namespace BallBank.Specs.Features
 #line 77
     await testRunner.WhenAsync("the treasurer opens the \"2026\" season with dues of $50 due on 2026-10-01", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
 #line hidden
-                global::Reqnroll.Table table1 = new global::Reqnroll.Table(new string[] {
+                global::Reqnroll.Table table30 = new global::Reqnroll.Table(new string[] {
                             "message"});
-                table1.AddRow(new string[] {
+                table30.AddRow(new string[] {
                             "BallBank: Holland Hogs assessed you $50.00 for Season dues, due Oct 1, 2026. Your" +
                                 " statement: {Sam\'s statement}"});
 #line 78
-    await testRunner.ThenAsync("Sam was texted:", ((string)(null)), table1, "Then ");
+    await testRunner.ThenAsync("Sam was texted:", ((string)(null)), table30, "Then ");
 #line hidden
 #line 81
     await testRunner.AndAsync("Priya was not texted", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
@@ -666,13 +666,13 @@ namespace BallBank.Specs.Features
 #line 88
     await testRunner.WhenAsync("the treasurer assesses Sam $25 for \"Trophy fund\" due on 2026-11-01", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
 #line hidden
-                global::Reqnroll.Table table2 = new global::Reqnroll.Table(new string[] {
+                global::Reqnroll.Table table31 = new global::Reqnroll.Table(new string[] {
                             "message"});
-                table2.AddRow(new string[] {
+                table31.AddRow(new string[] {
                             "BallBank: Holland Hogs assessed you $25.00 for Trophy fund, due Nov 1, 2026. Your" +
                                 " statement: {Sam\'s statement}"});
 #line 89
-    await testRunner.ThenAsync("Sam was texted:", ((string)(null)), table2, "Then ");
+    await testRunner.ThenAsync("Sam was texted:", ((string)(null)), table31, "Then ");
 #line hidden
             }
             await this.ScenarioCleanupAsync();
@@ -717,13 +717,13 @@ namespace BallBank.Specs.Features
 #line 98
     await testRunner.WhenAsync("Sam attests a $50 Venmo payment with reference \"VN-1234\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
 #line hidden
-                global::Reqnroll.Table table3 = new global::Reqnroll.Table(new string[] {
+                global::Reqnroll.Table table32 = new global::Reqnroll.Table(new string[] {
                             "message"});
-                table3.AddRow(new string[] {
+                table32.AddRow(new string[] {
                             "BallBank: Sam says they paid $50.00 by Venmo (VN-1234) in Holland Hogs. Confirm o" +
                                 "r reject it: {Sam\'s statement}"});
 #line 99
-    await testRunner.ThenAsync("Jacob was texted:", ((string)(null)), table3, "Then ");
+    await testRunner.ThenAsync("Jacob was texted:", ((string)(null)), table32, "Then ");
 #line hidden
 #line 102
     await testRunner.AndAsync("Sam was not texted", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
@@ -774,13 +774,13 @@ namespace BallBank.Specs.Features
 #line 110
     await testRunner.AndAsync("the treasurer confirms Sam\'s payment", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
-                global::Reqnroll.Table table4 = new global::Reqnroll.Table(new string[] {
+                global::Reqnroll.Table table33 = new global::Reqnroll.Table(new string[] {
                             "message"});
-                table4.AddRow(new string[] {
+                table33.AddRow(new string[] {
                             "BallBank: Holland Hogs confirmed your $50.00 Venmo payment. Your statement: {Sam\'" +
                                 "s statement}"});
 #line 111
-    await testRunner.ThenAsync("Sam was texted:", ((string)(null)), table4, "Then ");
+    await testRunner.ThenAsync("Sam was texted:", ((string)(null)), table33, "Then ");
 #line hidden
             }
             await this.ScenarioCleanupAsync();
@@ -829,13 +829,13 @@ namespace BallBank.Specs.Features
     await testRunner.AndAsync("the treasurer rejects Sam\'s payment because \"No Zelle with that reference arrived" +
                         "\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
-                global::Reqnroll.Table table5 = new global::Reqnroll.Table(new string[] {
+                global::Reqnroll.Table table34 = new global::Reqnroll.Table(new string[] {
                             "message"});
-                table5.AddRow(new string[] {
+                table34.AddRow(new string[] {
                             "BallBank: Holland Hogs rejected your $50.00 Zelle payment: No Zelle with that ref" +
                                 "erence arrived. Your statement: {Sam\'s statement}"});
 #line 122
-    await testRunner.ThenAsync("Sam was texted:", ((string)(null)), table5, "Then ");
+    await testRunner.ThenAsync("Sam was texted:", ((string)(null)), table34, "Then ");
 #line hidden
             }
             await this.ScenarioCleanupAsync();
@@ -880,13 +880,13 @@ namespace BallBank.Specs.Features
 #line 131
     await testRunner.WhenAsync("the treasurer adjusts Sam\'s balance by -$5 because \"Waived: hosted the draft\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
 #line hidden
-                global::Reqnroll.Table table6 = new global::Reqnroll.Table(new string[] {
+                global::Reqnroll.Table table35 = new global::Reqnroll.Table(new string[] {
                             "message"});
-                table6.AddRow(new string[] {
+                table35.AddRow(new string[] {
                             "BallBank: Holland Hogs lowered your balance by $5.00: Waived: hosted the draft. Y" +
                                 "our statement: {Sam\'s statement}"});
 #line 132
-    await testRunner.ThenAsync("Sam was texted:", ((string)(null)), table6, "Then ");
+    await testRunner.ThenAsync("Sam was texted:", ((string)(null)), table35, "Then ");
 #line hidden
             }
             await this.ScenarioCleanupAsync();
@@ -1145,13 +1145,13 @@ namespace BallBank.Specs.Features
 #line 182
     await testRunner.WhenAsync("the tick runs 3 hours later", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
 #line hidden
-                global::Reqnroll.Table table7 = new global::Reqnroll.Table(new string[] {
+                global::Reqnroll.Table table36 = new global::Reqnroll.Table(new string[] {
                             "message"});
-                table7.AddRow(new string[] {
+                table36.AddRow(new string[] {
                             "BallBank: Holland Hogs confirmed your $50.00 Venmo payment. Your statement: {Sam\'" +
                                 "s statement}"});
 #line 183
-    await testRunner.ThenAsync("Sam was texted:", ((string)(null)), table7, "Then ");
+    await testRunner.ThenAsync("Sam was texted:", ((string)(null)), table36, "Then ");
 #line hidden
             }
             await this.ScenarioCleanupAsync();
@@ -1202,13 +1202,13 @@ namespace BallBank.Specs.Features
 #line 194
     await testRunner.AndAsync("the treasurer confirms Sam\'s payment", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
-                global::Reqnroll.Table table8 = new global::Reqnroll.Table(new string[] {
+                global::Reqnroll.Table table37 = new global::Reqnroll.Table(new string[] {
                             "message"});
-                table8.AddRow(new string[] {
+                table37.AddRow(new string[] {
                             "BallBank: Holland Hogs confirmed your $50.00 Venmo payment. Your statement: {Sam\'" +
                                 "s statement}"});
 #line 195
-    await testRunner.ThenAsync("Sam was texted:", ((string)(null)), table8, "Then ");
+    await testRunner.ThenAsync("Sam was texted:", ((string)(null)), table37, "Then ");
 #line hidden
             }
             await this.ScenarioCleanupAsync();
@@ -1521,13 +1521,13 @@ namespace BallBank.Specs.Features
 #line 270
     await testRunner.AndAsync("the second league\'s treasurer assesses Sam $10 for \"Banquet\" due on 2026-12-01", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
-                global::Reqnroll.Table table9 = new global::Reqnroll.Table(new string[] {
+                global::Reqnroll.Table table38 = new global::Reqnroll.Table(new string[] {
                             "message"});
-                table9.AddRow(new string[] {
+                table38.AddRow(new string[] {
                             "BallBank: Holland Hogs assessed you $10.00 for Banquet, due Dec 1, 2026. Your sta" +
                                 "tement: {Sam\'s statement}"});
 #line 271
-    await testRunner.ThenAsync("Sam was texted:", ((string)(null)), table9, "Then ");
+    await testRunner.ThenAsync("Sam was texted:", ((string)(null)), table38, "Then ");
 #line hidden
 #line 274
     await testRunner.AndAsync("Sam was texted once in the second league", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
@@ -1586,13 +1586,13 @@ namespace BallBank.Specs.Features
 #line 285
     await testRunner.AndAsync("Sam is not opted out of texts", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
-                global::Reqnroll.Table table10 = new global::Reqnroll.Table(new string[] {
+                global::Reqnroll.Table table39 = new global::Reqnroll.Table(new string[] {
                             "message"});
-                table10.AddRow(new string[] {
+                table39.AddRow(new string[] {
                             "BallBank: Holland Hogs assessed you $25.00 for Trophy fund, due Nov 1, 2026. Your" +
                                 " statement: {Sam\'s statement}"});
 #line 286
-    await testRunner.AndAsync("Sam was texted:", ((string)(null)), table10, "And ");
+    await testRunner.AndAsync("Sam was texted:", ((string)(null)), table39, "And ");
 #line hidden
             }
             await this.ScenarioCleanupAsync();

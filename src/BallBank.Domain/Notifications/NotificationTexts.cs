@@ -10,6 +10,7 @@ public static class NotificationKinds
     public const string PaymentRejected = "PaymentRejected";
     public const string AdjustmentPosted = "AdjustmentPosted";
     public const string Reminder = "Reminder";
+    public const string Digest = "Digest";
 }
 
 /// <summary>Where a notification is delivered.</summary>
@@ -35,4 +36,30 @@ public static class NotificationTexts
     /// <param name="pot">What the pot holds now, this payment included.</param>
     public static string PaymentConfirmed(string teamName, decimal amount, decimal pot) =>
         $"{teamName} paid {Format.Money(amount)} and the treasurer confirmed it. The pot is now {Format.Money(pot)}.";
+
+    /// <summary>The weekly digest, as lines: who still owes (most first), what the pot holds, and how many payments wait for the treasurer.</summary>
+    /// <param name="balances">Every member of the season; those who owe nothing, or are owed, are left out of who still owes.</param>
+    public static string Digest(string leagueName, string season, IEnumerable<MemberBalance> balances, decimal pot, int attestationsPending)
+    {
+        var owing = balances
+            .Where(member => member.Balance > 0)
+            .OrderByDescending(member => member.Balance)
+            .ThenBy(member => member.TeamName, StringComparer.OrdinalIgnoreCase)
+            .Select(member => $"{member.TeamName} {Format.Money(member.Balance)}")
+            .ToList();
+
+        var waiting = attestationsPending switch
+        {
+            0 => "No payments are waiting for the treasurer to confirm.",
+            1 => "1 payment is waiting for the treasurer to confirm.",
+            _ => $"{attestationsPending} payments are waiting for the treasurer to confirm.",
+        };
+
+        return string.Join(
+            "\n",
+            $"Weekly digest for {leagueName}, {season} season.",
+            owing.Count == 0 ? "Everyone has paid up." : $"Still owing: {string.Join(", ", owing)}.",
+            $"The pot holds {Format.Money(pot)}.",
+            waiting);
+    }
 }
