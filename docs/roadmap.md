@@ -34,7 +34,7 @@ Deploy target: API on Container Apps, web on Static Web Apps, so nothing lives o
 - Reqnroll: *Rejecting a payment*, *Adjustments need a reason*, plus HTTP-level versions of the
   existing scenarios.
 
-## M3 — Dashboard, reminders, limits, telemetry
+## M3 — Dashboard, reminders, limits, telemetry ✅
 
 - `LeaguePot` async projection and the projection daemon.
 - Notifications: Discord webhook channel, Twilio SMS channel with opt-in, STOP handling, quiet
@@ -43,6 +43,10 @@ Deploy target: API on Container Apps, web on Static Web Apps, so nothing lives o
   a Sunday wake-up Job ahead of the league's busiest hour.
 - Per-tenant rate limiting; k6 proof.
 - OpenTelemetry to Application Insights with `tenant.id` everywhere; first `numbers.md`.
+
+Built and tested locally. Nothing is deployed yet, so the Job definitions are in the runbook and the
+measurements that need a deployed environment (cold start, warm latency, the rate-limit proof, the
+bill) are in `numbers.md` as commands for a person to run.
 
 ## M4 — Payouts, season close, demo rail
 

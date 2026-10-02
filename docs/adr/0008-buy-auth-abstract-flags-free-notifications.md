@@ -1,6 +1,6 @@
 # ADR-0008: Buy identity, abstract feature flags, free notification channels
 
-- **Status:** Proposed; the Discord notification channel accepted 2026-09-29 and the texts 2026-09-30 (M3)
+- **Status:** Notifications Accepted 2026-10-02 (M3); identity and feature flags Proposed
 - **Date:** 2026-09-24
 
 ## Context
@@ -8,13 +8,20 @@
 Identity, feature flags and message delivery are not what BallBank is about, and each is a place
 where a home-grown version becomes a liability.
 
-## Decision (proposed)
+## Decision
 
-- **Identity:** a managed provider (Auth0's free tier) issues JWTs; the API only validates them.
-- **Feature flags:** code depends on the OpenFeature API; the provider starts as a static file and
+- **Identity (proposed):** a managed provider (Auth0's free tier) issues JWTs; the API only validates them.
+- **Feature flags (proposed):** code depends on the OpenFeature API; the provider starts as a static file and
   can become a hosted service without touching call sites.
-- **Notifications:** Discord via webhook (free), SMS via Twilio behind `INotificationChannel`, with
-  consent recorded per member.
+- **Notifications (accepted):** Discord via webhook (free), SMS via Twilio, both behind
+  `INotificationChannel`. Texts follow three rules, each decided when the text is about to go:
+  - **Consent** is the member's own act (a treasurer cannot give it), at one specific number, recorded with
+    when it was given. A different number has no consent until the member opts in at it; withdrawing it in
+    the app is not an opt-out.
+  - **Opt-out** is the number's: the STOP a number replied with is recorded once for the number, binds every
+    league it is in, and outranks consent until the number replies START.
+  - **Quiet hours** are the member's, by their own clock (21:00 to 09:00 Eastern until they choose others).
+    A text that falls inside them is held until they end, not dropped.
 
 ## Consequences
 
