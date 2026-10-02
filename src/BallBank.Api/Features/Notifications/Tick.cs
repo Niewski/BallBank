@@ -65,7 +65,7 @@ public sealed class Tick(
         var failed = 0;
         foreach (var season in await OpenSeasonsAsync(onlyLeague, cancellation))
         {
-            using var scope = logger.BeginScope(new KeyValuePair<string, object>[] { new(TenantTelemetry.TenantId, season.LeagueId.ToString()) });
+            using var scope = logger.BeginTenantScope(season.LeagueId.ToString());
             try
             {
                 var summary = await TickLeagueAsync(season, cancellation);
@@ -141,6 +141,7 @@ public sealed class Tick(
                     notification.Reason = Reminders.PaidUp;
                     session.Store(notification);
                     await session.SaveChangesAsync(cancellation);
+                    NotificationMetric.Record(leagueId, notification, NotificationStatus.Skipped);
                     tally.Skipped++;
                     continue;
                 }

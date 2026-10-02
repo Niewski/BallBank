@@ -80,7 +80,7 @@ public sealed class LeaguePotProjection : MultiStreamProjection<LeaguePot, Guid>
 {
     public const string ProjectionName = "LeaguePot";
 
-    public LeaguePotProjection()
+    public LeaguePotProjection(ILogger<LeaguePotProjection> logger)
     {
         Name = ProjectionName;
 
@@ -91,7 +91,7 @@ public sealed class LeaguePotProjection : MultiStreamProjection<LeaguePot, Guid>
         IncludeType<PaymentRejected>();
         IncludeType<AdjustmentPosted>();
 
-        CustomGrouping(new SeasonGrouper());
+        CustomGrouping(new SeasonGrouper(logger));
     }
 
     public override LeaguePot? Evolve(LeaguePot? snapshot, Guid id, IEvent e)
@@ -153,14 +153,21 @@ public sealed class LeaguePotProjection : MultiStreamProjection<LeaguePot, Guid>
     /// <summary>
     /// Sends each account event to its season's document. The stream is the account, whose opening
     /// event names its league and season; that is read once per account, and learnt from the batch
-    /// itself when the account is opened in it.
+    /// itself when the account is opened in it. Says which leagues a batch is for, under their
+    /// <c>tenant.id</c>, as the daemon works through all of them.
     /// </summary>
-    private sealed class SeasonGrouper : IAggregateGrouper<Guid>
+    private sealed class SeasonGrouper(ILogger logger) : IAggregateGrouper<Guid>
     {
         private readonly ConcurrentDictionary<(string Tenant, Guid Account), Guid> _seasons = new();
 
         public async Task Group(IQuerySession session, IReadOnlyList<IEvent> accountEvents, IEventGrouping<Guid> grouping)
         {
+            foreach (var league in accountEvents.GroupBy(e => e.TenantId))
+            {
+                using var scope = logger.BeginTenantScope(league.Key);
+                logger.LogInformation("{Projection} is applying {Count} events of league {LeagueId}", ProjectionName, league.Count(), league.Key);
+            }
+
             foreach (var e in accountEvents)
             {
                 if (e.Data is AccountOpened opened)

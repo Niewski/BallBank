@@ -9,7 +9,7 @@
    Discord webhook ◀── Notifications (Wolverine outbox)
    Twilio SMS      ◀── Notifications (opt-in only; delivery status webhook ──▶ API)
    Stripe test mode ── webhook ──▶ /webhooks/stripe   (demo rail only, never live)
-   OpenTelemetry ──▶ Application Insights (or Grafana Cloud); locally the Aspire dashboard
+   OpenTelemetry ──▶ Application Insights, and any OTLP collector; locally the Aspire dashboard
    Container Apps cron Job (same image) ──▶ due-date reminders, weekly delinquency digest
 ```
 
@@ -36,7 +36,8 @@ after authorisation confirms the caller is a member of that league — never fro
 Row-level security is available as defence in depth. Per-tenant rate limiting uses ASP.NET Core's
 partitioned token bucket keyed by league (`429` + `Retry-After`); in-process while there is one
 replica, Redis when there are more ([ADR-0013](adr/0013-every-league-has-its-own-request-budget.md)).
-Every log line, trace and metric is tagged with `tenant.id`.
+What a league's requests, messages, ticks and projections record is tagged with `tenant.id`
+([Observability](#observability)).
 Database-per-tenant is the "higher tier" option and is confined to store configuration
 ([ADR-0004](adr/0004-conjoined-tenancy.md)).
 
@@ -72,7 +73,8 @@ messages for reminders. Design points:
 - **Cost.** Discord is free. SMS is the one paid line item: a toll-free number is about $2.15/month
   plus roughly a cent per message including carrier fees; toll-free verification is required for
   US traffic and takes a few business days. A twelve-member league sending a handful of reminders
-  a month is a few dollars.
+  a month is a few dollars. Each attempt to send is counted by channel, kind and outcome, so the texts
+  actually sent are a sum, not a guess ([Observability](#observability)).
 
 ## Idempotency, concurrency, outbox
 
@@ -99,7 +101,7 @@ built yet.
 | Images | GitHub Container Registry (public) | Avoids a paid registry. |
 | CI/CD | GitHub Actions | OIDC federation to Azure; no stored cloud credentials. |
 | Identity | Auth0, free tier | JWT bearer to the API. |
-| Telemetry | Application Insights | Within the monthly free ingestion allowance; alternative: Grafana Cloud free tier. |
+| Telemetry | Application Insights, through the Azure Monitor exporter | Within the monthly free ingestion allowance; alternative: Grafana Cloud free tier, through the OTLP exporter that is already there. |
 | Notifications | Discord webhook (free), Twilio SMS (paid, small) | See above. |
 
 Expected bill: a few dollars a month, almost all SMS. The actual bill is published monthly in
@@ -107,7 +109,57 @@ Expected bill: a few dollars a month, almost all SMS. The actual bill is publish
 
 ## Observability
 
-OpenTelemetry from `ServiceDefaults`: traces for every request and handler, metrics for latency and
-queue depth, structured logs with correlation ids. Locally everything lands in the Aspire dashboard.
+OpenTelemetry, set up once in `ServiceDefaults` (`AddServiceDefaults()`) for the API and the Job, which are
+one image.
+
+- **Traces:** every request but the health probes, every message Wolverine handles, and the application's
+  own spans. Outgoing HTTP calls are traced too, except Discord's, whose webhook URL is a secret carried in
+  its path ([ADR-0008](adr/0008-buy-auth-abstract-flags-free-notifications.md)).
+- **Metrics:** ASP.NET Core, `HttpClient`, the runtime, and every meter named `BallBank.*`:
+  `ballbank.projection.lag`, `ballbank.ratelimit.rejections` and `ballbank.notifications`.
+- **Logs:** everything `ILogger` writes, with its scopes and its trace and span ids.
+
+**One league at a time.** Any question about one league is answered by filtering on `tenant.id`:
+
+| What | Carries `tenant.id` | Taken from |
+|---|---|---|
+| A request | its span, and every log written while it is handled | the route (`UseTenantTelemetry`) |
+| A message handled | the handler's span, and every log written while the handler runs (Marten's statements among them, when its log level lets them through) | the message's tenant: Wolverine tags the span, `MessageTenantLogScope` opens the log scope |
+| The tick | each league's lines, the summary `Tick for league …` among them | a scope per league, in `Tick` |
+| The projection daemon | the line the projection writes for each league in a batch it applies, and `ballbank.projection.lag` | the events' tenant, as `LeaguePotProjection` reads it |
+| `ballbank.notifications` | every count | the league the notification is for |
+
+What the framework logs before the league is known (a request starting) or around a handler (a message
+arriving) is written outside those scopes and has its trace id only; the trace finds it. Deployed, Marten
+logs at `Warning` and the notification handler logs nothing itself, so a question about one league's messages
+is answered by the handler's span and the notifications counter, not by its logs.
+
+**Notifications.** `ballbank.notifications` counts each attempt to deliver one, tagged `tenant.id`, `channel`
+(`Sms`, `Discord`), `kind` (`Reminder`, `PaymentConfirmed`, …) and `outcome`: `Sent`; `Held` (the member's quiet
+hours); `Skipped` (no consent, opted out, or a reminder to a member who has since paid up); `Dropped` (the
+league disconnected the channel); or `Failed` (the channel refused the send, which is tried again). "Did anyone
+get texted this week?" is the `Sent` count for channel `Sms`, and what Twilio will charge is that count at the
+per-message rate under Notifications.
+
+**Where it goes.** Two exporters, each switched on by its own setting and independent of the other:
+
+- OTLP, when `OTEL_EXPORTER_OTLP_ENDPOINT` is set. Aspire sets it locally, and the dashboard receives it.
+- Application Insights, when `APPLICATIONINSIGHTS_CONNECTION_STRING` is set, through the Azure Monitor
+  exporter: the exporter package, not the Azure Monitor distro, which would instrument the process a second
+  time and skip the Discord filter. The setting belongs to the platform and never to the repo; without it
+  nothing is sent to Azure and nothing else changes, which is how it runs locally
+  ([runbook](runbook.md#send-telemetry-to-application-insights)).
+
+Two choices that are not obvious from the code:
+
+- **Every trace is kept.** The Azure Monitor exporter's default sampler lets five traces a second through,
+  for the whole provider (the OTLP export too), and drops the logs of the traces it drops. A league's traffic
+  is small enough to keep all of it.
+- **The Job's telemetry is built and flushed by hand.** Its host is built and never started, and starting a host
+  is what builds the telemetry providers. So `tick` builds them before the work and flushes them after it
+  (`StartTelemetry`), waiting at most ten seconds for each signal. For the same reason there is one Azure
+  exporter per signal rather than `UseAzureMonitorExporter`, which attaches its trace and log exporters only
+  once a host starts.
+
 Published numbers: cold start, warm p50/p95 for `ConfirmPayment`, `LeaguePot` projection lag,
 availability over the season, rate-limit proof, events per season, monthly cost.
