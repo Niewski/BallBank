@@ -61,8 +61,9 @@ public interface ILeagueDriver
     DateOnly Today { get; }
 
     /// <summary>
-    /// Runs the tick as of <paramref name="asOf"/>, once (ADR-0007): the reminders members who owe are due then, and the
-    /// texts held for quiet hours that have ended by then. It does not move the league's own <see cref="Now"/>.
+    /// Runs the tick as of <paramref name="asOf"/>, once (ADR-0007): the reminders members who owe are due then, the
+    /// texts held for quiet hours that have ended by then, and the week's digest if Discord is to be told of it. It does
+    /// not move the league's own <see cref="Now"/>.
     /// </summary>
     Task RunTick(DateTimeOffset asOf);
 
@@ -110,9 +111,12 @@ public interface ILeagueDriver
 
     /// <summary>
     /// The treasurer connects the league's Discord channel by its webhook, and says whether confirmed payments
-    /// are announced there. Discord is greeted at once.
+    /// are announced there and whether the weekly digest is posted there. Discord is greeted at once.
     /// </summary>
-    Task ConnectDiscord(bool announcePayments);
+    Task ConnectDiscord(bool announcePayments, bool postDigest = false);
+
+    /// <summary>The treasurer disconnects Discord: nothing is posted there afterwards, whatever was asked of it before.</summary>
+    Task DisconnectDiscord();
 
     /// <summary>
     /// Everything Discord has been told, oldest first, once the league has delivered all it is going to

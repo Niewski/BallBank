@@ -7,7 +7,8 @@ namespace BallBank.Api.Features.Notifications;
 /// (<see cref="Domain.Notifications.NotificationKey"/>): the channel, who is told, what it is about and what caused it.
 /// Inserting it claims that key, so an event handled a second time finds it taken and sends nothing (ADR-0008).
 /// One decided from an event commits in the same transaction as the handling of the event, together with the message
-/// that sends it; a reminder is decided and sent by the tick (ADR-0007).
+/// that sends it; a reminder and a weekly digest are decided and sent by the tick (ADR-0007), which purges the ones
+/// older than the retention age (<see cref="RetentionOptions"/>), freeing their keys.
 /// </summary>
 public sealed class Notification
 {
@@ -66,7 +67,7 @@ public static class NotificationStatus
 {
     /// <summary>
     /// Not delivered yet. One that stays pending while its message sits in the dead-letter queue failed for good; a
-    /// reminder the channel refused has no message, and stays pending until the next tick sends it.
+    /// reminder or digest the channel refused has no message, and stays pending until the next tick sends it.
     /// </summary>
     public const string Pending = "Pending";
 
@@ -75,7 +76,7 @@ public static class NotificationStatus
     /// <summary>Not sent: the league disconnected the channel after the notification was decided.</summary>
     public const string Dropped = "Dropped";
 
-    /// <summary>Not sent, and never will be: the member gave no consent at their number, or the number opted out.</summary>
+    /// <summary>Not sent, and never will be: no consent at the number, or it opted out; the member paid up before a reminder went; or a digest's week ended, or the league stopped wanting it.</summary>
     public const string Skipped = "Skipped";
 
     /// <summary>Not sent yet because it fell in the member's quiet hours; it goes once <see cref="Notification.SendAfter"/> has passed.</summary>

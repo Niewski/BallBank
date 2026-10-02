@@ -92,6 +92,9 @@ builder.Services.AddDiscord();
 // Twilio, where members are texted (ADR-0008); its settings are secrets.
 builder.Services.AddTwilio(builder.Configuration);
 
+// How old the tick lets what it keeps get before it purges it (ADR-0005). Too short, and a dedupe key is freed too soon.
+builder.Services.AddRetention(builder.Configuration);
+
 // Marten: event store + documents on PostgreSQL. Tenant = league (ADR-0004).
 builder.Services.AddMarten(options =>
     {

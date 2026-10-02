@@ -294,15 +294,19 @@ public sealed class HttpLeagueDriver : ILeagueDriver
     }
 
     /// <summary>A webhook of the fake Discord, which posts a hello through it before answering.</summary>
-    public async Task ConnectDiscord(bool announcePayments)
+    public async Task ConnectDiscord(bool announcePayments, bool postDigest = false)
     {
         _webhook = Host.Discord.NewWebhook();
         await Send(
             Treasurer,
             HttpMethod.Put,
             $"/leagues/{_leagueId}/notifications/discord",
-            new DiscordSettingsRequest(_webhook.Url, announcePayments, PostDigest: false));
+            new DiscordSettingsRequest(_webhook.Url, announcePayments, postDigest));
     }
+
+    /// <summary>The webhook is forgotten by the API; the fake Discord keeps what it was posted through it, to be read after.</summary>
+    public Task DisconnectDiscord() =>
+        Send(Treasurer, HttpMethod.Delete, $"/leagues/{_leagueId}/notifications/discord", new { });
 
     public async Task<IReadOnlyList<string>> PostedToDiscord()
     {

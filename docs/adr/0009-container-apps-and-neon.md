@@ -26,4 +26,8 @@ Marten requires PostgreSQL.
 ## Consequences
 
 Two cold starts in series (compute, then database) after idle; measured and published. A warm-up
-tick before peak hours is a cheap mitigation.
+before peak hours is a cheap mitigation: a Job that asks the API for its version at Sunday 18:00
+Eastern (runbook, "The Jobs"). The hourly tick is no warm-up, as it runs in a container of its own and
+never reaches the API. The wake-up reads no database itself, but the API connects to Postgres as it
+starts (it applies its schema and starts its background workers), so the ping most likely wakes Neon
+too: expected, not yet measured. It holds for the scale-down cooldown, five minutes by default.
