@@ -41,3 +41,6 @@ appsettings.*.local.json
 # OS
 .DS_Store
 Thumbs.db
+
+# Reqnroll code-behind is generated at build from the .feature files
+tests/BallBank.Specs/Features/*.feature.cs

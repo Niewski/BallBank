@@ -12,7 +12,7 @@ shell, CI, ADR skeletons, agent skills.
 
 Deploy target: API on Container Apps, web on Static Web Apps, so nothing lives only on a laptop.
 
-## M1 — Import and membership
+## M1 — Import and membership ✅
 
 - Typed Sleeper client (`/league/{id}`, `/league/{id}/users`, `/league/{id}/rosters`,
   `/user/{id}/leagues/nfl/{season}`, `/state/nfl`) with timeouts, retries and cached snapshots.
