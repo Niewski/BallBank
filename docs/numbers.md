@@ -52,8 +52,12 @@ The same test counts them: `session.Events.QueryAllRawEvents().CountAsync()` for
 
 - Locally on 2026-10-02 (Windows, Docker Desktop): `dotnet test`: domain 331 tests in 0.7 s, specs 117 in
   0.7 s (13 skipped: they are tagged `@http` and run only over HTTP), integration 441 in 5 min 5 s; 5 min 13 s
-  for the whole command.
+  for the whole command. Re-run 2026-10-06 on the same machine with the same counts: domain 0.6 s, specs 0.6 s,
+  integration 5 min 4 s.
 - Specs over HTTP (`BALLBANK_SPECS_DRIVER=http dotnet test tests/BallBank.Specs`), locally: 117 of 117 in 45 s.
+  Not all of them reach the API: the five membership features (importing, inviting, claiming, appointing a
+  treasurer, contact details) are written against the aggregates in memory under both drivers; their HTTP
+  coverage is the integration tests. The treasury and notification features, and every `@http` scenario, do.
 - In CI, the same four runs are the steps *Test* and *Specs over HTTP* of the `.NET build and test` job:
   `gh run view <run id> --log | grep -E "Passed!|Failed!"`.
 
